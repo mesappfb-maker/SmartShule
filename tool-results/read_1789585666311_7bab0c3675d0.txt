@@ -1,0 +1,802 @@
+     1→     1→smartshule-dossier-complet (1).md
+     2→     2→# SmartShule (SS) — Dossier complet du projet
+     3→     3→
+     4→     4→> **Slogan : _SmartShule — L’intelligence qui rapproche l’école et la famille._**
+     5→     5→>
+     6→     6→> Ce document regroupe en un seul fichier le cahier des charges fonctionnel et technique, le prompt système de l’agent autonome et le template du journal de bord.
+     7→     7→
+     8→     8→## Table des matières
+     9→     9→
+    10→    10→1. [Cahier des charges fonctionnel et technique](#partie-i--cahier-des-charges-fonctionnel-et-technique)
+    11→    11→2. [Prompt système de l’agent autonome](#partie-ii--prompt-système-de-lagent-autonome)
+    12→    12→3. [Template du journal de bord](#partie-iii--template-du-journal-de-bord)
+    13→    13→
+    14→    14→---
+    15→    15→
+    16→    16→# Partie I — Cahier des charges fonctionnel et technique
+    17→    17→
+    18→    18→# SmartShule (SS)
+    19→    19→## Cahier des charges fonctionnel et technique pour un système intégré de gestion scolaire, administrative et commerciale
+    20→    20→
+    21→    21→**Version :** 1.0  
+    22→    22→**Cible technique :** C# avec .NET 8, ASP.NET Core, Entity Framework Core 8  
+    23→    23→**Type de solution :** application multi-postes, centralisée, sécurisée et utilisable hors connexion  
+    24→    24→**Périmètre :** établissement scolaire comprenant plusieurs directions, sections, cycles, services et activités génératrices de revenus
+    25→    25→
+    26→    26→---
+    27→    27→
+    28→    28→## 1. Vision du produit
+    29→    29→
+    30→    30→**SmartShule (SS)** est un progiciel intégré destiné à administrer une école complète. Il doit réunir dans une même plateforme les activités pédagogiques, les inscriptions, les élèves, les enseignants, les ressources humaines, la paie, les frais académiques, la comptabilité, le patrimoine et les services commerciaux de l’établissement.
+    31→    31→
+    32→    32→> **Slogan recommandé : _SmartShule — L’intelligence qui rapproche l’école et la famille._**
+    33→    33→
+    34→    34→Autres variantes possibles : **« SmartShule — Une école connectée, une réussite partagée »** et **« SmartShule — Piloter l’école, accompagner chaque élève »**. Le premier slogan est recommandé, car il couvre à la fois la gestion centrale, le portail et la communication avec les parents.
+    35→    35→
+    36→    36→Le logiciel doit prendre en charge une organisation composée, par exemple, d’une direction maternelle, d’une direction primaire, d’une direction secondaire et de sections spécialisées telles que les mathématiques, la physique, la biologie-chimie, les lettres, les langues, l’informatique ou toute autre section ajoutée ultérieurement.
+    37→    37→
+    38→    38→Le système doit également gérer les services qui ne sont pas strictement scolaires, notamment la location de salles de fête et la location de véhicules. Ces services doivent être reliés à la facturation, aux encaissements, aux dépenses, au patrimoine et à la comptabilité générale de l’école. Il ne s’agit donc pas de deux modules isolés, mais de deux activités commerciales intégrées au même système financier.
+    39→    39→
+    40→    40→Le logiciel doit rester opérationnel lorsque certains postes ne disposent pas d’une connexion Internet ou d’un accès au serveur central. La connexion permet ensuite de synchroniser les opérations avec le serveur administratif central. Cette synchronisation doit être contrôlée, traçable, sécurisée et résistante aux doublons.
+    41→    41→
+    42→    42→> **Principe directeur :** une donnée est saisie une seule fois dans le module responsable, puis réutilisée par les autres modules selon les droits de l’utilisateur.
+    43→    43→
+    44→    44→---
+    45→    45→
+    46→    46→## 2. Objectifs
+    47→    47→
+    48→    48→Le projet poursuit les objectifs suivants :
+    49→    49→
+    50→    50→1. Centraliser les informations scolaires, administratives, financières et patrimoniales.
+    51→    51→2. Réduire la double saisie et les erreurs de transcription.
+    52→    52→3. Donner à chaque service un espace de travail adapté à ses responsabilités.
+    53→    53→4. Permettre le fonctionnement local en cas de coupure réseau.
+    54→    54→5. Synchroniser les opérations entre les postes et le serveur central.
+    55→    55→6. Assurer une traçabilité complète des créations, modifications, validations et annulations.
+    56→    56→7. Produire des tableaux de bord fiables pour la direction.
+    57→    57→8. Relier les inscriptions, les élèves, les classes, les cours, les paiements et la comptabilité.
+    58→    58→9. Relier les réservations de salles et de véhicules à la facturation et aux disponibilités réelles.
+    59→    59→10. Préparer le système à l’évolution de l’établissement et à l’ajout de nouvelles directions ou sections.
+    60→    60→
+    61→    61→---
+    62→    62→
+    63→    63→## 3. Périmètre fonctionnel
+    64→    64→
+    65→    65→### 3.1 Paramétrage général et référentiels
+    66→    66→
+    67→    67→Le système doit permettre de configurer :
+    68→    68→
+    69→    69→- l’établissement, ses sites et ses bâtiments ;
+    70→    70→- les années scolaires et les périodes académiques ;
+    71→    71→- les directions et sous-directions ;
+    72→    72→- les cycles : maternel, primaire, secondaire et supérieur, si nécessaire ;
+    73→    73→- les sections, options et orientations ;
+    74→    74→- les niveaux, classes, salles et groupes ;
+    75→    75→- les matières et unités d’enseignement ;
+    76→    76→- les types de frais et tarifs ;
+    77→    77→- les devises, modes de paiement et comptes financiers ;
+    78→    78→- les types de documents et numérotations ;
+    79→    79→- les catégories d’équipements, véhicules, salles et contrats ;
+    80→    80→- les calendriers, jours fériés et horaires de fonctionnement.
+    81→    81→
+    82→    82→Tous ces référentiels doivent posséder un identifiant global unique afin de rester cohérents entre les bases locales et la base centrale.
+    83→    83→
+    84→    84→### 3.2 Gestion des directions et de la structure scolaire
+    85→    85→
+    86→    86→Une direction peut posséder ses propres responsables, enseignants, classes, cours, élèves et règles de validation, tout en restant rattachée à l’établissement principal.
+    87→    87→
+    88→    88→Le système doit permettre de représenter une structure comme celle-ci :
+    89→    89→
+    90→    90→```text
+    91→    91→Établissement
+    92→    92→├── Direction maternelle
+    93→    93→│   ├── Niveaux
+    94→    94→│   ├── Classes
+    95→    95→│   └── Corps enseignant
+    96→    96→├── Direction primaire
+    97→    97→│   ├── Niveaux
+    98→    98→│   ├── Classes
+    99→    99→│   └── Corps enseignant
+   100→   100→├── Direction secondaire
+   101→   101→│   ├── Tronc commun
+   102→   102→│   ├── Section mathématiques
+   103→   103→│   ├── Section physique
+   104→   104→│   ├── Section biologie-chimie
+   105→   105→│   ├── Section lettres et langues
+   106→   106→│   └── Corps enseignant
+   107→   107→└── Services administratifs et commerciaux
+   108→   108→```
+   109→   109→
+   110→   110→La structure doit être configurable. Le code ne doit pas contenir de noms de directions en dur.
+   111→   111→
+   112→   112→### 3.3 Admissions, inscriptions et réinscriptions
+   113→   113→
+   114→   114→Le module doit gérer le cycle complet de l’élève : candidature, admission, inscription, réinscription, affectation dans une classe, transfert, suspension et sortie.
+   115→   115→
+   116→   116→Fonctions attendues :
+   117→   117→
+   118→   118→- préinscription d’un candidat ;
+   119→   119→- collecte des pièces exigées ;
+   120→   120→- validation du dossier ;
+   121→   121→- attribution d’un matricule ;
+   122→   122→- gestion des responsables légaux ;
+   123→   123→- gestion des contacts d’urgence ;
+   124→   124→- choix du niveau, de la section et de l’année scolaire ;
+   125→   125→- génération d’un contrat ou d’une fiche d’inscription ;
+   126→   126→- facturation automatique des frais selon le niveau et la section ;
+   127→   127→- réinscription avec reprise contrôlée des informations ;
+   128→   128→- changement de classe ou de section avec historique ;
+   129→   129→- suivi des dossiers incomplets ;
+   130→   130→- impression ou export des listes d’inscrits.
+   131→   131→
+   132→   132→Un élève ne doit pas être supprimé physiquement après une inscription. Il doit être archivé avec son historique académique, financier et administratif.
+   133→   133→
+   134→   134→### 3.4 Gestion des élèves et des responsables
+   135→   135→
+   136→   136→Le dossier élève doit regrouper l’identité, la photo, les coordonnées, les responsables, les documents, l’historique scolaire, les absences, les résultats et la situation financière autorisée par le rôle de l’utilisateur.
+   137→   137→
+   138→   138→Un responsable légal peut être lié à plusieurs élèves. Un élève peut avoir plusieurs responsables avec des liens différents : père, mère, tuteur, institution ou autre.
+   139→   139→
+   140→   140→### 3.5 Gestion des classes, sections et groupes
+   141→   141→
+   142→   142→Le module doit gérer :
+   143→   143→
+   144→   144→- les classes par année scolaire ;
+   145→   145→- leur capacité maximale ;
+   146→   146→- leur salle principale ;
+   147→   147→- leur direction et leur section ;
+   148→   148→- leur professeur principal ;
+   149→   149→- les groupes pédagogiques ;
+   150→   150→- les sous-groupes pour les travaux pratiques ;
+   151→   151→- les changements de classe ;
+   152→   152→- l’historique des affectations.
+   153→   153→
+   154→   154→Le système doit empêcher l’affectation d’un élève dans une classe inactive ou dans une classe dont la capacité validée est dépassée, sauf dérogation autorisée et journalisée.
+   155→   155→
+   156→   156→### 3.6 Gestion des enseignants, des cours et des emplois du temps
+   157→   157→
+   158→   158→Un enseignant peut dispenser la même matière dans plusieurs classes, plusieurs niveaux et plusieurs sections. Il peut également être rattaché à plusieurs directions.
+   159→   159→
+   160→   160→Le système doit donc séparer clairement :
+   161→   161→
+   162→   162→- la personne ;
+   163→   163→- le dossier du personnel ;
+   164→   164→- la qualification ;
+   165→   165→- la matière enseignée ;
+   166→   166→- l’affectation de l’enseignant à une classe ;
+   167→   167→- l’affectation à une section ;
+   168→   168→- la séance planifiée ;
+   169→   169→- la séance réellement dispensée ;
+   170→   170→- les élèves concernés ;
+   171→   171→- les évaluations et résultats.
+   172→   172→
+   173→   173→Fonctions attendues :
+   174→   174→
+   175→   175→- création des matières ;
+   176→   176→- affectation d’un enseignant à une ou plusieurs matières ;
+   177→   177→- affectation à plusieurs classes et sections ;
+   178→   178→- gestion des volumes horaires ;
+   179→   179→- création d’emplois du temps ;
+   180→   180→- détection des conflits d’enseignant, de salle et de classe ;
+   181→   181→- suivi des cours prévus et réalisés ;
+   182→   182→- saisie des présences des élèves ;
+   183→   183→- saisie des présences des enseignants ;
+   184→   184→- préparation des supports et observations de cours ;
+   185→   185→- gestion des devoirs, interrogations et examens ;
+   186→   186→- calcul des notes selon des règles configurables ;
+   187→   187→- bulletins et relevés de notes ;
+   188→   188→- verrouillage des notes après validation.
+   189→   189→
+   190→   190→Le logiciel doit offrir à l’enseignant une vue limitée à ses propres cours, classes, groupes et évaluations, sauf autorisation particulière.
+   191→   191→
+   192→   192→### 3.7 Absences, discipline et vie scolaire
+   193→   193→
+   194→   194→Le module doit permettre de suivre les absences et retards des élèves et du personnel. Chaque absence doit comporter une date, une durée, un motif, une justification éventuelle, son statut et l’utilisateur qui l’a enregistrée.
+   195→   195→
+   196→   196→Il doit également gérer les incidents disciplinaires, les avertissements, les sanctions, les convocations et les observations, avec une confidentialité renforcée.
+   197→   197→
+   198→   198→### 3.8 Ressources humaines
+   199→   199→
+   200→   200→Le module RH doit gérer les employés, enseignants et agents administratifs :
+   201→   201→
+   202→   202→- dossier personnel ;
+   203→   203→- contrat et type de contrat ;
+   204→   204→- poste et service ;
+   205→   205→- qualification ;
+   206→   206→- date d’entrée et de sortie ;
+   207→   207→- affectation à une direction ;
+   208→   208→- congés et absences ;
+   209→   209→- avances et retenues ;
+   210→   210→- documents administratifs ;
+   211→   211→- historique des changements ;
+   212→   212→- évaluations internes ;
+   213→   213→- état actif, suspendu ou sorti.
+   214→   214→
+   215→   215→Un même employé peut exercer plusieurs fonctions, mais les responsabilités doivent être distinguées dans les autorisations informatiques.
+   216→   216→
+   217→   217→### 3.9 Paie et rémunération
+   218→   218→
+   219→   219→Le module de paie doit être paramétrable selon la réglementation et les règles internes de l’établissement. Il ne doit pas imposer des taux légaux codés en dur.
+   220→   220→
+   221→   221→Il doit gérer :
+   222→   222→
+   223→   223→- période de paie ;
+   224→   224→- salaire de base ;
+   225→   225→- primes ;
+   226→   226→- heures supplémentaires ;
+   227→   227→- retenues ;
+   228→   228→- avances ;
+   229→   229→- absences non rémunérées ;
+   230→   230→- état provisoire ;
+   231→   231→- validation ;
+   232→   232→- clôture ;
+   233→   233→- bulletin de paie ;
+   234→   234→- écriture comptable générée après validation.
+   235→   235→
+   236→   236→La paie doit être contrôlée par des rôles séparés. La personne qui saisit les éléments ne doit pas nécessairement être celle qui valide le paiement.
+   237→   237→
+   238→   238→### 3.10 Frais académiques, facturation et encaissements
+   239→   239→
+   240→   240→Le système doit gérer les frais d’inscription, de scolarité, de transport, de cantine, d’uniforme, de fournitures, d’examen et tout autre frais configuré.
+   241→   241→
+   242→   242→Fonctions attendues :
+   243→   243→
+   244→   244→- grille tarifaire par année, direction, niveau, section et catégorie ;
+   245→   245→- facturation individuelle ou en masse ;
+   246→   246→- échéancier ;
+   247→   247→- réduction et bourse soumise à autorisation ;
+   248→   248→- paiement partiel ;
+   249→   249→- reçu numéroté ;
+   250→   250→- paiement par espèces, banque, mobile money ou autre mode configurable ;
+   251→   251→- annulation contrôlée d’un reçu ;
+   252→   252→- remboursement soumis à validation ;
+   253→   253→- relance des impayés ;
+   254→   254→- état de compte par élève ;
+   255→   255→- rapprochement des encaissements ;
+   256→   256→- transfert vers la comptabilité.
+   257→   257→
+   258→   258→Aucune modification directe d’un paiement validé ne doit être autorisée. Toute correction doit produire une annulation, un avoir ou une écriture de régularisation avec justification.
+   259→   259→
+   260→   260→### 3.11 Comptabilité intégrée
+   261→   261→
+   262→   262→La comptabilité doit être alimentée par les événements validés des autres modules. Elle doit permettre, selon le niveau de sophistication retenu :
+   263→   263→
+   264→   264→- plan comptable configurable ;
+   265→   265→- journaux ;
+   266→   266→- comptes clients et fournisseurs ;
+   267→   267→- caisse et banques ;
+   268→   268→- recettes académiques ;
+   269→   269→- recettes de location ;
+   270→   270→- dépenses ;
+   271→   271→- achats ;
+   272→   272→- salaires ;
+   273→   273→- immobilisations ;
+   274→   274→- amortissements ;
+   275→   275→- pièces justificatives ;
+   276→   276→- rapprochement bancaire ;
+   277→   277→- clôture de période ;
+   278→   278→- balance ;
+   279→   279→- grand livre ;
+   280→   280→- compte de résultat ;
+   281→   281→- états de caisse et de trésorerie.
+   282→   282→
+   283→   283→La comptabilité doit distinguer les centres de responsabilité, par exemple la direction primaire, la section scientifique, la location de salles et la location de véhicules.
+   284→   284→
+   285→   285→Le système doit utiliser le principe de **double entrée** lorsque la comptabilité générale est activée. Les règles de génération des écritures doivent être configurées et testées avec le responsable financier.
+   286→   286→
+   287→   287→#### 3.11.1 Principe de calcul comptable
+   288→   288→
+   289→   289→Le logiciel doit distinguer quatre notions qui ne doivent jamais être confondues :
+   290→   290→
+   291→   291→- le **devis**, qui constitue une proposition commerciale sans écriture comptable ;
+   292→   292→- la **réservation ou le contrat**, qui matérialise un engagement opérationnel, mais ne crée pas nécessairement un produit comptable ;
+   293→   293→- la **facture**, qui constate la créance du client et le produit ou la prestation facturée ;
+   294→   294→- l’**encaissement**, qui diminue la créance et augmente la caisse, la banque ou le compte de paiement concerné.
+   295→   295→
+   296→   296→La comptabilité doit être calculée sur le montant hors taxe, la taxe éventuelle et le montant toutes taxes comprises. Les taux de taxe, les règles d’exonération, les comptes de taxe et la date d’exigibilité doivent être paramétrables par période et par type de prestation. Le logiciel ne doit pas déduire automatiquement une règle fiscale nationale non configurée.
+   297→   297→
+   298→   298→Pour chaque ligne facturée, le système doit conserver :
+   299→   299→
+   300→   300→1. le prix unitaire ;
+   301→   301→2. la quantité ou la durée ;
+   302→   302→3. la remise ;
+   303→   303→4. le montant brut ;
+   304→   304→5. le montant net hors taxe ;
+   305→   305→6. le taux et le montant de taxe ;
+   306→   306→7. le montant toutes taxes comprises ;
+   307→   307→8. le compte de produit ;
+   308→   308→9. le centre de coût ou de profit ;
+   309→   309→10. la source métier : frais académiques, salle, véhicule, prestation additionnelle, pénalité ou dommage.
+   310→   310→
+   311→   311→Les montants doivent être calculés avec le type `decimal`, jamais avec `double`. La précision interne doit être supérieure à la précision d’affichage. Les arrondis doivent être appliqués selon une règle configurée, de préférence au niveau de chaque ligne puis contrôlés au niveau de la facture. La différence éventuelle d’arrondi doit être imputée à un compte d’écart d’arrondi autorisé et auditée.
+   312→   312→
+   313→   313→#### 3.11.2 Structure recommandée du plan comptable
+   314→   314→
+   315→   315→Les numéros ci-dessous constituent un exemple de structure fonctionnelle. Ils doivent être remplacés ou mappés vers le plan comptable légal applicable au pays de l’établissement.
+   316→   316→
+   317→   317→| Classe fonctionnelle | Comptes proposés | Utilisation |
+   318→   318→|---|---|---|
+   319→   319→| Trésorerie | `51xx` Banque, `53xx` Caisse, `54xx` comptes de paiement | Encaissements, décaissements et virements |
+   320→   320→| Clients | `411xxx` Clients académiques, `4112xx` Clients salles, `4113xx` Clients véhicules | Créances par catégorie de client |
+   321→   321→| Autres créances | `4457xx` Taxes à recevoir, `467xxx` avances ou comptes divers | Créances fiscales et opérations à régulariser |
+   322→   322→| Immobilisations | `21xx` Salles et bâtiments, `218x` équipements, `2182` véhicules | Actifs utilisés par l’école ou loués |
+   323→   323→| Fournisseurs | `401xxx` Fournisseurs d’achats, `404xxx` Fournisseurs d’immobilisations | Dettes envers les fournisseurs |
+   324→   324→| Dettes diverses | `419xxx` Avances reçues, `467xxx` cautions à restituer | Acomptes et cautions qui ne sont pas encore des produits |
+   325→   325→| Produits scolaires | `7061xx` Inscriptions, `7062xx` Scolarité, `7063xx` transport, `7064xx` cantine | Revenus issus de l’activité pédagogique |
+   326→   326→| Produits salles | `7065xx` Location de salles, `70651x` prestations annexes, `70652x` pénalités facturables | Revenus de l’activité de salles |
+   327→   327→| Produits véhicules | `7066xx` Location de véhicules, `70661x` kilomètres ou carburant, `70662x` prestations annexes, `70663x` pénalités facturables | Revenus de l’activité de véhicules |
+   328→   328→| Charges d’exploitation | `60xx` achats, `61xx` services, `62xx` entretien, `64xx` personnel | Coûts opérationnels |
+   329→   329→| Charges spécifiques | `615xxx` maintenance véhicules et salles, `681xxx` amortissements | Coûts directement rattachables aux locations |
+   330→   330→| Résultat analytique | Centres `ECOLE`, `SALLE`, `VEHICULE`, par direction ou site | Analyse de rentabilité |
+   331→   331→
+   332→   332→Le logiciel doit séparer le **compte général** du **code analytique**. Une location de salle peut donc être enregistrée dans le même compte général de produit tout en étant affectée au centre `LOC-SALLE`, à une salle précise et à un site donné. Cette séparation évite de créer un nouveau compte général pour chaque salle ou chaque véhicule.
+   333→   333→
+   334→   334→#### 3.11.3 Journaux comptables
+   335→   335→
+   336→   336→Le système doit prévoir au minimum les journaux suivants :
+   337→   337→
+   338→   338→| Journal | Code exemple | Événements |
+   339→   339→|---|---|---|
+   340→   340→| Ventes scolaires | `VE-SCO` | Factures d’inscription et de scolarité |
+   341→   341→| Ventes salles | `VE-SAL` | Factures de location de salles et prestations annexes |
+   342→   342→| Ventes véhicules | `VE-VEH` | Factures de location de véhicules et prestations annexes |
+   343→   343→| Caisse | `CAIS` | Encaissements et sorties de caisse |
+   344→   344→| Banque | `BQxx` | Encaissements et paiements bancaires |
+   345→   345→| Achats | `ACHA` | Factures fournisseurs et charges |
+   346→   346→| Paie | `PAIE` | Salaires, retenues et charges |
+   347→   347→| Opérations diverses | `OD` | Régularisations, amortissements, provisions et clôture |
+   348→   348→
+   349→   349→Chaque journal doit posséder une numérotation séquentielle par exercice et période. Une pièce validée ne doit pas être supprimée. Une erreur doit être corrigée par une écriture inverse, un avoir ou une opération de régularisation référencée à la pièce initiale.
+   350→   350→
+   351→   351→#### 3.11.4 Règles de calcul d’une facture
+   352→   352→
+   353→   353→Pour chaque ligne, le calcul doit suivre les étapes suivantes :
+   354→   354→
+   355→   355→```text
+   356→   356→Montant brut = Quantité ou durée × Prix unitaire
+   357→   357→Montant de remise = Montant brut × Taux de remise / 100
+   358→   358→Montant net HT = Montant brut - Montant de remise
+   359→   359→Montant taxe = Montant net HT × Taux de taxe / 100
+   360→   360→Montant TTC = Montant net HT + Montant taxe
+   361→   361→Solde = Montant TTC - Somme des règlements imputés - Avoirs imputés
+   362→   362→```
+   363→   363→
+   364→   364→Une remise doit avoir un motif, un utilisateur demandeur, un utilisateur approbateur et une limite maximale. Une remise exceptionnelle doit être validée avant l’émission de la facture.
+   365→   365→
+   366→   366→La facture doit être enregistrée dans la période de sa date comptable. La date de réservation ne doit pas remplacer automatiquement la date de facturation. Si l’établissement applique une comptabilité d’engagement, une facture émise constate une créance même si le client n’a encore rien payé.
+   367→   367→
+   368→   368→#### 3.11.5 Écritures des frais académiques
+   369→   369→
+   370→   370→Lors de la validation d’une facture de frais académiques :
+   371→   371→
+   372→   372→```text
+   373→   373→Débit   411xxx Client ou responsable payeur       Montant TTC
+   374→   374→Crédit  7061xx Produit d’inscription ou scolarité Montant HT
+   375→   375→Crédit  4457xx Taxe collectée éventuelle         Montant taxe
+   376→   376→```
+   377→   377→
+   378→   378→Lors de l’encaissement :
+   379→   379→
+   380→   380→```text
+   381→   381→Débit   53xxx Caisse, 51xxx Banque ou 54xxx paiement  Montant encaissé
+   382→   382→Crédit  411xxx Client                                  Montant encaissé
+   383→   383→```
+   384→   384→
+   385→   385→Un paiement partiel ne solde que la partie correspondante de la créance. Le système doit conserver l’ordre d’imputation : facture précise, échéance précise et mode de paiement précis.
+   386→   386→
+   387→   387→#### 3.11.6 Acomptes et cautions de location
+   388→   388→
+   389→   389→Un acompte reçu avant l’émission de la facture finale ne doit pas être enregistré directement comme produit. Il doit être enregistré comme avance reçue :
+   390→   390→
+   391→   391→```text
+   392→   392→À la réception de l’acompte :
+   393→   393→Débit   53xxx ou 51xxx Trésorerie                  Montant reçu
+   394→   394→Crédit  419xxx Avances reçues de clients           Montant reçu
+   395→   395→```
+   396→   396→
+   397→   397→Lors de l’émission de la facture définitive, l’acompte est imputé :
+   398→   398→
+   399→   399→```text
+   400→   400→Débit   411xxx Client                               Montant TTC de la facture
+   401→   401→Crédit  7065xx ou 7066xx Produit de location        Montant HT
+   402→   402→Crédit  4457xx Taxe collectée éventuelle             Montant taxe
+   403→   403→```
+   404→   404→
+   405→   405→Puis l’acompte est transféré de la dette d’avance vers la créance client :
+   406→   406→
+   407→   407→```text
+   408→   408→Débit   419xxx Avances reçues de clients            Montant de l’acompte
+   409→   409→Crédit  411xxx Client                                Montant de l’acompte
+   410→   410→```
+   411→   411→
+   412→   412→Une caution remboursable doit rester une dette envers le client :
+   413→   413→
+   414→   414→```text
+   415→   415→Débit   53xxx ou 51xxx Trésorerie                   Montant caution
+   416→   416→Crédit  419xxx Cautions reçues                       Montant caution
+   417→   417→```
+   418→   418→
+   419→   419→Lors de la restitution :
+   420→   420→
+   421→   421→```text
+   422→   422→Débit   419xxx Cautions reçues                       Montant restitué
+   423→   423→Crédit  53xxx ou 51xxx Trésorerie                    Montant restitué
+   424→   424→```
+   425→   425→
+   426→   426→Si une partie de la caution est retenue pour un dommage réellement facturable, seule cette partie est transférée vers la créance ou le produit concerné après validation d’un état des lieux et d’une pièce justificative. La caution entière ne doit jamais être reconnue automatiquement comme revenu.
+   427→   427→
+   428→   428→#### 3.11.7 Écritures des locations de salles
+   429→   429→
+   430→   430→Pour une facture de salle, le moteur comptable doit utiliser le compte produit `7065xx` et le centre analytique de la salle. Exemple : location facturée pour **1 000 unités monétaires hors taxe**, avec une taxe paramétrée à **20 %**, soit **1 200 TTC** :
+   431→   431→
+   432→   432→```text
+   433→   433→Débit   4112xx Client location salle                1 200
+   434→   434→Crédit  7065xx Location de salles                  1 000
+   435→   435→Crédit  4457xx Taxe collectée                       200
+   436→   436→```
+   437→   437→
+   438→   438→Les prestations annexes doivent être séparées lorsqu’elles ont une nature différente :
+   439→   439→
+   440→   440→```text
+   441→   441→Débit   4112xx Client location salle                Total TTC
+   442→   442→Crédit  7065xx Location de salle                    Prix salle HT
+   443→   443→Crédit  70651x Sonorisation ou équipement            Prix prestation HT
+   444→   444→Crédit  70652x Pénalité ou frais facturables         Prix pénalité HT
+   445→   445→Crédit  4457xx Taxe collectée                       Total taxes
+   446→   446→```
+   447→   447→
+   448→   448→Le centre analytique doit indiquer au minimum le site, la salle, le contrat, le type d’événement et la période. Les charges directement liées doivent être affectées au même centre : nettoyage, sécurité, énergie additionnelle, maintenance et personnel occasionnel. Le rapport doit distinguer le chiffre d’affaires, les coûts directs et la marge de la salle.
+   449→   449→
+   450→   450→#### 3.11.8 Écritures des locations de véhicules
+   451→   451→
+   452→   452→Pour une facture de véhicule, le moteur comptable doit utiliser `7066xx` et identifier le véhicule, le contrat, la période, le conducteur et le kilométrage de départ et de retour.
+   453→   453→
+   454→   454→Exemple pour une location de **800 unités monétaires hors taxe** et une taxe de **20 %** :
+   455→   455→
+   456→   456→```text
+   457→   457→Débit   4113xx Client location véhicule             960
+   458→   458→Crédit  7066xx Location de véhicules                800
+   459→   459→Crédit  4457xx Taxe collectée                       160
+   460→   460→```
+   461→   461→
+   462→   462→Si le contrat distingue le forfait, les kilomètres supplémentaires et le carburant :
+   463→   463→
+   464→   464→```text
+   465→   465→Débit   4113xx Client location véhicule             Total TTC
+   466→   466→Crédit  7066xx Forfait de location                  Forfait HT
+   467→   467→Crédit  70661x Kilomètres ou carburant              Complément HT
+   468→   468→Crédit  70662x Service chauffeur ou livraison       Service HT
+   469→   469→Crédit  70663x Dommage ou pénalité facturable       Montant HT validé
+   470→   470→Crédit  4457xx Taxe collectée                       Total taxes
+   471→   471→```
+   472→   472→
+   473→   473→Les coûts de maintenance, assurance, carburant pris en charge par l’école et amortissement du véhicule doivent être enregistrés en charges selon leur nature. Ils doivent être affectés au centre du véhicule afin de calculer sa rentabilité réelle.
+   474→   474→
+   475→   475→Lors de l’acquisition d’un véhicule destiné à être utilisé durablement :
+   476→   476→
+   477→   477→```text
+   478→   478→Débit   218x Immobilisation véhicule                Coût HT capitalisable
+   479→   479→Débit   4456xx Taxe récupérable éventuelle           Taxe déductible
+   480→   480→Crédit  404xxx Fournisseur d’immobilisation          Total facture
+   481→   481→```
+   482→   482→
+   483→   483→Les dépenses d’entretien courant doivent rester en charges. Seules les dépenses répondant aux règles d’immobilisation configurées et validées doivent augmenter la valeur de l’actif.
+   484→   484→
+   485→   485→#### 3.11.9 Annulations, avoirs, dommages et pénalités
+   486→   486→
+   487→   487→Une réservation annulée ne produit pas automatiquement une écriture. Le traitement dépend de son état :
+   488→   488→
+   489→   489→- une réservation sans facture est simplement annulée avec motif ;
+   490→   490→- un acompte remboursable est débité du compte d’avance et recrédité sur la trésorerie ;
+   491→   491→- une facture non réglée est corrigée par un avoir ;
+   492→   492→- une facture réglée est corrigée par un avoir et, si nécessaire, un remboursement ;
+   493→   493→- une pénalité conservée doit être facturée ou imputée conformément au contrat ;
+   494→   494→- un dommage doit être documenté par un état des lieux, une estimation et une validation.
+   495→   495→
+   496→   496→Un avoir doit reprendre les lignes originales, les comptes de produits, les taxes et les centres analytiques. Il ne doit pas être saisi comme une facture négative libre sans référence à la pièce initiale.
+   497→   497→
+   498→   498→#### 3.11.10 Comptabilité analytique des locations
+   499→   499→
+   500→   500→Chaque opération de location doit porter les dimensions analytiques suivantes : `Activite`, `Site`, `Ressource`, `Contrat`, `Client`, `Periode` et `DirectionResponsable`.
+   501→   501→
+   502→   502→Les dimensions minimales sont :
+   503→   503→
+   504→   504→```text
+   505→   505→Activité : ECOLE | LOCATION_SALLE | LOCATION_VEHICULE
+   506→   506→Ressource : identifiant de la salle ou du véhicule
+   507→   507→Centre : direction, site ou service responsable
+   508→   508→```
+   509→   509→
+   510→   510→Les tableaux de bord doivent présenter :
+   511→   511→
+   512→   512→1. chiffre d’affaires facturé ;
+   513→   513→2. chiffre d’affaires encaissé ;
+   514→   514→3. créances et impayés ;
+   515→   515→4. acomptes et cautions en attente ;
+   516→   516→5. taxes collectées éventuelles ;
+   517→   517→6. coûts directs ;
+   518→   518→7. amortissements ;
+   519→   519→8. marge brute ;
+   520→   520→9. taux d’occupation des salles ;
+   521→   521→10. taux d’utilisation des véhicules ;
+   522→   522→11. rentabilité par ressource et par période.
+   523→   523→
+   524→   524→La formule analytique de base est :
+   525→   525→
+   526→   526→```text
+   527→   527→Marge brute = Produits de location HT - Charges directes - Amortissements affectés
+   528→   528→Taux de marge = Marge brute / Produits de location HT × 100
+   529→   529→```
+   530→   530→
+   531→   531→Les charges communes, comme l’administration générale ou une partie de l’électricité, doivent être réparties seulement si une clé de répartition validée est configurée. Le système doit conserver la clé utilisée et permettre de recalculer le rapport.
+   532→   532→
+   533→   533→#### 3.11.11 Clôture et contrôles comptables
+   534→   534→
+   535→   535→Avant la clôture d’une période, le système doit contrôler :
+   536→   536→
+   537→   537→- l’égalité débit/crédit de chaque pièce ;
+   538→   538→- l’absence de facture validée sans compte comptable ;
+   539→   539→- l’absence d’encaissement non imputé ;
+   540→   540→- le rapprochement entre factures, acomptes, cautions et contrats ;
+   541→   541→- les réservations terminées sans facture ou état de retour ;
+   542→   542→- les véhicules et salles dont les coûts directs sont absents ;
+   543→   543→- les écritures en brouillon ;
+   544→   544→- les comptes de taxe configurés pour les prestations concernées ;
+   545→   545→- les séquences manquantes de pièces ;
+   546→   546→- les opérations de synchronisation rejetées ou en conflit.
+   547→   547→
+   548→   548→La clôture doit être irréversible pour un utilisateur ordinaire. Une réouverture doit demander un rôle spécifique, un motif et une trace d’audit. Les rapports de location doivent pouvoir être rapprochés avec le grand livre par journal, compte produit, centre analytique et période.
+   549→   549→
+   550→   550→### 3.12 Patrimoine et immobilisations
+   551→   551→
+   552→   552→Le module patrimoine doit inventorier les bâtiments, salles, meubles, équipements pédagogiques, équipements informatiques, véhicules et autres actifs.
+   553→   553→
+   554→   554→Pour chaque bien, il faut pouvoir conserver :
+   555→   555→
+   556→   556→- code d’inventaire ;
+   557→   557→- catégorie ;
+   558→   558→- désignation ;
+   559→   559→- numéro de série ;
+   560→   560→- localisation ;
+   561→   561→- responsable ;
+   562→   562→- date d’acquisition ;
+   563→   563→- fournisseur ;
+   564→   564→- coût ;
+   565→   565→- état ;
+   566→   566→- valeur résiduelle ;
+   567→   567→- garantie ;
+   568→   568→- documents ;
+   569→   569→- mouvements ;
+   570→   570→- maintenance ;
+   571→   571→- sortie ou réforme.
+   572→   572→
+   573→   573→Les biens utilisés pour la location doivent être reliés aux contrats, réservations, dégradations éventuelles et factures concernées.
+   574→   574→
+   575→   575→### 3.13 Location de salles de fête
+   576→   576→
+   577→   577→La location de salles doit être une activité commerciale complète intégrée à la gestion financière.
+   578→   578→
+   579→   579→Le module doit gérer :
+   580→   580→
+   581→   581→- catalogue des salles ;
+   582→   582→- capacité et équipements ;
+   583→   583→- tarifs par durée, jour, type d’événement ou saison ;
+   584→   584→- calendrier de disponibilité ;
+   585→   585→- client particulier ou organisation ;
+   586→   586→- demande de réservation ;
+   587→   587→- devis ;
+   588→   588→- contrat ;
+   589→   589→- acompte ;
+   590→   590→- facture ;
+   591→   591→- solde ;
+   592→   592→- caution ;
+   593→   593→- état des lieux avant et après ;
+   594→   594→- prestations additionnelles ;
+   595→   595→- annulation et pénalités ;
+   596→   596→- affectation d’un agent ;
+   597→   597→- rapport de rentabilité.
+   598→   598→
+   599→   599→Le système doit empêcher deux réservations confirmées sur le même créneau pour la même salle. Les réservations provisoires doivent expirer après un délai configurable.
+   600→   600→
+   601→   601→### 3.14 Location de véhicules
+   602→   602→
+   603→   603→Le module de location de véhicules doit gérer :
+   604→   604→
+   605→   605→- parc automobile ;
+   606→   606→- marque, modèle, immatriculation et kilométrage ;
+   607→   607→- capacité et caractéristiques ;
+   608→   608→- assurance et documents ;
+   609→   609→- maintenance ;
+   610→   610→- disponibilité ;
+   611→   611→- client ;
+   612→   612→- conducteur ;
+   613→   613→- contrat de location ;
+   614→   614→- état du véhicule au départ et au retour ;
+   615→   615→- carburant ;
+   616→   616→- kilométrage ;
+   617→   617→- caution ;
+   618→   618→- facture ;
+   619→   619→- pénalités et dommages ;
+   620→   620→- planning des véhicules ;
+   621→   621→- coût et rentabilité par véhicule.
+   622→   622→
+   623→   623→Un véhicule immobilisé, expiré administrativement ou déjà réservé ne doit pas être proposé comme disponible.
+   624→   624→
+   625→   625→### 3.15 Achats, fournisseurs et dépenses
+   626→   626→
+   627→   627→Le module achats doit gérer les demandes internes, les validations, les fournisseurs, les bons de commande, les réceptions, les factures et les paiements.
+   628→   628→
+   629→   629→Une dépense doit être reliée à un budget, un service, un centre de coût et une pièce justificative. Les seuils de validation doivent dépendre du montant et du rôle.
+   630→   630→
+   631→   631→### 3.16 Documents et archivage
+   632→   632→
+   633→   633→Le système doit stocker les documents avec leurs métadonnées, leur type, leur propriétaire, leur version, leur date d’expiration et leur niveau de confidentialité.
+   634→   634→
+   635→   635→Les fichiers lourds ne doivent pas être systématiquement copiés dans toutes les bases locales. Le système doit prévoir un mécanisme de téléchargement différé et une miniature ou une empreinte locale lorsque cela est possible.
+   636→   636→
+   637→   637→### 3.17 Notifications et communication
+   638→   638→
+   639→   639→Le logiciel peut intégrer des notifications internes et, selon les services disponibles, l’envoi de courriels ou de messages. Chaque message doit être traçable : destinataire, statut, date d’envoi et erreur éventuelle.
+   640→   640→
+   641→   641→### 3.18 Tableaux de bord et rapports
+   642→   642→
+   643→   643→Les tableaux de bord doivent être filtrables par année scolaire, direction, section, niveau, période et centre de responsabilité.
+   644→   644→
+   645→   645→Les indicateurs prioritaires sont : effectif inscrit, inscriptions incomplètes, taux de présence, résultats, impayés, encaissements, dépenses, trésorerie, paie, occupation des salles, chiffre d’affaires des locations, disponibilité des véhicules, patrimoine et alertes administratives.
+   646→   646→
+   647→   647→---
+   648→   648→
+   649→   649→## 4. Rôles et autorisations
+   650→   650→
+   651→   651→Le système doit appliquer le principe du moindre privilège. Un rôle donne accès à des fonctions et à des périmètres de données. Une direction peut limiter la visibilité aux élèves et aux activités qui lui sont rattachés.
+   652→   652→
+   653→   653→| Rôle | Responsabilités principales |
+   654→   654→|---|---|
+   655→   655→| Super administrateur | Paramétrage technique, sécurité et gestion des tenants ou établissements |
+   656→   656→| Administrateur fonctionnel | Référentiels, années scolaires, directions et règles métiers |
+   657→   657→| Direction générale | Validation, supervision et tableaux de bord consolidés |
+   658→   658→| Directeur de direction | Suivi des classes, enseignants, élèves et résultats de sa direction |
+   659→   659→| Secrétariat | Admissions, dossiers, inscriptions et documents |
+   660→   660→| Enseignant | Cours, présences, évaluations et suivi de ses classes |
+   661→   661→| Responsable pédagogique | Programmes, emplois du temps, validations de notes |
+   662→   662→| RH | Dossiers du personnel, congés et éléments de paie |
+   663→   663→| Responsable de paie | Préparation et contrôle de la paie |
+   664→   664→| Comptable | Factures, encaissements, dépenses et écritures |
+   665→   665→| Caissier | Encaissements et édition de reçus selon limite autorisée |
+   666→   666→| Gestionnaire patrimoine | Inventaire, équipements, maintenance et mouvements |
+   667→   667→| Responsable locations | Salles, véhicules, contrats, états des lieux et planning |
+   668→   668→| Auditeur | Consultation des journaux et rapports sans modification |
+   669→   669→| Agent de synchronisation | Transmission technique limitée, sans accès métier direct |
+   670→   670→
+   671→   671→Il faut prévoir une séparation des tâches pour les opérations sensibles : création d’une facture, encaissement, annulation, validation comptable, remboursement, clôture et suppression logique.
+   672→   672→
+   673→   673→---
+   674→   674→
+   675→   675→## 5. Architecture technique recommandée
+   676→   676→
+   677→   677→### 5.1 Architecture logique
+   678→   678→
+   679→   679→L’architecture recommandée est composée de quatre éléments :
+   680→   680→
+   681→   681→1. **Application cliente de poste**, installée dans chaque service. Une application desktop en WPF est adaptée à un fonctionnement riche sur Windows. Une application .NET MAUI peut être retenue si une cible multiplateforme est requise.
+   682→   682→2. **Base locale SQLite**, utilisée par le poste pour les données nécessaires à son périmètre et pour les opérations effectuées hors connexion.
+   683→   683→3. **API centrale ASP.NET Core 8**, qui applique les règles métier, l’authentification, la synchronisation et l’accès aux données centrales.
+   684→   684→4. **Base centrale relationnelle**, de préférence SQL Server ou PostgreSQL selon l’environnement d’exploitation et les compétences disponibles.
+   685→   685→
+   686→   686→Une architecture en couches doit séparer le domaine métier, les cas d’utilisation, l’infrastructure et l’interface. Le domaine ne doit pas dépendre directement de WPF, de SQLite ou d’un contrôleur HTTP.
+   687→   687→
+   688→   688→```text
+   689→   689→Poste Secrétariat ─┐
+   690→   690→Poste Comptabilité ─┼─ Base locale + moteur Sync ── HTTPS ── API centrale ── Base centrale
+   691→   691→Poste Pédagogie ───┤
+   692→   692→Poste Locations ───┘                         └── Stockage documentaire et journal d’audit
+   693→   693→```
+   694→   694→
+   695→   695→### 5.2 Solution et projets .NET
+   696→   696→
+   697→   697→Une organisation possible est :
+   698→   698→
+   699→   699→```text
+   700→   700→SmartShule.sln
+   701→   701→├── SmartShule.Domain
+   702→   702→├── SmartShule.Application
+   703→   703→├── SmartShule.Infrastructure
+   704→   704→├── SmartShule.Contracts
+   705→   705→├── SmartShule.Api
+   706→   706→├── SmartShule.Sync
+   707→   707→├── SmartShule.Desktop
+   708→   708→├── SmartShule.Reporting
+   709→   709→└── SmartShule.Tests
+   710→   710→```
+   711→   711→
+   712→   712→Le projet doit suivre des conventions cohérentes : nullable reference types activés, analyzers, validation des entrées, journalisation structurée, tests automatisés et migrations versionnées.
+   713→   713→
+   714→   714→### 5.3 Base de données
+   715→   715→
+   716→   716→Les principales agrégats sont : `School`, `AcademicYear`, `Directorate`, `Section`, `Level`, `Classroom`, `Student`, `Guardian`, `Enrollment`, `Employee`, `TeacherAssignment`, `Subject`, `CourseSession`, `Attendance`, `Assessment`, `Grade`, `FeeDefinition`, `Invoice`, `Payment`, `Account`, `JournalEntry`, `Asset`, `RoomRental`, `Vehicle`, `VehicleRental`, `Supplier`, `PurchaseOrder`, `AuditLog`, `SyncOperation` et `SyncConflict`.
+   717→   717→
+   718→   718→Chaque entité métier doit comporter au minimum :
+   719→   719→
+   720→   720→- un identifiant global de type `Guid` ;
+   721→   721→- une date de création ;
+   722→   722→- une date de dernière modification ;
+   723→   723→- l’identité du créateur et du dernier modificateur ;
+   724→   724→- un statut métier ;
+   725→   725→- une version de concurrence ;
+   726→   726→- un indicateur de suppression logique lorsque le cas le permet.
+   727→   727→
+   728→   728→Les opérations financières, les reçus, les écritures validées et les éléments d’audit ne doivent jamais être supprimés physiquement.
+   729→   729→
+   730→   730→---
+   731→   731→
+   732→   732→## 6. Mécanisme de fonctionnement hors connexion et de synchronisation
+   733→   733→
+   734→   734→### 6.1 Principe
+   735→   735→
+   736→   736→Le poste local n’est pas une copie complète et indépendante de toute l’école. Il reçoit uniquement les données nécessaires à son rôle et à son périmètre. Il peut créer des opérations locales dans une file d’attente appelée **Outbox**. Lorsque la connexion revient, le moteur transmet ces opérations au serveur central.
+   737→   737→
+   738→   738→Le serveur traite chaque opération de façon idempotente. Si la même opération est reçue deux fois, elle ne doit produire qu’un seul effet.
+   739→   739→
+   740→   740→### 6.2 Flux d’envoi
+   741→   741→
+   742→   742→1. L’utilisateur réalise une action validée sur son poste.
+   743→   743→2. L’application enregistre la donnée dans SQLite dans une transaction locale.
+   744→   744→3. Elle crée une opération `SyncOperation` dans l’Outbox.
+   745→   745→4. L’opération reçoit un identifiant global, un type, une version, un horodatage et une empreinte.
+   746→   746→5. Le moteur essaie l’envoi vers l’API centrale.
+   747→   747→6. Le serveur vérifie l’authentification, les droits, la version et l’empreinte.
+   748→   748→7. Le serveur applique l’opération dans une transaction.
+   749→   749→8. Le serveur renvoie un accusé de réception.
+   750→   750→9. Le poste marque l’opération comme synchronisée.
+   751→   751→
+   752→   752→### 6.3 Flux de réception
+   753→   753→
+   754→   754→Le poste demande au serveur les changements depuis son dernier curseur de synchronisation. Le serveur envoie des événements ou des changements autorisés pour le rôle et le périmètre du poste. Le poste applique les changements dans une transaction locale, puis avance son curseur.
+   755→   755→
+   756→   756→### 6.4 Conflits
+   757→   757→
+   758→   758→Les conflits doivent être traités explicitement. Ils ne doivent pas être masqués par un simple écrasement de la dernière valeur.
+   759→   759→
+   760→   760→| Type de donnée | Politique recommandée |
+   761→   761→|---|---|
+   762→   762→| Référentiel général | Le serveur central est prioritaire |
+   763→   763→| Dossier élève | Conflit présenté à un responsable administratif |
+   764→   764→| Présence d’élève | Fusion par événement daté, avec contrôle des doublons |
+   765→   765→| Note validée | Interdiction de modification directe ; correction par procédure |
+   766→   766→| Réservation de salle ou véhicule | Le serveur central réserve le créneau de manière atomique |
+   767→   767→| Paiement ou écriture comptable | Aucune fusion automatique ; régularisation tracée |
+   768→   768→| Documents | Versionnement et conservation des deux versions |
+   769→   769→
+   770→   770→### 6.5 Contraintes de sécurité de la synchronisation
+   771→   771→
+   772→   772→- Utiliser HTTPS avec authentification forte.
+   773→   773→- Donner à chaque poste un identifiant d’installation et des clés renouvelables.
+   774→   774→- Ne jamais faire confiance à l’horloge locale pour les validations sensibles.
+   775→   775→- Vérifier les droits côté serveur même si l’interface les masque.
+   776→   776→- Chiffrer les données locales contenant des informations sensibles lorsque l’environnement le permet.
+   777→   777→- Journaliser les erreurs et les reprises.
+   778→   778→- Prévoir un mécanisme de reprise après interruption au milieu d’un lot.
+   779→   779→- Limiter la taille des lots et compresser les échanges.
+   780→   780→- Ne jamais synchroniser les mots de passe.
+   781→   781→
+   782→   782→### 6.6 États d’une opération
+   783→   783→
+   784→   784→Une opération peut passer par les états suivants : `Pending`, `Sending`, `Acknowledged`, `Rejected`, `Conflict`, `Retrying` et `Cancelled`. Les erreurs doivent fournir un message compréhensible à l’utilisateur et un détail technique dans les journaux.
+   785→   785→
+   786→   786→### 6.7 Limites assumées
+   787→   787→
+   788→   788→Le mode hors connexion ne signifie pas que toutes les fonctions sont disponibles partout. La paie finale, la clôture comptable, la confirmation définitive d’une réservation concurrente et certaines validations doivent exiger une connexion au serveur central. L’interface doit indiquer clairement si l’action est locale, en attente ou confirmée par le serveur.
+   789→   789→
+   790→   790→---
+   791→   791→
+   792→   792→## 7. Sécurité, audit et protection des données
+   793→   793→
+   794→   794→Le système doit utiliser une authentification sécurisée, des mots de passe hachés, une gestion des sessions, une expiration des jetons et une politique de verrouillage. L’authentification à deux facteurs peut être activée pour les rôles sensibles.
+   795→   795→
+   796→   796→Les autorisations doivent être vérifiées sur trois niveaux : fonction, action et périmètre de données. Par exemple, un comptable peut consulter les paiements de l’établissement, tandis qu’un caissier peut seulement enregistrer les encaissements de sa caisse.
+   797→   797→
+   798→   798→Le journal d’audit doit enregistrer l’utilisateur, le poste, la date, l’action, l’entité, l’identifiant, l’ancienne valeur lorsque nécessaire, la nouvelle valeur, le motif et le résultat. Les journaux doivent être non modifiables par les utilisateurs ordinaires.
+   799→   799→
+   800→   800→Les sauvegardes doivent comprendre une copie de la base centrale, une copie des documents et une procédure de restauration testée. Une sauvegarde jamais restaurée ne doit pas être considérée comme vérifiée.
+   801→
+   802→[showing lines 1-800 of 4287; use offset=801 with limit to continue reading]
