@@ -370,3 +370,114 @@ export async function getBrandingForSchool(schoolId: string) {
   const school = await db.school.findUnique({ where: { id: schoolId } })
   return { branding, school }
 }
+
+// ============================================================
+// Finance (Cycle 02)
+// ============================================================
+
+export async function getFinanceDashboardData(schoolId: string) {
+  const [
+    chartOfAccounts,
+    journals,
+    recentEntries,
+    invoices,
+    payments,
+    totalDebitByAccount,
+    totalCreditByAccount,
+  ] = await Promise.all([
+    db.chartOfAccount.findMany({
+      where: { schoolId, status: 'ACTIVE' },
+      orderBy: { accountNumber: 'asc' },
+    }),
+    db.accountingJournal.findMany({
+      where: { schoolId, status: 'ACTIVE' },
+      orderBy: { code: 'asc' },
+    }),
+    db.journalEntry.findMany({
+      where: { schoolId },
+      include: {
+        journal: true,
+        lines: { include: { account: true } },
+      },
+      orderBy: { entryDate: 'desc' },
+      take: 30,
+    }),
+    db.invoice.findMany({
+      where: { schoolId },
+      include: { student: true, lines: true, payments: true },
+      orderBy: { issueDate: 'desc' },
+      take: 20,
+    }),
+    db.payment.findMany({
+      where: { schoolId },
+      include: { invoice: { include: { student: true } } },
+      orderBy: { paidAt: 'desc' },
+      take: 20,
+    }),
+    db.journalEntryLine.groupBy({
+      by: ['accountId'],
+      where: { entry: { schoolId, status: 'POSTED' } },
+      _sum: { debit: true },
+    }),
+    db.journalEntryLine.groupBy({
+      by: ['accountId'],
+      where: { entry: { schoolId, status: 'POSTED' } },
+      _sum: { credit: true },
+    }),
+  ])
+
+  // Calcul des soldes par compte
+  const accountsMap = new Map(chartOfAccounts.map((a) => [a.id, a]))
+  const accountBalances = chartOfAccounts.map((acc) => {
+    const debit = totalDebitByAccount.find((d) => d.accountId === acc.id)?._sum.debit || 0
+    const credit = totalCreditByAccount.find((c) => c.accountId === acc.id)?._sum.credit || 0
+    const balance = debit - credit // positif = solde débiteur, négatif = solde créditeur
+    return { account: acc, totalDebit: debit, totalCredit: credit, balance }
+  })
+
+  // Statistiques globales
+  const totalCollectedCents = payments
+    .filter((p) => p.status === 'CONFIRMED' && p.amountCents > 0)
+    .reduce((s, p) => s + p.amountCents, 0)
+  const totalRefundedCents = payments
+    .filter((p) => p.amountCents < 0)
+    .reduce((s, p) => s + Math.abs(p.amountCents), 0)
+  const totalUnpaidCents = invoices
+    .filter((i) => i.status !== 'PAID' && i.status !== 'CANCELLED')
+    .reduce((s, i) => s + (i.totalAmountCents - i.paidAmountCents), 0)
+  const totalInvoicedCents = invoices
+    .filter((i) => i.status !== 'CANCELLED')
+    .reduce((s, i) => s + i.totalAmountCents, 0)
+
+  // Liste des élèves pour le formulaire de création de facture
+  const students = await db.student.findMany({
+    where: { schoolId, status: 'ACTIVE' },
+    include: {
+      enrollments: {
+        where: { status: 'ACTIVE' },
+        include: { classroom: true },
+      },
+    },
+    orderBy: { firstName: 'asc' },
+    take: 100,
+  })
+
+  return {
+    chartOfAccounts,
+    journals,
+    recentEntries,
+    invoices,
+    payments,
+    accountBalances,
+    students,
+    stats: {
+      totalCollectedCents,
+      totalRefundedCents,
+      totalUnpaidCents,
+      totalInvoicedCents,
+      entriesCount: recentEntries.length,
+      invoicesCount: invoices.length,
+      paymentsCount: payments.length,
+    },
+  }
+}

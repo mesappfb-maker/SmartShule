@@ -10,19 +10,23 @@ export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
 
+  // Pendant le SSR et avant mount, on rend un placeholder déterministe
+  // pour éviter les erreurs d'hydration (title et icône doivent correspondre
+  // entre serveur et client).
+  // Une fois monté, on utilise le thème réel.
+  const isDark = mounted && theme === 'dark'
+
   return (
     <Button
       variant="ghost"
       size="icon"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       aria-label="Basculer le thème"
-      title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+      // Title déterministe : on évite de dépendre de `theme` avant mount
+      title={isDark ? 'Mode clair' : 'Mode sombre'}
+      suppressHydrationWarning
     >
-      {mounted && theme === 'dark' ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </Button>
   )
 }

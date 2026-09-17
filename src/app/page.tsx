@@ -6,6 +6,7 @@ import {
   getDirectionDashboardData,
   getNotificationsForUser,
   getSchoolForUser,
+  getFinanceDashboardData,
 } from '@/lib/queries'
 import { LoginForm } from '@/modules/auth/login-form'
 import { ParentDashboard } from '@/modules/parent/parent-dashboard'
@@ -82,15 +83,18 @@ export default async function Home() {
   }
 
   if (user.role === 'DIRECTION' || user.role === 'ADMIN') {
-    const data = await getDirectionDashboardData(user.id)
-    if (!data) {
+    const [data, financeData] = await Promise.all([
+      getDirectionDashboardData(user.id),
+      getFinanceDashboardData(schoolData.id),
+    ])
+    if (!data || !financeData) {
       return (
         <div className="min-h-screen flex items-center justify-center p-6">
           <p className="text-sm text-muted-foreground">Aucune donnée disponible.</p>
         </div>
       )
     }
-    return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} />
+    return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} />
   }
 
   // Rôle inconnu

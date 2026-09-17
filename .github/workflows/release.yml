@@ -1,0 +1,133 @@
+# SmartShule — Workflow de Release (sur tag vX.Y.Z)
+# ============================================================
+# Déclenché quand on pousse un tag comme `v1.0.0`.
+# Crée une GitHub Release publique avec le .exe téléchargeable.
+# Les postes installés se mettront à jour automatiquement via electron-updater.
+#
+# Usage :
+#   git tag v1.0.0
+#   git push origin v1.0.0
+#
+# Prérequis : configurer un token GitHub (PAT) avec le scope `repo`
+# dans les secrets du dépôt sous le nom `CUSTOM_GITHUB_TOKEN`.
+# (le GITHUB_TOKEN par défaut ne permet pas de déclencher electron-updater)
+
+name: 📦 Release SmartShule
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.0.0, v1.1.0, v2.0.0, etc.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (ex: 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+env:
+  NODE_VERSION: '20'
+  APP_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: 🪟 Release Windows .exe
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Important pour electron-updater (récupère les tags)
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Installation
+        run: npm ci
+
+      - name: 🔍 Prisma generate
+        run: npx prisma generate
+
+      - name: 🏗️ Build Next.js
+        run: npm run build
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+
+      - name: 🔐 Code signing (optionnel)
+        if: env.WINDOWS_CERTIFICATE_PFX != ''
+        env:
+          WINDOWS_CERTIFICATE_PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
+        run: echo "$WINDOWS_CERTIFICATE_PFX" | base64 -d > certificate.pfx
+
+      - name: 📦 Build + Publish sur GitHub Releases
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          APP_VERSION: ${{ env.APP_VERSION }}
+          # Code signing (optionnel)
+          # CSC_LINK: certificate.pfx
+          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+
+      - name: 📊 Résumé de release
+        run: |
+          echo "## 🎉 Release ${{ env.APP_VERSION }} publiée" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "L'exécutable .exe est disponible sur la page des [Releases](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Les postes existants se mettront à jour automatiquement via electron-updater." >> $GITHUB_STEP_SUMMARY
+
+  release-mac-linux:
+    name: 🍎🐧 Release macOS & Linux
+    needs: release-windows
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: dmg
+          - os: ubuntu-latest
+            target: AppImage
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Installation (Linux)
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev libnotify-dev libnss3 libxss1 libxtst-dev
+          fi
+          npm ci
+
+      - name: 🔍 Prisma generate
+        run: npx prisma generate
+
+      - name: 🏗️ Build Next.js
+        run: npm run build
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+
+      - name: 📦 Build + Publish ${{ matrix.target }}
+        run: npx electron-builder --${{ matrix.target }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          APP_VERSION: ${{ env.APP_VERSION }}

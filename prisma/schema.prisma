@@ -31,6 +31,9 @@ model User {
   notifications   Notification[]
   sessions        Session[]
   authoredMessages RequestMessage[]
+  syncDevices     SyncDevice[]
+  syncOperations   SyncOperation[]
+  idempotencyRecords IdempotencyRecord[]
 }
 
 model Session {
@@ -83,6 +86,21 @@ model School {
   feeDefinitions  FeeDefinition[]
   auditLogs       AuditLog[]
   brandings       Branding[]
+  syncDevices     SyncDevice[]
+  chartOfAccounts ChartOfAccount[]
+  accountingJournals AccountingJournal[]
+  journalEntries  JournalEntry[]
+  attendanceSessions AttendanceSession[]
+  attendances     Attendance[]
+  grades          Grade[]
+  rentalResources RentalResource[]
+  rentalContracts RentalContract[]
+  books            Book[]
+  bookLoans        BookLoan[]
+  transportRoutes  TransportRoute[]
+  canteenMenus     CanteenMenu[]
+  canteenReservations CanteenReservation[]
+  calendarEvents   CalendarEvent[]
 }
 
 model Branding {
@@ -159,6 +177,8 @@ model Classroom {
   courses         Course[]
   assignments     Assignment[]
   announcements   Announcement[]
+  attendanceSessions AttendanceSession[]
+  grades          Grade[]
 }
 
 model Subject {
@@ -202,6 +222,7 @@ model Student {
   guardianLinks   GuardianStudentLink[]
   invoices        Invoice[]
   parentRequests  ParentRequest[]
+  canteenReservations CanteenReservation[]
 }
 
 model Guardian {
@@ -221,6 +242,7 @@ model Guardian {
 
   studentLinks    GuardianStudentLink[]
   parentRequests  ParentRequest[]
+  canteenReservations CanteenReservation[]
 }
 
 model GuardianStudentLink {
@@ -300,6 +322,7 @@ model Course {
   assignments  Assignment[]
   attendances  Attendance[]
   sessions     CourseSession[]
+  attendanceSessions AttendanceSession[]
 }
 
 model CourseSession {
@@ -313,24 +336,66 @@ model CourseSession {
   createdAt    DateTime @default(now())
 
   attendances  Attendance[]
+  attendanceSessions AttendanceSession[]
+}
+
+// Session d'appel : regroupe l'appel d'une séance par un professeur.
+// Verrouillable (status LOCKED) pour empêcher les modifications postérieures.
+model AttendanceSession {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  courseId        String
+  course          Course   @relation(fields: [courseId], references: [id])
+  sessionId       String?  // CourseSession sous-jacente (horaire planifié)
+  session         CourseSession? @relation(fields: [sessionId], references: [id])
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
+  teacherId       String?
+  date            DateTime
+  status          String   @default("OPEN") // OPEN | LOCKED | CANCELLED
+  lockedAt        DateTime?
+  lockedById      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  attendances     Attendance[]
+
+  @@index([schoolId, courseId, date])
+  @@index([classroomId, date])
+  @@index([status])
 }
 
 model Attendance {
   id           String   @id @default(cuid())
+  schoolId     String
+  school       School   @relation(fields: [schoolId], references: [id])
   studentId    String
   student      Student  @relation(fields: [studentId], references: [id])
   courseId     String
   course       Course   @relation(fields: [courseId], references: [id])
   sessionId    String?
   session      CourseSession? @relation(fields: [sessionId], references: [id])
+  attendanceSessionId String?
+  attendanceSession AttendanceSession? @relation(fields: [attendanceSessionId], references: [id])
   date         DateTime
   status       String   // PRESENT | LATE | ABSENT | EXCUSED
   justified    Boolean  @default(false)
   justification String?
   recordedAt   DateTime @default(now())
+  recordedById String?
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
+  // Clé logique anti-doublon : un élève ne peut avoir qu'une seule présence
+  // par session d'appel (et par école). Conforme au §14.2.14-J.
+  @@unique([schoolId, attendanceSessionId, studentId])
+  // Clé secondaire pour rétro-compatibilité (avant AttendanceSession)
   @@unique([studentId, courseId, date])
+
+  @@index([schoolId, date])
+  @@index([studentId, status])
+  @@index([attendanceSessionId])
 }
 
 // ============================================================
@@ -339,20 +404,69 @@ model Attendance {
 
 model Grade {
   id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
   studentId       String
   student         Student  @relation(fields: [studentId], references: [id])
   subjectId       String
   subject         Subject  @relation(fields: [subjectId], references: [id])
   classroomId     String?
+  classroom       Classroom? @relation(fields: [classroomId], references: [id])
+  teacherId       String?
   title           String   // "Devoir 1", "Examen trimestriel"
   score           Float
   maxScore        Float
   weight          Float    @default(1)
-  status          String   @default("PUBLISHED") // DRAFT | CONTROLLED | PUBLISHED
-  publishedAt     DateTime?
+  // Workflow DEC-008 : DRAFT → SUBMITTED → CONTROLLED → PUBLISHED
+  // Une fois PUBLISHED, toute correction passe par GradeCorrection (jamais de modification directe).
+  status          String   @default("DRAFT") // DRAFT | SUBMITTED | CONTROLLED | PUBLISHED
   teacherComment  String?
+  // Métadonnées de workflow
+  draftedAt       DateTime @default(now())
+  draftedById     String?
+  submittedAt     DateTime?
+  submittedById   String?
+  controlledAt    DateTime?
+  controlledById  String?
+  publishedAt     DateTime?
+  publishedById   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Précision : score en centimes pour les calculs
+  scoreCents      Int      @default(0)
+  maxScoreCents   Int      @default(0)
+  weightCents     Int      @default(100) // 1.0 = 100
+
+  corrections     GradeCorrection[]
+
+  @@index([schoolId, status])
+  @@index([studentId, status])
+  @@index([classroomId, status])
+  @@index([subjectId])
+}
+
+// Table d'audit des corrections de notes post-publication.
+// Conforme au §14.2.14-K.2 : une note publiée ne peut être corrigée
+// que via un workflow officiel référencé, jamais par modification directe.
+model GradeCorrection {
+  id              String   @id @default(cuid())
+  gradeId         String
+  grade           Grade    @relation(fields: [gradeId], references: [id])
+  previousScore   Float
+  previousScoreCents Int
+  correctedScore  Float
+  correctedScoreCents Int
+  reason          String
+  requestedById   String
+  approvedById    String?
+  approvedAt      DateTime?
+  evidenceDocName String?
+  status          String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt       DateTime @default(now())
+
+  @@index([gradeId])
+  @@index([status])
 }
 
 model ReportCard {
@@ -446,9 +560,14 @@ model Invoice {
   issueDate       DateTime @default(now())
   dueDate         DateTime?
   status          String   @default("UNPAID") // DRAFT | UNPAID | PARTIALLY_PAID | PAID | CANCELLED
-  totalAmount     Float
+  totalAmount     Float    // montant TTC (centimes stockés en Int ailleurs ; ici Float pour compat lecture)
   paidAmount      Float    @default(0)
   currency        String   @default("EUR")
+  // Centimes pour les calculs précis (Cycle 02 — DEC-005)
+  totalAmountCents    Int  @default(0)
+  paidAmountCents     Int  @default(0)
+  // Indique qu'une écriture comptable a été générée pour cette facture
+  accountingEntryId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -468,6 +587,20 @@ model InvoiceLine {
   discount        Float    @default(0)
   taxRate         Float    @default(0)
   total           Float
+  // Centimes pour les calculs précis (Cycle 02 — DEC-005)
+  quantityCents      Int  @default(100) // 1.00 = 100
+  unitPriceCents     Int  @default(0)
+  discountCents      Int  @default(0) // en pourcentage centimes (5% = 500)
+  taxRateCents       Int  @default(0) // en pourcentage centimes (20% = 2000)
+  grossAmountCents   Int  @default(0) // quantité × prix unitaire
+  discountAmountCents Int @default(0)
+  netAmountCents     Int  @default(0) // brut - remise
+  taxAmountCents     Int  @default(0)
+  totalAmountCents   Int  @default(0) // net + taxe = TTC
+  // Comptes comptables à débiter/créditer pour cette ligne (transitoire — non persisté dans la DB,
+  // utilisé par le moteur de génération d'écritures)
+  productAccountNumber String?
+  taxAccountNumber   String?
   createdAt       DateTime @default(now())
 }
 
@@ -485,7 +618,106 @@ model Payment {
   paidAt          DateTime @default(now())
   cancelledAt     DateTime?
   cancellationReason String?
+  // Centimes pour les calculs précis (Cycle 02 — DEC-005)
+  amountCents     Int      @default(0)
+  // Indique qu'une écriture comptable a été générée pour ce paiement
+  accountingEntryId String?
+  // Si ce paiement est une régularisation (avoir/remboursement), référence au paiement original
+  reversesPaymentId String?
   createdAt       DateTime @default(now())
+}
+
+// ============================================================
+// LOCATIONS (Cycle 05, §3.13 + §3.14)
+// Salles et véhicules avec acomptes, cautions, états des lieux,
+// contrats, facturation et comptabilité analytique dédiée.
+// ============================================================
+
+model RentalResource {
+  // Ressource louable : salle ou véhicule
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  type            String   // ROOM | VEHICLE
+  code            String   // identifiant métier unique par école (ex: SALLE-A, VEH-001)
+  name            String
+  description     String?
+  capacity        Int?     // pour les salles
+  // Spécifique véhicules
+  brand           String?  // marque
+  model           String?  // modèle
+  registrationPlate String? // immatriculation
+  mileageKm       Int?
+  // Tarification
+  hourlyRateCents Int      @default(0)
+  dailyRateCents  Int      @default(0)
+  // État
+  status          String   @default("ACTIVE") // ACTIVE | MAINTENANCE | RETIRED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  rentals         RentalContract[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId, type, status])
+}
+
+model RentalContract {
+  // Contrat de location : salle ou véhicule
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  contractNumber  String   @unique
+  resourceId      String
+  resource        RentalResource @relation(fields: [resourceId], references: [id])
+  resourceType    String   // ROOM | VEHICLE (dénormalisé pour requêtes faciles)
+  // Client
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  customerType    String   @default("INDIVIDUAL") // INDIVIDUAL | ORGANIZATION
+  // Période
+  startDate       DateTime
+  endDate         DateTime
+  // Montants en centimes
+  rentalAmountCents Int
+  depositAmountCents Int  @default(0) // acompte
+  cautionAmountCents Int @default(0) // caution remboursable
+  penaltyAmountCents  Int @default(0) // pénalités éventuelles
+  totalAmountCents Int   // total TTC à payer
+  paidAmountCents  Int    @default(0)
+  // États des lieux
+  checkInNotes    String?
+  checkInAt       DateTime?
+  checkInById      String?
+  checkOutNotes   String?
+  checkOutAt      DateTime?
+  checkOutById     String?
+  damageNotes     String?
+  damageAmountCents Int  @default(0)
+  // Workflow
+  status          String   @default("DRAFT")
+  // DRAFT → QUOTE (devis) → CONFIRMED (réservation) → ACTIVE (en cours)
+  // → COMPLETED (terminé) → INVOICED (facturé) → CLOSED (clôturé)
+  // | CANCELLED
+  quoteAt         DateTime?
+  confirmedAt     DateTime?
+  activeAt        DateTime?
+  completedAt     DateTime?
+  invoicedAt      DateTime?
+  closedAt        DateTime?
+  cancelledAt     DateTime?
+  cancellationReason String?
+  // Liaison facture
+  invoiceId       String?
+  // Audit
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([schoolId, resourceId, startDate, endDate])
+  @@index([customerEmail])
 }
 
 // ============================================================
@@ -584,3 +816,400 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
 }
+
+// ============================================================
+// SYNCHRONISATION — INFRASTRUCTURE TECHNIQUE P0
+// Modélise l'architecture hub-and-spoke du cahier des charges §14.2.15.
+// Note : dans l'environnement Next.js, le mode hors-ligne réel n'est pas
+// implémenté (pas de SQLite par poste navigateur). Ces tables constituent
+// l'infrastructure technique prête à servir de contrat pour un futur client
+// desktop C#/.NET 8, et sont déjà utilisées pour l'idempotence des commandes.
+// ============================================================
+
+model SyncDevice {
+  id              String    @id @default(cuid())
+  deviceId        String    @unique // identifiant global d'installation (GUID)
+  schoolId        String?
+  school          School?   @relation(fields: [schoolId], references: [id])
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  deviceType      String    // DESKTOP | WEB | MOBILE
+  appVersion      String?
+  schemaVersion   Int       @default(1)
+  publicKeyHint   String?   // empreinte de clé (jamais la clé elle-même)
+  lastSeenAtUtc   DateTime?
+  revokedAtUtc    DateTime?
+  status          String    @default("ACTIVE") // ACTIVE | REVOKED | OBSOLETE
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  operations      SyncOperation[]
+  outboxItems     SyncOutbox[]
+  conflicts       SyncConflict[]
+  inboxItems      SyncInbox[]
+
+  @@index([userId])
+  @@index([schoolId])
+  @@index([status])
+}
+
+model SyncOperation {
+  id              String   @id @default(cuid())
+  operationId     String   @unique // identifiant global d'opération (GUID) — idempotence
+  deviceId        String?
+  device          SyncDevice? @relation(fields: [deviceId], references: [id])
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  aggregateType   String   // STUDENT | INVOICE | PAYMENT | ANNOUNCEMENT | etc.
+  aggregateId     String?
+  operationType   String   // CREATE | UPDATE | DELETE | SUBMIT | PUBLISH
+  payloadHash     String   // empreinte SHA-256 du payload JSON
+  payloadJson     String   // payload versionné (intention métier)
+  baseVersion     Int?     // version connue au moment de l'édition (concurrence optimiste)
+  receivedAtUtc   DateTime @default(now())
+  processedAtUtc  DateTime?
+  status          String   @default("PENDING") // PENDING | SENDING | ACCEPTED | REJECTED | CONFLICT | RETRYING | CANCELLED
+  resultJson      String?  // résultat sérialisé (réponse à renvoyer au client)
+  errorCode       String?
+  errorMessage    String?
+  conflictId      String?  // référence à SyncConflict si CONFLICT
+  attemptCount    Int      @default(0)
+  lastAttemptAtUtc DateTime?
+
+  @@index([deviceId])
+  @@index([userId])
+  @@index([status])
+  @@index([aggregateType, aggregateId])
+  @@index([receivedAtUtc])
+}
+
+model SyncOutbox {
+  // File d'envoi locale (concept). En Next.js, utilisée pour tracer les
+  // opérations en attente de propagation à un éventuel client desktop.
+  id              String   @id @default(cuid())
+  operationId     String   @unique
+  deviceId        String?
+  device          SyncDevice? @relation(fields: [deviceId], references: [id])
+  aggregateType   String
+  aggregateId     String?
+  operationType   String
+  payloadJson     String
+  payloadHash     String
+  baseVersion     Int?
+  userId          String?
+  createdAtUtc    DateTime @default(now())
+  status          String   @default("PENDING") // PENDING | SENDING | ACCEPTED | REJECTED | CONFLICT | RETRYING
+  attemptCount    Int      @default(0)
+  lastAttemptAtUtc DateTime?
+  lastErrorCode   String?
+  lastErrorMessage String?
+
+  @@index([deviceId])
+  @@index([status, createdAtUtc])
+  @@index([aggregateType, aggregateId])
+}
+
+model SyncInbox {
+  // Changements reçus du serveur à appliquer sur un poste local.
+  // En Next.js, surtout utilisée comme audit de propagation.
+  id              String   @id @default(cuid())
+  changeId        String   @unique // identifiant global de changement
+  deviceId        String?
+  device          SyncDevice? @relation(fields: [deviceId], references: [id])
+  serverSequence  Int      // séquence centrale monotone
+  aggregateType   String
+  aggregateId     String?
+  changeType      String   // CREATE | UPDATE | DELETE
+  payloadJson     String
+  receivedAtUtc   DateTime @default(now())
+  appliedAtUtc    DateTime?
+  status          String   @default("PENDING") // PENDING | APPLIED | REJECTED | SKIPPED
+
+  @@index([deviceId])
+  @@index([status, serverSequence])
+  @@index([aggregateType, aggregateId])
+}
+
+model SyncConflict {
+  id              String   @id @default(cuid())
+  conflictId      String   @unique
+  operationId     String?
+  deviceId        String?
+  device          SyncDevice? @relation(fields: [deviceId], references: [id])
+  aggregateType   String
+  aggregateId     String?
+  localPayloadJson String
+  serverPayloadJson String?
+  baseVersion     Int?
+  serverVersion   Int?
+  conflictType    String   // STALE_VERSION | CONTRADICTORY | PERMISSION_REVOKED | BUSINESS_RULE
+  assignedToId   String?
+  status          String   @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | REJECTED
+  resolutionStrategy String? // AUTO_DEDUPLICATED | MERGED | LAST_WRITE_WINS_DRAFT | MANUAL_RESOLUTION | CORRECTION_WORKFLOW
+  resolutionNote  String?
+  resolvedAtUtc   DateTime?
+  resolvedById   String?
+  createdAtUtc    DateTime @default(now())
+
+  @@index([deviceId])
+  @@index([status, assignedToId])
+  @@index([aggregateType, aggregateId])
+  @@index([createdAtUtc])
+}
+
+model IdempotencyRecord {
+  // Clé d'idempotence par utilisateur (cf. §14.2.6).
+  // Permet de rejeter proprement les commandes répétées avec payload différent,
+  // et de renvoyer le même résultat pour une commande répétée identique.
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key             String   // UUID fourni par le client (header Idempotency-Key)
+  payloadHash     String   // empreinte du payload
+  resultJson      String?  // résultat mis en cache
+  resultStatus    Int?     // code HTTP renvoyé
+  expiresAtUtc    DateTime
+  createdAtUtc    DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@index([expiresAtUtc])
+}
+
+// ============================================================
+// MODULES COMPLÉMENTAIRES (Cycle 06)
+// Bibliothèque, transport, cantine, calendrier institutionnel
+// ============================================================
+
+model Book {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  isbn            String?
+  title           String
+  author          String?
+  category        String?
+  numberOfCopies Int      @default(1)
+  availableCopies Int     @default(1)
+  status          String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  loans           BookLoan[]
+
+  @@index([schoolId, title])
+}
+
+model BookLoan {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  bookId          String
+  book            Book     @relation(fields: [bookId], references: [id])
+  borrowerName    String
+  borrowerType    String   @default("STUDENT") // STUDENT | TEACHER | STAFF
+  borrowerId      String?
+  loanDate       DateTime @default(now())
+  dueDate        DateTime
+  returnDate      DateTime?
+  status          String   @default("ACTIVE") // ACTIVE | RETURNED | OVERDUE | LOST
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, status])
+  @@index([bookId])
+}
+
+model TransportRoute {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  name            String   // "Ligne Nord", "Ligne Sud"
+  code            String
+  description     String?
+  vehicleId       String?  // lien vers RentalResource (véhicule)
+  driverName      String?
+  driverPhone     String?
+  capacity        Int      @default(30)
+  stops           String?  // JSON list of stops
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, code])
+}
+
+model CanteenMenu {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  date            DateTime
+  starter         String?
+  mainCourse      String
+  dessert         String?
+  drink           String?
+  priceCents      Int      @default(0)
+  vegetarianOption String?
+  allergens       String?
+  status          String   @default("PUBLISHED") // DRAFT | PUBLISHED | CANCELLED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reservations    CanteenReservation[]
+
+  @@index([schoolId, date])
+}
+
+model CanteenReservation {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  menuId          String
+  menu            CanteenMenu @relation(fields: [menuId], references: [id])
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  guardianId      String?
+  guardian        Guardian? @relation(fields: [guardianId], references: [id])
+  reservationDate DateTime
+  mealType        String   @default("STANDARD") // STANDARD | VEGETARIAN
+  status          String   @default("CONFIRMED") // CONFIRMED | CANCELLED | CONSUMED
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, reservationDate])
+  @@index([menuId])
+}
+
+model CalendarEvent {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime
+  allDay          Boolean  @default(false)
+  location        String?
+  eventType       String   @default("OTHER") // HOLIDAY | EXAM | MEETING | OUTING | DEADLINE | OTHER
+  targetType      String   @default("ALL") // ALL | DIRECTION | CLASSROOM | STAFF
+  classroomId     String?
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, startDate])
+  @@index([eventType])
+}
+
+// ============================================================
+// COMPTABILITÉ — MODULE FINANCE (Cycle 02, §3.11 du cahier des charges)
+// ============================================================
+// Implémente :
+//   - le plan comptable configurable (ChartOfAccount) ;
+//   - les journaux comptables (AccountingJournal : VE-SCO, VE-SAL, CAIS, BQ, etc.) ;
+//   - les écritures en double entrée (JournalEntry + JournalEntryLine) ;
+//   - le lien entre factures/paiements et écritures comptables.
+//
+// Précision monétaire (DEC-005) : tous les montants sont stockés sous forme
+// d'entier (centimes) en Int. Aucun Float. Les calculs se fontent côté
+// application via src/lib/money.ts (BigInt natif).
+// ============================================================
+
+model ChartOfAccount {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  accountNumber   String   // ex: 411001, 706100, 530000
+  accountLabel    String   // ex: "Clients académiques", "Inscriptions"
+  accountClass    String   // 1 à 7 (classe PCG)
+  accountCategory String   // TREASURY | CUSTOMER | SUPPLIER | PRODUCT | CHARGE | EQUITY | TAX | OTHER
+  accountType     String   // ASSET | LIABILITY | REVENUE | EXPENSE | EQUITY
+  direction       String?  // DEBIT | CREDIT — sens de solde normal
+  isProductAccount Boolean @default(false)
+  isTaxAccount    Boolean  @default(false)
+  isTreasuryAccount Boolean @default(false)
+  isCustomerAccount Boolean @default(false)
+  isSupplierAccount Boolean @default(false)
+  status          String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  journalLines    JournalEntryLine[]
+
+  @@unique([schoolId, accountNumber])
+  @@index([schoolId, accountCategory])
+  @@index([schoolId, accountType])
+}
+
+model AccountingJournal {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  code            String   // VE-SCO, VE-SAL, VE-VEH, CAIS, BQ, ACHA, PAIE, OD
+  label           String   // "Ventes scolaires", "Caisse", etc.
+  journalType     String   // SALES | CASH | BANK | PURCHASE | PAYROLL | MISC
+  status          String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt       DateTime @default(now())
+
+  entries         JournalEntry[]
+
+  @@unique([schoolId, code])
+}
+
+model JournalEntry {
+  // Une écriture comptable = une transaction validée en double entrée.
+  // Liée à une facture, un paiement, un avoir ou une opération diverse.
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  entryNumber     String   @unique // numéro séquentiel par journal + période
+  journalId       String
+  journal         AccountingJournal @relation(fields: [journalId], references: [id])
+  entryDate       DateTime
+  accountingPeriod String  // "2025-09" (YYYY-MM)
+  description     String
+  referenceType   String?  // INVOICE | PAYMENT | REFUND | CREDIT_NOTE | MANUAL
+  referenceId     String?  // ID de l'Invoice, Payment, etc.
+  status          String   @default("POSTED") // DRAFT | POSTED | REVERSED
+  totalDebit      Int      // total débit en centimes (doit = totalCredit)
+  totalCredit     Int      // total crédit en centimes
+  isBalanced      Boolean  @default(false) // calculé à chaque insertion
+  reversalOfId    String?  // si c'est une écriture d'inversion, référence à l'originale
+  postedAt        DateTime @default(now())
+  postedById      String?
+  createdAt       DateTime @default(now())
+
+  lines           JournalEntryLine[]
+
+  @@index([schoolId, journalId, entryDate])
+  @@index([referenceType, referenceId])
+  @@index([accountingPeriod])
+  @@index([status])
+}
+
+model JournalEntryLine {
+  // Une ligne d'écriture. Débit OU crédit, jamais les deux (le cas échéant,
+  // on crée deux lignes). Les montants sont en centimes (Int).
+  id              String   @id @default(cuid())
+  entryId          String
+  entry           JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         ChartOfAccount @relation(fields: [accountId], references: [id])
+  debit           Int      @default(0) // centimes
+  credit          Int      @default(0) // centimes
+  description     String?
+  // Dimensions analytiques (§3.11.10)
+  analyticalActivity String? // ECOLE | LOCATION_SALLE | LOCATION_VEHICULE
+  analyticalSite  String?
+  analyticalResource String?
+  analyticalContract String?
+  analyticalPeriod  String?
+  analyticalDirection String?
+  createdAt       DateTime @default(now())
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([analyticalActivity])
+}
+
+// Extension des tables existantes pour la liaison comptable
+// (sans casser l'existant — relation optionnelle)

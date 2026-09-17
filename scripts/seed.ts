@@ -533,6 +533,7 @@ async function main() {
       const score = 9 + Math.floor(Math.random() * 11)
       await db.grade.create({
         data: {
+          schoolId: school.id,
           studentId: s.id,
           subjectId: subj.id,
           classroomId: enr.classroomId,
@@ -542,6 +543,12 @@ async function main() {
           weight: 1,
           status: 'PUBLISHED',
           publishedAt: new Date(today.getTime() - (m + 1) * 7 * 24 * 60 * 60 * 1000),
+          draftedAt: new Date(today.getTime() - (m + 1) * 7 * 24 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000),
+          submittedAt: new Date(today.getTime() - (m + 1) * 7 * 24 * 60 * 60 * 1000 - 12 * 60 * 60 * 1000),
+          controlledAt: new Date(today.getTime() - (m + 1) * 7 * 24 * 60 * 60 * 1000 - 6 * 60 * 60 * 1000),
+          scoreCents: Math.round(score * 100),
+          maxScoreCents: 2000,
+          weightCents: 100,
           teacherComment:
             score >= 16
               ? 'Très bon travail, continuez ainsi.'
@@ -597,6 +604,7 @@ async function main() {
       const justified = status === 'ABSENT' && sIdx % 2 === 0
       await db.attendance.create({
         data: {
+          schoolId: school.id,
           studentId: s.id,
           courseId: course.id,
           sessionId: session.id,
@@ -1003,6 +1011,15 @@ async function main() {
 }
 
 async function wipeDatabase() {
+  // Ordre : d'abord les feuilles, puis les parents
+  // Inclut les nouvelles tables du Cycle 02 (Accounting) et Cycle 03 (AttendanceSession, GradeCorrection)
+  await db.journalEntryLine.deleteMany()
+  await db.journalEntry.deleteMany()
+  await db.gradeCorrection.deleteMany()
+  await db.attendance.deleteMany()
+  await db.attendanceSession.deleteMany()
+  await db.accountingJournal.deleteMany()
+  await db.chartOfAccount.deleteMany()
   await db.auditLog.deleteMany()
   await db.notification.deleteMany()
   await db.requestMessage.deleteMany()
@@ -1016,7 +1033,6 @@ async function wipeDatabase() {
   await db.assignment.deleteMany()
   await db.reportCard.deleteMany()
   await db.grade.deleteMany()
-  await db.attendance.deleteMany()
   await db.courseSession.deleteMany()
   await db.course.deleteMany()
   await db.teacherAssignment.deleteMany()

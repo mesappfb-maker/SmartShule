@@ -1,5 +1,8 @@
 // SmartShule — Helpers de formatage
 
+// Re-export du helper monétaire pour l'affichage (centimes → devise formatée)
+export { formatCents } from './money'
+
 export function formatCurrency(amount: number, currency = 'CDF', locale = 'fr-FR'): string {
   try {
     return new Intl.NumberFormat(locale, {

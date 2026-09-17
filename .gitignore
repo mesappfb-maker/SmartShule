@@ -30,12 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (NEVER commit secrets)
 .env*
+!.env.example
 
 # vercel
 .vercel
-
 
 # typescript
 *.tsbuildinfo
@@ -50,5 +50,27 @@ test
 prompt
 
 server.log
+
 # Skills directory
 /skills/
+
+# SmartShule specific (Cycle 08)
+# Database files — NEVER commit (contains user data)
+/db/
+*.db
+*.db-journal
+
+# Electron build output
+/dist/
+
+# Internal tooling
+/.zscripts/
+/tool-results/
+/upload/
+/download/
+
+# Certificates (NEVER commit)
+*.pfx
+*.p12
+*.key
+certificate.pfx

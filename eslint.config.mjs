@@ -15,7 +15,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/prefer-as-const": "off",
     "@typescript-eslint/no-unused-disable-directive": "off",
-    
+
     // React rules
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
@@ -23,11 +23,11 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "react/display-name": "off",
     "react/prop-types": "off",
     "react-compiler/react-compiler": "off",
-    
+
     // Next.js rules
     "@next/next/no-img-element": "off",
     "@next/next/no-html-link-for-pages": "off",
-    
+
     // General JavaScript rules
     "prefer-const": "off",
     "no-unused-vars": "off",
@@ -44,7 +44,14 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  // Règles spécifiques au process Electron (CommonJS — require autorisé)
+  files: ["electron/**/*.js"],
+  rules: {
+    "@typescript-eslint/no-require-imports": "off",
+    "no-undef": "off",
+  },
+}, {
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "dist/**", "next-env.d.ts", "examples/**", "skills", "electron/**"]
 }];
 
 export default eslintConfig;

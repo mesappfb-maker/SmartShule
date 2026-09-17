@@ -28,15 +28,25 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   try {
-    const [algo, iterStr, digest, salt, storedKey] = hash.split('$')
+    if (!hash || typeof hash !== 'string') return false
+    const parts = hash.split('$')
+    if (parts.length !== 5) return false
+    const [algo, iterStr, digest, salt, storedKey] = parts
     if (algo !== 'pbkdf2') return false
+    if (!iterStr || !digest || !salt || !storedKey) return false
     const iterations = parseInt(iterStr, 10)
+    if (isNaN(iterations) || iterations <= 0) return false
     const keylen = Buffer.from(storedKey, 'hex').length
+    if (keylen === 0) return false
 
     return new Promise((resolve) => {
       crypto.pbkdf2(password, salt, iterations, keylen, digest, (err, derivedKey) => {
         if (err) return resolve(false)
-        resolve(crypto.timingSafeEqual(derivedKey, Buffer.from(storedKey, 'hex')))
+        try {
+          resolve(crypto.timingSafeEqual(derivedKey, Buffer.from(storedKey, 'hex')))
+        } catch {
+          resolve(false)
+        }
       })
     })
   } catch {
