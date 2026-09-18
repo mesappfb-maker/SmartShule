@@ -1,12 +1,12 @@
 // SmartShule - Portail web parents/élèves/direction
-// Version SQLite via Prisma
+// Version PostgreSQL via Prisma
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
