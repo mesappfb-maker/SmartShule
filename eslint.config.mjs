@@ -51,7 +51,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-undef": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "dist/**", "next-env.d.ts", "examples/**", "skills", "electron/**"]
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "dist/**", "next-env.d.ts", "examples/**", "skills", "electron/**", "scripts/auto-seed.js"]
 }];
 
 export default eslintConfig;

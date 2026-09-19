@@ -1,12 +1,12 @@
 // SmartShule - Portail web parents/élèves/direction
-// Version PostgreSQL via Prisma
+// Version SQLite via Prisma (développement local)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -1213,3 +1213,191 @@ model JournalEntryLine {
 
 // Extension des tables existantes pour la liaison comptable
 // (sans casser l'existant — relation optionnelle)
+// ============================================================
+// INDUSTRIALISATION — MODULES ÉTENDUS (Phase 2)
+// ============================================================
+
+// A. Recouvrement & Échéanciers
+model PaymentSchedule {
+  id              String   @id @default(cuid())
+  schoolId        String
+  invoiceId       String
+  installmentNumber Int
+  dueDate         DateTime
+  amountCents     Int
+  paidCents       Int      @default(0)
+  status          String   @default("PENDING") // PENDING | PARTIAL | PAID | LATE
+  createdAt       DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([status, dueDate])
+}
+
+// B. Cahier de textes
+model TeacherLogbook {
+  id              String   @id @default(cuid())
+  schoolId        String
+  teacherId       String
+  classroomId     String
+  courseId        String?
+  sessionDate     DateTime
+  content         String
+  homework        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, classroomId, sessionDate])
+}
+
+// C. Emplois du temps
+model Timetable {
+  id              String   @id @default(cuid())
+  schoolId        String
+  classroomId     String
+  courseId        String
+  dayOfWeek       Int      // 0=Dimanche, 6=Samedi
+  startTime       String   // "08:00"
+  endTime         String   // "10:00"
+  room            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, classroomId, dayOfWeek])
+  @@unique([schoolId, classroomId, courseId, dayOfWeek, startTime])
+}
+
+// D. Discipline & Suivi disciplinaire
+model DisciplineIncident {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  date            DateTime
+  type            String   // RETARD | ABSENCE_NON_JUSTIFIEE | SANCTION | OBSERVATION
+  severity        String   @default("LOW") // LOW | MEDIUM | HIGH
+  description     String
+  sanction        String?
+  reportedById    String?
+  status          String   @default("OPEN") // OPEN | RESOLVED | ARCHIVED
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, studentId, date])
+}
+
+// D. Messagerie sécurisée
+model MessageThread {
+  id              String   @id @default(cuid())
+  schoolId        String
+  subject         String
+  tags            String?  // JSON array: ["ABSENCE", "URGENT", "PEDAGOGIE"]
+  status          String   @default("OPEN")
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages        Message[]
+  participants    ThreadParticipant[]
+}
+
+model ThreadParticipant {
+  id              String   @id @default(cuid())
+  threadId        String
+  thread          MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId          String
+  role            String   // SENDER | RECIPIENT
+  readAt          DateTime?
+
+  @@index([threadId])
+  @@index([userId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  threadId        String
+  thread          MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId        String
+  authorName      String
+  content         String
+  readReceipts    String?  // JSON array of userIds who read it
+  createdAt       DateTime @default(now())
+
+  @@index([threadId])
+}
+
+// D. Rendez-vous Parents-Profs
+model ParentMeetingSlot {
+  id              String   @id @default(cuid())
+  schoolId        String
+  teacherId       String
+  classroomId     String?
+  startTime       DateTime
+  endTime         DateTime
+  bookedByGuardianId String?
+  status          String   @default("AVAILABLE") // AVAILABLE | BOOKED | CANCELLED
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, teacherId, startTime])
+}
+
+// E. Recrutement
+model JobOffer {
+  id              String   @id @default(cuid())
+  schoolId        String
+  title           String
+  description     String
+  requirements    String?
+  contractType    String   // CDI | CDD | INTERIM
+  status          String   @default("OPEN") // OPEN | CLOSED | FILLED
+  closingDate     DateTime?
+  createdAt       DateTime @default(now())
+
+  applications    JobApplication[]
+}
+
+model JobApplication {
+  id              String   @id @default(cuid())
+  jobId           String
+  job             JobOffer @relation(fields: [jobId], references: [id])
+  candidateName   String
+  candidateEmail  String
+  candidatePhone  String?
+  coverLetter     String?
+  resumeUrl       String?
+  status          String   @default("RECEIVED") // RECEIVED | REVIEWING | INTERVIEW | OFFERED | REJECTED
+  createdAt       DateTime @default(now())
+
+  @@index([jobId])
+}
+
+// E. Variables de paie
+model PayrollVariable {
+  id              String   @id @default(cuid())
+  schoolId        String
+  employeeId      String
+  period          String   // "2026-09"
+  baseSalaryCents Int
+  overtimeCents   Int      @default(0)
+  bonusCents      Int      @default(0)
+  deductionCents  Int      @default(0)
+  netSalaryCents  Int
+  status          String   @default("DRAFT") // DRAFT | VALIDATED | PAID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, employeeId, period])
+}
+
+// E. Modèles de documents officiels
+model DocumentTemplate {
+  id              String   @id @default(cuid())
+  schoolId        String
+  name            String   // "Certificat de scolarité", "Attestation"
+  type            String   // CERTIFICATE | ATTESTATION | BULLETIN | TRANSCRIPT
+  content         String   // Template HTML avec variables {{studentName}}, {{className}}, etc.
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, type])
+}
+
