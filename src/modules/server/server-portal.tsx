@@ -9,20 +9,22 @@ import { EmptyState } from '@/components/ss/empty-state'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Home, Server, RefreshCw, AlertTriangle, Users, ShieldCheck,
-  Activity, Database, HardDrive, Mail,
+  Activity, Database, HardDrive, Mail, User,
 } from 'lucide-react'
 import { logoutAction } from '@/lib/actions'
 import { formatRelative, formatDate } from '@/lib/format'
 import { toast } from 'sonner'
+import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
 
 type ServerData = NonNullable<Awaited<ReturnType<typeof import('@/lib/server-portal-queries').getServerPortalData>>>
 
 export function ServerPortal({
-  user, schoolName, data,
+  user, schoolName, data, profileData,
 }: {
   user: { displayName: string; role: string; email: string }
   schoolName: string
   data: ServerData
+  profileData?: ProfileData
 }) {
   const [view, setView] = React.useState('dashboard')
   const s = data.schoolStats
@@ -35,6 +37,7 @@ export function ServerPortal({
       { key: 'conflicts', label: 'Conflits', icon: <AlertTriangle className="h-4 w-4" />, badge: s.openConflictsCount },
       { key: 'rh', label: 'Rapports RH', icon: <Users className="h-4 w-4" /> },
       { key: 'stats', label: 'Statistiques', icon: <Database className="h-4 w-4" /> },
+      { key: 'profile', label: 'Mon profil', icon: <User className="h-4 w-4" /> },
     ],
   }]
 
@@ -154,6 +157,7 @@ export function ServerPortal({
           </div>
         </div>
       )}
+      {view === 'profile' && profileData && <ProfilePage data={profileData} onBack={() => setView('dashboard')} />}
     </AppShell>
   )
 }

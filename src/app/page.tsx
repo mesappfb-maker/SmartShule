@@ -11,6 +11,7 @@ import {
 import { getTeacherPortalData } from '@/lib/teacher-portal-queries'
 import { getAccountantPortalData } from '@/lib/accountant-portal-queries'
 import { getServerPortalData } from '@/lib/server-portal-queries'
+import { getProfileData } from '@/lib/profile-actions'
 import { LoginForm } from '@/modules/auth/login-form'
 import { ParentDashboard } from '@/modules/parent/parent-dashboard'
 import { StudentDashboard } from '@/modules/student/student-dashboard'
@@ -83,23 +84,32 @@ export default async function Home() {
 
   // TEACHER (nouveau portail RDC)
   if (user.role === 'TEACHER') {
-    const data = await getTeacherPortalData(user.id)
+    const [data, profileData] = await Promise.all([
+      getTeacherPortalData(user.id),
+      getProfileData(user.id),
+    ])
     if (!data) return <NoData />
-    return <TeacherPortal user={user} schoolName={schoolData.name} data={data} />
+    return <TeacherPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
   }
 
   // ACCOUNTANT (nouveau portail RDC)
   if (user.role === 'ACCOUNTANT') {
-    const data = await getAccountantPortalData(user.id)
+    const [data, profileData] = await Promise.all([
+      getAccountantPortalData(user.id),
+      getProfileData(user.id),
+    ])
     if (!data) return <NoData />
-    return <AccountantPortal user={user} schoolName={schoolData.name} data={data} />
+    return <AccountantPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
   }
 
   // SERVER (nouveau portail PromoServeur)
   if (user.role === 'SERVER') {
-    const data = await getServerPortalData(user.id)
+    const [data, profileData] = await Promise.all([
+      getServerPortalData(user.id),
+      getProfileData(user.id),
+    ])
     if (!data) return <NoData />
-    return <ServerPortal user={user} schoolName={schoolData.name} data={data} />
+    return <ServerPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
   }
 
   // Rôle inconnu

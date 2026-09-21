@@ -12,22 +12,24 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Home, Calendar, BookOpen, ClipboardList, Bell, Users,
-  AlertTriangle, Clock, FileText, Mail,
+  AlertTriangle, Clock, FileText, Mail, User,
 } from 'lucide-react'
 import { logoutAction } from '@/lib/actions'
 import { formatRelative, formatDate, initials } from '@/lib/format'
 import { toast } from 'sonner'
+import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
 
 type TeacherData = NonNullable<Awaited<ReturnType<typeof import('@/lib/teacher-portal-queries').getTeacherPortalData>>>
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 export function TeacherPortal({
-  user, schoolName, data,
+  user, schoolName, data, profileData,
 }: {
   user: { displayName: string; role: string; email: string }
   schoolName: string
   data: TeacherData
+  profileData?: ProfileData
 }) {
   const [view, setView] = React.useState('dashboard')
   const unreadCount = data.unreadCount
@@ -43,6 +45,7 @@ export function TeacherPortal({
       { key: 'logbook', label: 'Cahier de textes', icon: <FileText className="h-4 w-4" /> },
       { key: 'announcements', label: 'Annonces', icon: <Bell className="h-4 w-4" /> },
       { key: 'notifications', label: 'Notifications', icon: <Mail className="h-4 w-4" />, badge: unreadCount },
+      { key: 'profile', label: 'Mon profil', icon: <User className="h-4 w-4" /> },
     ],
   }]
 
@@ -201,6 +204,7 @@ export function TeacherPortal({
           </CardContent></Card>
         </div>
       )}
+      {view === 'profile' && profileData && <ProfilePage data={profileData} onBack={() => setView('dashboard')} />}
     </AppShell>
   )
 }
