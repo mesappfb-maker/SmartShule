@@ -108,6 +108,14 @@ model School {
   // Étape 2 RDC
   employeeSchedules EmployeeSchedule[]
   employeeAttendances EmployeeAttendance[]
+  // Étape 3 RDC
+  staffAttendanceReports StaffAttendanceReport[]
+  invoiceLineConfigs InvoiceLineConfig[]
+  encashments   Encashment[]
+  evaluationPeriods EvaluationPeriod[]
+  digitalReportCards DigitalReportCard[]
+  periscolarActivities PeriscolarActivity[]
+  periscolarEnrollments PeriscolarEnrollment[]
 }
 
 model Branding {
@@ -140,6 +148,9 @@ model Directorate {
   sections     Section[]
   classrooms   Classroom[]
   employees    Employee[]
+  // Étape 3 RDC
+  staffAttendanceReports StaffAttendanceReport[]
+  invoiceLineConfigs InvoiceLineConfig[]
 }
 
 model Section {
@@ -197,6 +208,8 @@ model Classroom {
   // Étape 2 RDC
   employeeSchedules EmployeeSchedule[]
   teacherAssignments TeacherAssignment[]
+  // Étape 3 RDC
+  digitalReportCards DigitalReportCard[]
 }
 
 model Subject {
@@ -245,6 +258,10 @@ model Student {
   canteenReservations CanteenReservation[]
   // Étape 1 RDC : Statut financier
   financialStatus StudentFinancialStatus[]
+  // Étape 3 RDC
+  encashments     Encashment[]
+  digitalReportCards DigitalReportCard[]
+  periscolarEnrollments PeriscolarEnrollment[]
 }
 
 model Guardian {
@@ -265,6 +282,8 @@ model Guardian {
   studentLinks    GuardianStudentLink[]
   parentRequests  ParentRequest[]
   canteenReservations CanteenReservation[]
+  // Étape 3 RDC
+  encashments     Encashment[]
 }
 
 model GuardianStudentLink {
@@ -1547,4 +1566,181 @@ model EmployeeAttendance {
   @@unique([schoolId, employeeId, date])
   @@index([schoolId, date])
   @@index([employeeId])
+}
+
+// ============================================================
+// ÉTAPE 3 — MODULES RH, FACTURATION & ÉVALUATIONS (RDC)
+// Extension modulaire — Aucune régression
+// ============================================================
+
+// 1. PRÉSENCES PERSONNEL (déjà implémenté via EmployeeAttendance)
+// Étendez ce modèle avec un rapport consolidé RH
+model StaffAttendanceReport {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  directorateId   String?
+  directorate     Directorate? @relation(fields: [directorateId], references: [id])
+  period          String   // "2026-09" ou "2026-W38" ou "2026-09-15"
+  periodType      String   // DAY | WEEK | MONTH
+  totalStaff      Int
+  presentCount    Int
+  lateCount       Int
+  absentCount     Int
+  excusedCount    Int
+  missionCount    Int
+  attendanceRate  Float    // Pourcentage 0-100
+  generatedAt    DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([schoolId, directorateId, period, periodType])
+  @@index([schoolId, period])
+}
+
+// 2. LIGNES DE FACTURES (créées par le Directeur uniquement)
+model InvoiceLineConfig {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  directorateId   String?  // Null = toutes directions
+  directorate     Directorate? @relation(fields: [directorateId], references: [id])
+  name            String   // "Minerval", "Frais de fonctionnement", "Éco-frais", "Frais d'Examen"
+  code            String   // "MIN", "FONC", "ECO", "EXAM"
+  description     String?
+  amountCents     Int      // Montant en centimes
+  currency        String   @default("CDF")
+  isMandatory     Boolean  @default(true)
+  isRecurring     Boolean  @default(false) // Récurrent chaque période
+  frequency       String?  // "MONTHLY" | "QUARTERLY" | "YEARLY" | "ONE_TIME"
+  period          String?  // "T1" | "T2" | "T3" | "T4" | "EXAM"
+  status          String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdById     String?  // ID du directeur qui a créé la ligne
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, code])
+  @@index([schoolId, directorateId, status])
+  @@index([schoolId, period])
+
+  encashments     Encashment[]
+}
+
+// 3. ENCAISSEMENTS (validés par le Comptable uniquement)
+model Encashment {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  receiptNumber   String   @unique
+  invoiceLineConfigId String
+  invoiceLineConfig InvoiceLineConfig @relation(fields: [invoiceLineConfigId], references: [id])
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  guardianId      String?
+  guardian        Guardian? @relation(fields: [guardianId], references: [id])
+  amountCents     Int      // Montant encaissé en centimes
+  currency        String   @default("CDF")
+  paymentMethod   String   // CASH | BANK | MOBILE_MONEY | CARD
+  payerName       String?
+  period          String?  // "T1", "T2", etc.
+  status          String   @default("CONFIRMED") // PENDING | CONFIRMED | CANCELLED
+  encashedById    String?  // ID du comptable
+  encashedAt      DateTime @default(now())
+  cancelledAt     DateTime?
+  cancellationReason String?
+  directorNotifiedAt DateTime? // Timestamp de notification au directeur
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, status])
+  @@index([schoolId, invoiceLineConfigId])
+  @@index([schoolId, studentId])
+  @@index([schoolId, encashedAt])
+}
+
+// 4. STRUCTURE D'ÉVALUATION RDC (4 périodes + examens)
+model EvaluationPeriod {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  name            String   // "1ère Période", "2ème Période", "3ème Période", "4ème Période"
+  code            String   // "P1", "P2", "P3", "P4"
+  periodType      String   // PERIOD | SEMESTER | EXAM | ANNUAL
+  startDate       DateTime
+  endDate         DateTime
+  weightPercent   Int      @default(25) // Pourcentage de poids dans la moyenne annuelle
+  status          String   @default("ACTIVE") // ACTIVE | CLOSED
+  createdAt       DateTime @default(now())
+
+  @@unique([schoolId, code])
+  @@index([schoolId, status])
+
+  digitalReportCards DigitalReportCard[]
+}
+
+// 5. BULLETIN NUMÉRIQUE (livret scolaire téléchargeable)
+model DigitalReportCard {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  evaluationPeriodId String
+  evaluationPeriod EvaluationPeriod @relation(fields: [evaluationPeriodId], references: [id])
+  classroomId     String?
+  classroom       Classroom? @relation(fields: [classroomId], references: [id])
+  // Calculs automatiques
+  totalPointsCents Int    @default(0)
+  maxPointsCents  Int     @default(0)
+  averagePercent   Float   @default(0)
+  rank             Int?
+  classSize        Int?
+  mention          String? // "Très Bien", "Bien", "Suffisant", "Insuffisant"
+  appreciation     String?
+  // Statut de publication
+  status          String   @default("DRAFT") // DRAFT | CONTROLLED | PUBLISHED | ARCHIVED
+  publishedAt     DateTime?
+  publishedById   String?
+  pdfUrl          String?  // URL du PDF généré
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([studentId, evaluationPeriodId])
+  @@index([schoolId, status])
+  @@index([studentId])
+}
+
+// 6. ACTIVITÉS PÉRISCOLAIRES (Cantine, Transport, Clubs)
+model PeriscolarActivity {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  name            String   // "Cantine", "Transport Ligne Nord", "Club de Lecture"
+  type            String   // CANTEEN | TRANSPORT | CLUB | SPORT | TUTORING
+  description     String?
+  costCents       Int      @default(0)
+  currency        String   @default("CDF")
+  capacity        Int?
+  enrolledCount   Int      @default(0)
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  enrollments     PeriscolarEnrollment[]
+
+  @@index([schoolId, type, status])
+}
+
+model PeriscolarEnrollment {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  activityId      String
+  activity        PeriscolarActivity @relation(fields: [activityId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  status          String   @default("ENROLLED") // ENROLLED | CANCELLED | WAITING
+  enrolledAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([activityId, studentId])
+  @@index([schoolId, status])
 }
