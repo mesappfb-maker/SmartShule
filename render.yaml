@@ -3,8 +3,10 @@
 # Déploiement Next.js + PostgreSQL Supabase
 # Voir : https://render.com/docs/blueprint-spec
 #
-# ⚠️ Note : Render ne supporte pas SQLite en persistant sans disque payant.
-#    En production, PRÉFÉRER Railway + Supabase PostgreSQL.
+# ✅ Optimisé pour PostgreSQL Supabase (pas SQLite)
+# ✅ Build standalone avec copy static + public
+# ✅ Prisma db push au démarrage (création auto des tables)
+# ✅ Auto-seed si la base est vide (comptes démo)
 # ============================================================
 
 services:
@@ -22,25 +24,29 @@ services:
       cp -r .next/static .next/standalone/.next/ &&
       cp -r public .next/standalone/
     startCommand: |
-      mkdir -p db &&
       npx prisma db push --accept-data-loss &&
+      node scripts/auto-seed.js &&
       bun .next/standalone/server.js
     healthCheckPath: /api/health
-    healthCheckTimeout: 30s
+    healthCheckTimeout: 60s
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false  # À configurer manuellement (valeur secrète)
+        sync: false  # ⚠️ À configurer manuellement (Supabase pooler URL)
       - key: DIRECT_URL
-        sync: false
+        sync: false  # ⚠️ À configurer manuellement (Supabase direct URL)
       - key: NEXTAUTH_SECRET
-        sync: false
+        sync: false  # ⚠️ À configurer manuellement (openssl rand -base64 32)
       - key: NEXTAUTH_URL
         value: https://smartshule.onrender.com
       - key: NEXT_PUBLIC_API_URL
         value: https://smartshule.onrender.com
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: SESSION_TTL_HOURS
