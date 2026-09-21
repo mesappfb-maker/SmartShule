@@ -58,14 +58,32 @@ export function DirectionDashboard({
   const sections: NavSection[] = [
     {
       id: 'main',
-      label: 'Espace direction',
+      label: 'Pilotage',
       items: [
         { key: 'dashboard', label: 'Tableau de bord', icon: <Home className="h-4 w-4" /> },
-        { key: 'announcements', label: 'Annonces', icon: <Bell className="h-4 w-4" /> },
+        { key: 'supervision', label: 'Gestion de l\'école', icon: <Eye className="h-4 w-4" /> },
+      ],
+    },
+    {
+      id: 'time',
+      label: 'Gestion du temps',
+      items: [
         { key: 'requests', label: 'Demandes', icon: <MessageSquare className="h-4 w-4" />, badge: openRequests },
-        { key: 'finance', label: 'Finance & Comptabilité', icon: <Calculator className="h-4 w-4" /> },
-        { key: 'supervision', label: 'Supervision académique', icon: <Eye className="h-4 w-4" /> },
-        { key: 'invoices', label: 'Factures (lecture)', icon: <CreditCard className="h-4 w-4" /> },
+        { key: 'announcements', label: 'Annonces', icon: <Bell className="h-4 w-4" /> },
+      ],
+    },
+    {
+      id: 'finance',
+      label: 'Facturation & Comptabilité',
+      items: [
+        { key: 'finance', label: 'Finance & Compta', icon: <Calculator className="h-4 w-4" /> },
+        { key: 'invoices', label: 'Factures', icon: <CreditCard className="h-4 w-4" /> },
+      ],
+    },
+    {
+      id: 'admin',
+      label: 'Administration',
+      items: [
         { key: 'audit', label: 'Journal d\'audit', icon: <ShieldCheck className="h-4 w-4" /> },
         { key: 'branding', label: 'Identité visuelle', icon: <Palette className="h-4 w-4" /> },
         { key: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" />, badge: unreadCount },
