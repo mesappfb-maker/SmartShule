@@ -33,14 +33,14 @@ export async function getServerPortalData(userId: string) {
 
     // Dernières opérations de sync
     db.syncOperation.findMany({
-      where: { schoolId },
+      where: { deviceId: { not: null } },
       orderBy: { receivedAtUtc: 'desc' },
       take: 30,
     }),
 
     // Conflits ouverts
     db.syncConflict.findMany({
-      where: { schoolId, status: 'OPEN' },
+      where: { status: 'OPEN' },
       orderBy: { createdAtUtc: 'desc' },
       take: 20,
     }),

@@ -236,6 +236,26 @@ async function main() {
     )
   )
 
+  // Nouveaux comptes RDC : Secrétaire, Enseignant, Comptable, PromoServeur
+  const userTeacher = await db.user.create({
+    data: { email: 'prof@smartshule.demo', passwordHash: pwd, role: 'TEACHER', displayName: 'Berthe Kalala', active: true },
+  })
+  // Lier l'utilisateur prof à l'employé Berthe
+  await db.employee.update({
+    where: { id: empBerthe.id },
+    data: { email: userTeacher.email },
+  })
+
+  const userSecretary = await db.user.create({
+    data: { email: 'secretaire@smartshule.demo', passwordHash: pwd, role: 'DIRECTION', displayName: 'Dorcas Mwamba', active: true },
+  })
+  const userAccountant = await db.user.create({
+    data: { email: 'comptable@smartshule.demo', passwordHash: pwd, role: 'ACCOUNTANT', displayName: 'Christian Tshibangu', active: true },
+  })
+  const userServer = await db.user.create({
+    data: { email: 'promoserveur@smartshule.demo', passwordHash: pwd, role: 'SERVER', displayName: 'PromoServeur Central', active: true },
+  })
+
   console.log('👨‍👩‍👧 Création des responsables (guardians)...')
   const guardians = await Promise.all(
     parentUsers.map((u, i) =>
@@ -999,13 +1019,16 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════════')
   console.log('  COMPTES DE DÉMONSTRATION')
   console.log('═══════════════════════════════════════════════════════════════')
-  console.log('  Direction :  direction@smartshule.demo')
-  console.log('  Parent 1  :  parent1@smartshule.demo  (élève Sarah Mbumba)')
-  console.log('  Parent 2  :  parent2@smartshule.demo  (élève Daniel Ilunga)')
-  console.log('  Parent 3  :  parent3@smartshule.demo  (élève Grace Kasongo)')
-  console.log('  Élève 1   :  eleve1@smartshule.demo   (Sarah Mbumba)')
-  console.log('  Élève 2   :  eleve2@smartshule.demo   (Daniel Ilunga)')
-  console.log('  Élève 3   :  eleve3@smartshule.demo   (Grace Kasongo)')
+  console.log('  Direction :    direction@smartshule.demo')
+  console.log('  Secrétaire :    secretaire@smartshule.demo')
+  console.log('  Comptable :     comptable@smartshule.demo')
+  console.log('  Enseignant :    prof@smartshule.demo')
+  console.log('  PromoServeur :  promoserveur@smartshule.demo')
+  console.log('  Parent 1  :     parent1@smartshule.demo  (élève Sarah Mbumba)')
+  console.log('  Parent 2  :     parent2@smartshule.demo  (élève Daniel Ilunga)')
+  console.log('  Élève 1   :     eleve1@smartshule.demo   (Sarah Mbumba)')
+  console.log('  Élève 2   :     eleve2@smartshule.demo   (Daniel Ilunga)')
+  console.log('  Élève 3   :     eleve3@smartshule.demo   (Grace Kasongo)')
   console.log('  Mot de passe pour tous : SmartShule2026!')
   console.log('═══════════════════════════════════════════════════════════════')
 }

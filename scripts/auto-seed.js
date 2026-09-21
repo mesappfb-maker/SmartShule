@@ -112,6 +112,12 @@ async function main() {
     data: { email: 'eleve1@smartshule.demo', passwordHash: pwd, role: 'STUDENT', displayName: 'Sarah Mbumba', active: true },
   })
 
+  // 8b. Nouveaux comptes RDC
+  await prisma.user.create({ data: { email: 'prof@smartshule.demo', passwordHash: pwd, role: 'TEACHER', displayName: 'Berthe Kalala', active: true } })
+  await prisma.user.create({ data: { email: 'secretaire@smartshule.demo', passwordHash: pwd, role: 'DIRECTION', displayName: 'Dorcas Mwamba', active: true } })
+  await prisma.user.create({ data: { email: 'comptable@smartshule.demo', passwordHash: pwd, role: 'ACCOUNTANT', displayName: 'Christian Tshibangu', active: true } })
+  await prisma.user.create({ data: { email: 'promoserveur@smartshule.demo', passwordHash: pwd, role: 'SERVER', displayName: 'PromoServeur Central', active: true } })
+
   // 9. Guardian
   const guardian = await prisma.guardian.create({
     data: { schoolId: school.id, userId: parentUser.id, firstName: 'Jean', lastName: 'Mbumba', phone: '+243 81 200 0001', email: 'parent1@smartshule.demo', address: 'Commune de Gombe', profession: 'Commerçant' },
@@ -201,10 +207,14 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════════')
   console.log('  COMPTES DE DÉMONSTRATION')
   console.log('═══════════════════════════════════════════════════════════════')
-  console.log('  Direction : direction@smartshule.demo')
-  console.log('  Parent    : parent1@smartshule.demo')
-  console.log('  Élève     : eleve1@smartshule.demo')
-  console.log('  Mot de passe : SmartShule2026!')
+  console.log('  Direction :    direction@smartshule.demo')
+  console.log('  Secrétaire :    secretaire@smartshule.demo')
+  console.log('  Comptable :     comptable@smartshule.demo')
+  console.log('  Enseignant :    prof@smartshule.demo')
+  console.log('  PromoServeur :  promoserveur@smartshule.demo')
+  console.log('  Parent :        parent1@smartshule.demo')
+  console.log('  Élève :         eleve1@smartshule.demo')
+  console.log('  Mot de passe :  SmartShule2026!')
   console.log('═══════════════════════════════════════════════════════════════')
 }
 

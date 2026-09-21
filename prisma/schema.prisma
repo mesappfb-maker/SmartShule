@@ -210,6 +210,8 @@ model Classroom {
   teacherAssignments TeacherAssignment[]
   // Étape 3 RDC
   digitalReportCards DigitalReportCard[]
+  // Cahier de textes
+  logbooks         TeacherLogbook[]
 }
 
 model Subject {
@@ -1295,6 +1297,7 @@ model TeacherLogbook {
   schoolId        String
   teacherId       String
   classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
   courseId        String?
   sessionDate     DateTime
   content         String
