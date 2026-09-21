@@ -35,6 +35,7 @@ import {
 import { formatCurrency, formatDate, formatDateTime, formatRelative, initials } from '@/lib/format'
 import { FinanceView } from './finance-view'
 import { AcademicSupervision } from './academic-supervision'
+import { DirectionAuditView } from './direction-audit-view'
 
 type DirectionData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getDirectionDashboardData>>>
 type FinanceData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getFinanceDashboardData>>>
@@ -70,6 +71,7 @@ export function DirectionDashboard({
       items: [
         { key: 'requests', label: 'Demandes', icon: <MessageSquare className="h-4 w-4" />, badge: openRequests },
         { key: 'announcements', label: 'Annonces', icon: <Bell className="h-4 w-4" /> },
+        { key: 'teacher-audit', label: 'Audit Prof & Temps réel', icon: <ShieldCheck className="h-4 w-4" /> },
       ],
     },
     {
@@ -117,6 +119,7 @@ export function DirectionDashboard({
       {view === 'invoices' && <InvoicesView data={data} />}
       {view === 'audit' && <AuditLogView data={data} />}
       {view === 'branding' && <BrandingView school={school} />}
+      {view === 'teacher-audit' && <DirectionTeacherAuditWrapper />}
       {view === 'notifications' && <DirectionNotificationsView notifications={notifications} />}
     </AppShell>
   )
@@ -823,6 +826,89 @@ function DirectionNotificationsView({ notifications }: { notifications: Notifica
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Wrapper : Audit Prof & Temps réel (fetch côté client)
+// ============================================================
+
+function DirectionTeacherAuditWrapper() {
+  const [data, setData] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const loadData = React.useCallback(async () => {
+    try {
+      const response = await fetch('/api/direction/audit-data', { cache: 'no-store' })
+      const result = await response.json()
+      if (result.ok) {
+        // Reconvertir les dates ISO en Date
+        setData({
+          ...result,
+          lessonLogs: result.lessonLogs.map((l: any) => ({ ...l, sessionDate: new Date(l.sessionDate), auditedAt: l.auditedAt ? new Date(l.auditedAt) : null })),
+          liveClasses: result.liveClasses.map((c: any) => ({ ...c, startDateTime: new Date(c.startDateTime), endDateTime: new Date(c.endDateTime), signatureAt: c.signatureAt ? new Date(c.signatureAt) : null, directorNotifiedAt: c.directorNotifiedAt ? new Date(c.directorNotifiedAt) : null })),
+          incidents: result.incidents.map((i: any) => ({ ...i, createdAt: new Date(i.createdAt) })),
+          emargementsToday: result.emargementsToday.map((e: any) => ({ ...e, signatureAt: new Date(e.signatureAt), startDateTime: new Date(e.startDateTime), endDateTime: new Date(e.endDateTime) })),
+          stats: { ...result.stats, timestamp: new Date(result.stats.timestamp) },
+        })
+        setError(null)
+      } else {
+        setError(result.error || 'Erreur inconnue')
+      }
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    loadData()
+    // Auto-refresh toutes les 30 secondes pour la vue temps réel
+    const interval = setInterval(loadData, 30000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-3 text-sm text-muted-foreground">Chargement des données temps réel...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-sm text-red-600">⚠️ Erreur : {error}</p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={loadData}>Réessayer</Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!data) return null
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Audit Prof & Temps réel"
+        description="Surveillez en temps réel l'activité des enseignants, consultez le cahier de textes et traitez les incidents signalés."
+        breadcrumbs={[{ label: 'Direction' }, { label: 'Audit Prof' }]}
+      />
+      <DirectionAuditView
+        lessonLogs={data.lessonLogs}
+        liveClasses={data.liveClasses}
+        incidents={data.incidents}
+        emargementsToday={data.emargementsToday}
+        stats={data.stats}
+        teachers={data.teachers}
+        subjects={data.subjects}
+      />
     </div>
   )
 }

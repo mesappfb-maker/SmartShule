@@ -12,12 +12,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Home, Calendar, BookOpen, ClipboardList, Bell, Users,
-  AlertTriangle, Clock, FileText, Mail, User,
+  AlertTriangle, Clock, FileText, Mail, User, Activity,
 } from 'lucide-react'
 import { logoutAction } from '@/lib/actions'
 import { formatRelative, formatDate, initials } from '@/lib/format'
 import { toast } from 'sonner'
 import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
+import { TeacherEmargementLiveView } from './teacher-emargement-live'
 
 type TeacherData = NonNullable<Awaited<ReturnType<typeof import('@/lib/teacher-portal-queries').getTeacherPortalData>>>
 
@@ -40,6 +41,7 @@ export function TeacherPortal({
     items: [
       { key: 'dashboard', label: 'Accueil', icon: <Home className="h-4 w-4" /> },
       { key: 'schedule', label: 'Emploi du temps', icon: <Calendar className="h-4 w-4" /> },
+      { key: 'emargement-live', label: 'Émargement Live (IQA)', icon: <Activity className="h-4 w-4" /> },
       { key: 'attendance', label: 'Présences', icon: <ClipboardList className="h-4 w-4" />, badge: alertCount },
       { key: 'grades', label: 'Notes brouillon', icon: <BookOpen className="h-4 w-4" />, badge: data.draftGrades.length },
       { key: 'logbook', label: 'Cahier de textes', icon: <FileText className="h-4 w-4" /> },
@@ -123,6 +125,9 @@ export function TeacherPortal({
             )}
           </CardContent></Card>
         </div>
+      )}
+      {view === 'emargement-live' && (
+        <TeacherEmargementLiveView teacherId={data.teacher.id} assignments={data.assignments} />
       )}
       {view === 'attendance' && (
         <div className="space-y-6">

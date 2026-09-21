@@ -116,6 +116,13 @@ model School {
   digitalReportCards DigitalReportCard[]
   periscolarActivities PeriscolarActivity[]
   periscolarEnrollments PeriscolarEnrollment[]
+  // Étape 4 RDC — Portail Prof complet
+  teacherAgendas   TeacherAgenda[]
+  teacherEmargements TeacherEmargement[]
+  studentAttendanceCalls StudentAttendanceCall[]
+  lessonLogs       LessonLog[]
+  classIncidents   ClassIncident[]
+  iqaSnapshots     IqaSnapshot[]
 }
 
 model Branding {
@@ -212,6 +219,12 @@ model Classroom {
   digitalReportCards DigitalReportCard[]
   // Cahier de textes
   logbooks         TeacherLogbook[]
+  // Étape 4 RDC : Portail Prof complet
+  teacherAgendas    TeacherAgenda[]
+  teacherEmargements TeacherEmargement[]
+  lessonLogs        LessonLog[]
+  classIncidents    ClassIncident[]
+  iqaSnapshots      IqaSnapshot[]
 }
 
 model Subject {
@@ -227,6 +240,12 @@ model Subject {
   teacherAssignments TeacherAssignment[]
   // Étape 2 RDC : Horaires du professeur
   schedules    EmployeeSchedule[]
+  // Étape 4 RDC : Portail Prof complet
+  teacherAgendas        TeacherAgenda[]
+  teacherEmargements    TeacherEmargement[]
+  studentAttendanceCalls StudentAttendanceCall[]
+  lessonLogs            LessonLog[]
+  iqaSnapshots          IqaSnapshot[]
 }
 
 // ============================================================
@@ -264,6 +283,10 @@ model Student {
   encashments     Encashment[]
   digitalReportCards DigitalReportCard[]
   periscolarEnrollments PeriscolarEnrollment[]
+  // Étape 4 RDC : Portail Prof complet
+  studentAttendanceCalls StudentAttendanceCall[]
+  classIncidents   ClassIncident[]
+  iqaSnapshots     IqaSnapshot[]
 }
 
 model Guardian {
@@ -342,6 +365,12 @@ model Employee {
   attendances  EmployeeAttendance[]
   // Relation inverse : cours enseignés
   courses      Course[]
+  // Étape 4 RDC : Portail Prof complet
+  teacherAgendas       TeacherAgenda[]
+  teacherEmargements   TeacherEmargement[]
+  lessonLogsAsTeacher  LessonLog[]
+  incidentsReported    ClassIncident[]
+  incidentsResolved    ClassIncident[] @relation("IncidentResolver")
 }
 
 model TeacherAssignment {
@@ -378,6 +407,8 @@ model Course {
   attendanceSessions AttendanceSession[]
   // Étape 2 RDC
   employeeSchedules EmployeeSchedule[]
+  // Étape 4 RDC : Portail Prof complet
+  teacherAgendas TeacherAgenda[]
 }
 
 model CourseSession {
@@ -1749,4 +1780,195 @@ model PeriscolarEnrollment {
 
   @@unique([activityId, studentId])
   @@index([schoolId, status])
+}
+
+// ============================================================
+// ÉTAPE 4 RDC — PORTAIL PROF COMPLET : IQA, ÉMARGEMENTS, CAHIER DE TEXTES, INCIDENTS
+// Extension modulaire — Aucune régression sur les modèles précédents
+// Conforme au cahier des charges §14.2.14-J + extension IQA RDC
+// ============================================================
+
+// A. AGENDA DES PROFESSEURS — Planning détaillé d'une séance
+// Permet de matérialiser chaque séance planifiée avec un statut évolutif
+model TeacherAgenda {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  teacherId       String
+  teacher         Employee @relation(fields: [teacherId], references: [id])
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
+  subjectId       String?
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  courseId        String?
+  course          Course?  @relation(fields: [courseId], references: [id])
+  startDateTime   DateTime
+  endDateTime     DateTime
+  room            String?
+  status          String   @default("PLANIFIED") // PLANIFIED | DONE | CANCELLED | IN_PROGRESS
+  cancelledReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  emargements     TeacherEmargement[]
+  lessonLogs      LessonLog[]
+  incidents      ClassIncident[]
+
+  @@index([schoolId, teacherId, startDateTime])
+  @@index([schoolId, classroomId, startDateTime])
+  @@index([schoolId, status])
+}
+
+// B. ÉMARGEMENT NUMÉRIQUE DU PROFESSEUR
+// Généré dès que le prof ouvre sa session pour faire l'appel
+// Déclenche une notification temps réel vers la Direction
+model TeacherEmargement {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  agendaId        String
+  agenda          TeacherAgenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  teacherId       String
+  teacher         Employee @relation(fields: [teacherId], references: [id])
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
+  subjectId       String?
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  signatureAt    DateTime @default(now()) // Horodatage de signature
+  status          String   @default("PRESENT") // PRESENT | LATE
+  ipAddress       String?  // IP machine (audit)
+  userAgent       String?  // Navigateur/app (audit)
+  directorNotifiedAt DateTime? // Confirme la notification envoyée au directeur
+  createdAt       DateTime @default(now())
+
+  studentAttendances StudentAttendanceCall[]
+  lessonLog       LessonLog?
+
+  @@unique([agendaId]) // Un émargement par séance
+  @@index([schoolId, teacherId, signatureAt])
+  @@index([schoolId, classroomId, signatureAt])
+}
+
+// C. APPEL DES ÉLÈVES — Saisie fine par statut
+// Lié à un émargement prof — chaque élève appelé dans la séance
+model StudentAttendanceCall {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  emargementId    String
+  emargement      TeacherEmargement @relation(fields: [emargementId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  subjectId       String?
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  status          String   // PRESENT | ABSENT | LATE | EXCUSED
+  lateMinutes     Int      @default(0) // Minutes de retard (si LATE)
+  justified       Boolean  @default(false) // Si absence excusée
+  justification   String?
+  recordedAt      DateTime @default(now())
+  recordedById    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([emargementId, studentId]) // Anti-doublon : un élève = une ligne par séance
+  @@index([schoolId, studentId])
+  @@index([schoolId, status])
+}
+
+// D. CAHIER DE TEXTES ENRICHI — Lié à un émargement
+// Le prof saisit le contenu pédagogique après le cours
+model LessonLog {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  emargementId    String   @unique
+  emargement      TeacherEmargement @relation(fields: [emargementId], references: [id], onDelete: Cascade)
+  agendaId        String
+  agenda          TeacherAgenda @relation(fields: [agendaId], references: [id])
+  teacherId       String
+  teacher         Employee @relation(fields: [teacherId], references: [id])
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
+  subjectId       String?
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  sessionDate     DateTime
+  lessonTitle     String   // Titre de la leçon dispensée
+  summary         String   // Résumé du cours (contenu pédagogique)
+  homeworkPublished String? // Devoirs publiés
+  resourcesUrl    String?  // Liens PowerPoint/PDF (JSON array string)
+  status          String   @default("DRAFT") // DRAFT | PUBLISHED | AUDITED
+  auditedAt       DateTime?
+  auditedById     String?
+  auditComment    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, teacherId, sessionDate])
+  @@index([schoolId, classroomId, sessionDate])
+  @@index([schoolId, subjectId])
+  @@index([schoolId, status])
+}
+
+// E. INCIDENTS DE CLASSE — Signalés par le prof
+// Avec support Offline Queue (synchro au retour réseau)
+model ClassIncident {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  agendaId        String?
+  agenda          TeacherAgenda? @relation(fields: [agendaId], references: [id])
+  teacherId       String
+  teacher         Employee @relation(fields: [teacherId], references: [id])
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  severity        String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  category        String   @default("OTHER") // DISCIPLINE | MATERIAL | ABSENCE | BEHAVIOR | SAFETY | OTHER
+  description     String
+  status          String   @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED | ARCHIVED
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolvedBy      Employee? @relation("IncidentResolver", fields: [resolvedById], references: [id])
+  resolution      String?
+  directorNotifiedAt DateTime?
+  // Champs pour Offline Queue
+  clientUUID      String   @unique // UUID généré côté client (offline) — idempotence
+  syncStatus      String   @default("SYNCED") // PENDING | SYNCED | FAILED
+  syncedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([schoolId, severity])
+  @@index([teacherId, createdAt])
+  @@index([schoolId, classroomId])
+}
+
+// F. SNAPSHOT IQA — Calcul persisté pour éviter de surcharger le runtime
+// Régénéré périodiquement (cron ou trigger) ou à la demande
+model IqaSnapshot {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  subjectId       String?  // Null = IQA Global, non-null = IQA par matière
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  classroomId     String?
+  classroom       Classroom? @relation(fields: [classroomId], references: [id])
+  period          String   // "2026-09" ou "2026-W38" ou "T1"
+  iqaValue        Float    // 0-100
+  level           String   // EXCELLENT | WARNING | CRITICAL
+  totalSessions   Int      @default(0)
+  absencesUnexcused Int    @default(0)
+  absencesExcused Int      @default(0)
+  lateCount       Int      @default(0)
+  computedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([studentId, subjectId, period])
+  @@index([schoolId, period])
+  @@index([studentId])
+  @@index([schoolId, level])
 }
