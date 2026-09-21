@@ -105,6 +105,9 @@ model School {
   options          Option[]
   studentFinancialStatuses StudentFinancialStatus[]
   instanceConfigs  InstanceConfig[]
+  // Étape 2 RDC
+  employeeSchedules EmployeeSchedule[]
+  employeeAttendances EmployeeAttendance[]
 }
 
 model Branding {
@@ -191,6 +194,9 @@ model Classroom {
   announcements   Announcement[]
   attendanceSessions AttendanceSession[]
   grades          Grade[]
+  // Étape 2 RDC
+  employeeSchedules EmployeeSchedule[]
+  teacherAssignments TeacherAssignment[]
 }
 
 model Subject {
@@ -204,6 +210,8 @@ model Subject {
   grades       Grade[]
   assignments  Assignment[]
   teacherAssignments TeacherAssignment[]
+  // Étape 2 RDC : Horaires du professeur
+  schedules    EmployeeSchedule[]
 }
 
 // ============================================================
@@ -308,6 +316,9 @@ model Employee {
   createdAt       DateTime @default(now())
 
   teacherAssignments TeacherAssignment[]
+  // Étape 2 RDC : Horaires et présences
+  schedules    EmployeeSchedule[]
+  attendances  EmployeeAttendance[]
 }
 
 model TeacherAssignment {
@@ -317,6 +328,7 @@ model TeacherAssignment {
   subjectId    String
   subject      Subject  @relation(fields: [subjectId], references: [id])
   classroomId  String?
+  classroom    Classroom? @relation(fields: [classroomId], references: [id])
   createdAt    DateTime @default(now())
 }
 
@@ -340,6 +352,8 @@ model Course {
   attendances  Attendance[]
   sessions     CourseSession[]
   attendanceSessions AttendanceSession[]
+  // Étape 2 RDC
+  employeeSchedules EmployeeSchedule[]
 }
 
 model CourseSession {
@@ -1482,4 +1496,55 @@ model InstanceConfig {
 
   @@unique([schoolId, deviceId])
   @@index([schoolId, instanceRole])
+}
+
+// ============================================================
+// ÉTAPE 2 RDC — Chaîne académique complète
+// ============================================================
+
+// Horaire d'un professeur (planning hebdomadaire)
+model EmployeeSchedule {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  classroomId     String?
+  classroom       Classroom? @relation(fields: [classroomId], references: [id])
+  courseId         String?
+  course          Course?  @relation(fields: [courseId], references: [id])
+  subjectId       String?
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  dayOfWeek       Int      // 0=Dimanche, 6=Samedi
+  startTime       String   // "08:00"
+  endTime         String   // "10:00"
+  room            String?
+  academicYearLabel String? // "2025-2026"
+  status          String   @default("ACTIVE") // ACTIVE | CANCELLED | REPLACED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, employeeId, dayOfWeek, startTime])
+  @@index([schoolId, employeeId, dayOfWeek])
+  @@index([classroomId, dayOfWeek])
+}
+
+// Présence des professeurs (pointage)
+model EmployeeAttendance {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  date            DateTime
+  status          String   // PRESENT | LATE | ABSENT | EXCUSED | MISSION
+  arrivalTime     String?  // "07:55"
+  departureTime   String?  // "16:30"
+  notes           String?
+  recordedById    String?
+  createdAt       DateTime @default(now())
+
+  @@unique([schoolId, employeeId, date])
+  @@index([schoolId, date])
+  @@index([employeeId])
 }
