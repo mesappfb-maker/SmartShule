@@ -338,6 +338,8 @@ model Employee {
   // Étape 2 RDC : Horaires et présences
   schedules    EmployeeSchedule[]
   attendances  EmployeeAttendance[]
+  // Relation inverse : cours enseignés
+  courses      Course[]
 }
 
 model TeacherAssignment {
@@ -360,6 +362,7 @@ model Course {
   subjectId    String
   subject      Subject  @relation(fields: [subjectId], references: [id])
   teacherId    String?
+  teacher      Employee? @relation(fields: [teacherId], references: [id])
   title        String
   description  String?
   status       String   @default("PUBLISHED") // DRAFT | SUBMITTED | PUBLISHED | ARCHIVED
