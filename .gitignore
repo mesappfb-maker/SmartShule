@@ -73,4 +73,6 @@ server.log
 *.pfx
 *.p12
 *.key
-certificate.pfx
+certificate.pfxsmartshule-*.bundle
+smartshule-source.tar.gz
+*.tar.gz
