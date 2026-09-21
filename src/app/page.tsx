@@ -8,6 +8,7 @@ import {
   getSchoolForUser,
   getFinanceDashboardData,
 } from '@/lib/queries'
+import { getAcademicSupervisionData } from '@/lib/academic-supervision-queries'
 import { getTeacherPortalData } from '@/lib/teacher-portal-queries'
 import { getAccountantPortalData } from '@/lib/accountant-portal-queries'
 import { getServerPortalData } from '@/lib/server-portal-queries'
@@ -74,12 +75,13 @@ export default async function Home() {
 
   // DIRECTION
   if (user.role === 'DIRECTION' || user.role === 'ADMIN') {
-    const [data, financeData] = await Promise.all([
+    const [data, financeData, supervisionData] = await Promise.all([
       getDirectionDashboardData(user.id),
       getFinanceDashboardData(schoolData.id),
+      getAcademicSupervisionData(schoolData.id),
     ])
-    if (!data || !financeData) return <NoData />
-    return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} />
+    if (!data || !financeData || !supervisionData) return <NoData />
+    return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} supervisionData={supervisionData} />
   }
 
   // TEACHER (nouveau portail RDC)

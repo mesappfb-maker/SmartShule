@@ -34,19 +34,22 @@ import {
 } from '@/lib/constants'
 import { formatCurrency, formatDate, formatDateTime, formatRelative, initials } from '@/lib/format'
 import { FinanceView } from './finance-view'
+import { AcademicSupervision } from './academic-supervision'
 
 type DirectionData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getDirectionDashboardData>>>
 type FinanceData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getFinanceDashboardData>>>
+type SupervisionData = NonNullable<Awaited<ReturnType<typeof import('@/lib/academic-supervision-queries').getAcademicSupervisionData>>>
 type Notification = Awaited<ReturnType<typeof import('@/lib/queries').getNotificationsForUser>>[number]
 
 export function DirectionDashboard({
-  user, school, data, notifications, financeData,
+  user, school, data, notifications, financeData, supervisionData,
 }: {
   user: { displayName: string; role: string; email: string }
   school: { name: string; slogan: string | null; primaryColor: string; secondaryColor: string; tertiaryColor: string; id: string }
   data: DirectionData
   notifications: Notification[]
   financeData: FinanceData
+  supervisionData: SupervisionData
 }) {
   const [view, setView] = React.useState('dashboard')
   const unreadCount = notifications.filter((n) => !n.read).length
@@ -61,6 +64,7 @@ export function DirectionDashboard({
         { key: 'announcements', label: 'Annonces', icon: <Bell className="h-4 w-4" /> },
         { key: 'requests', label: 'Demandes', icon: <MessageSquare className="h-4 w-4" />, badge: openRequests },
         { key: 'finance', label: 'Finance & Comptabilité', icon: <Calculator className="h-4 w-4" /> },
+        { key: 'supervision', label: 'Supervision académique', icon: <Eye className="h-4 w-4" /> },
         { key: 'invoices', label: 'Factures (lecture)', icon: <CreditCard className="h-4 w-4" /> },
         { key: 'audit', label: 'Journal d\'audit', icon: <ShieldCheck className="h-4 w-4" /> },
         { key: 'branding', label: 'Identité visuelle', icon: <Palette className="h-4 w-4" /> },
@@ -91,6 +95,7 @@ export function DirectionDashboard({
       {view === 'announcements' && <AnnouncementsManager data={data} />}
       {view === 'requests' && <RequestsManager data={data} />}
       {view === 'finance' && <FinanceView data={financeData} schoolId={school.id} />}
+      {view === 'supervision' && <AcademicSupervision data={supervisionData} />}
       {view === 'invoices' && <InvoicesView data={data} />}
       {view === 'audit' && <AuditLogView data={data} />}
       {view === 'branding' && <BrandingView school={school} />}
