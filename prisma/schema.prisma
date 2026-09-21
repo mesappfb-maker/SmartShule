@@ -101,6 +101,10 @@ model School {
   canteenMenus     CanteenMenu[]
   canteenReservations CanteenReservation[]
   calendarEvents   CalendarEvent[]
+  // Étape 1 RDC : Nouvelles relations
+  options          Option[]
+  studentFinancialStatuses StudentFinancialStatus[]
+  instanceConfigs  InstanceConfig[]
 }
 
 model Branding {
@@ -139,10 +143,12 @@ model Section {
   id             String   @id @default(cuid())
   directorateId  String
   directorate    Directorate @relation(fields: [directorateId], references: [id])
-  name           String   // "Mathématiques", "Lettres"
+  name           String   // "Mathématiques", "Lettres", "Humanités"
   code           String
 
   classrooms     Classroom[]
+  // Étape 1 RDC : Options pour les Humanités
+  options        Option[]
 }
 
 model AcademicYear {
@@ -167,10 +173,16 @@ model Classroom {
   directorate     Directorate @relation(fields: [directorateId], references: [id])
   sectionId       String?
   section         Section?   @relation(fields: [sectionId], references: [id])
+  // Étape 1 RDC : Option pour les Humanités (Coupe-Couture, Scientifique, etc.)
+  // Nullable : null pour Maternelle/Primaire qui n'ont pas d'options
+  optionId        String?
+  option          Option?    @relation(fields: [optionId], references: [id])
   academicYearId  String
   academicYear    AcademicYear @relation(fields: [academicYearId], references: [id])
   name            String   // "CP1", "6ème A"
   capacity        Int      @default(40)
+  // Étape 1 RDC : Année académique pour filtrage rapide
+  academicYearLabel String? // "2025-2026" (dénormalisé pour requêtes rapides)
   createdAt       DateTime @default(now())
 
   enrollments     Enrollment[]
@@ -223,6 +235,8 @@ model Student {
   invoices        Invoice[]
   parentRequests  ParentRequest[]
   canteenReservations CanteenReservation[]
+  // Étape 1 RDC : Statut financier
+  financialStatus StudentFinancialStatus[]
 }
 
 model Guardian {
@@ -288,6 +302,9 @@ model Employee {
   function        String   // ENSEIGNANT | DIRECTION | SECRETAIRE | COMPTABLE | RH
   status          String   @default("ACTIVE")
   hireDate        DateTime @default(now())
+  // Étape 1 RDC : Rôle global et multi-directions
+  globalRole       String?  // ENSEIGNANT | OUVRIER | ADMINISTRATIF | DIRECTION
+  isMultiDirectorate Boolean @default(false) // Prof qui enseigne dans plusieurs directions
   createdAt       DateTime @default(now())
 
   teacherAssignments TeacherAssignment[]
@@ -437,6 +454,9 @@ model Grade {
   scoreCents      Int      @default(0)
   maxScoreCents   Int      @default(0)
   weightCents     Int      @default(100) // 1.0 = 100
+  // Étape 1 RDC : Calcul automatique et période
+  isAutoCalculated Boolean @default(false) // Moyenne générée automatiquement
+  periodId        String?  // Référence vers période (T1, T2, T3) — dénormalisé pour requêtes rapides
 
   corrections     GradeCorrection[]
 
@@ -1401,3 +1421,65 @@ model DocumentTemplate {
   @@index([schoolId, type])
 }
 
+
+// ============================================================
+// TOPOLOGIE RDC — Étape 1 (Extension modulaire non-cassante)
+// ============================================================
+
+// Options spécifiques aux Humanités (Coupe-Couture, Commerciale, etc.)
+// Relation : Section (ex: "Humanités") → Option (ex: "Scientifique")
+model Option {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  sectionId       String
+  section         Section  @relation(fields: [sectionId], references: [id])
+  name            String   // "Coupe-Couture", "Commerciale & Gestion", "Scientifique"
+  code            String   // "CC", "CG", "SCI"
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  classrooms      Classroom[]
+
+  @@unique([schoolId, sectionId, code])
+  @@index([schoolId, status])
+}
+
+// Statut financier de l'élève (visible par le prof via alerte discrète)
+// Le module Comptabilité met à jour ce statut, le Portail Prof le consulte
+model StudentFinancialStatus {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  status          String   @default("REGULAR") // REGULAR | LITIGATION | BLOCKED
+  reason          String?  // "Frais impayés T1", "Acompte manquant"
+  blockedAt       DateTime?
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([studentId])
+  @@unique([schoolId, studentId])
+}
+
+// Configuration de l'instance (rôle de la machine)
+// Détermine si l'app tourne en mode Serveur, Prof, Comptabilité ou Standard
+model InstanceConfig {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  deviceId        String?  // Lien optionnel avec SyncDevice existant
+  instanceRole    String   // STANDARD | SERVER | TEACHER | ACCOUNTING
+  syncTarget      String   @default("LOCAL") // LOCAL (PromoServeur) | CLOUD (Supabase)
+  serverIp        String?  // IP locale du PromoServeur (mode LAN)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, deviceId])
+  @@index([schoolId, instanceRole])
+}
