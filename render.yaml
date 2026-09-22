@@ -24,6 +24,7 @@ services:
       cp -r .next/static .next/standalone/.next/ &&
       cp -r public .next/standalone/
     startCommand: |
+      npm install -g bun &&
       npx prisma db push --accept-data-loss &&
       node scripts/auto-seed.js &&
       bun .next/standalone/server.js
