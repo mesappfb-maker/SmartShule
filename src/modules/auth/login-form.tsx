@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useActionState } from 'react'
-import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff, User, Users, Briefcase, Wallet, Server, BookOpen, Shield } from 'lucide-react'
+import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff, User, Users, Briefcase, Wallet, Server, BookOpen, Shield, Phone, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,13 +13,13 @@ import { ThemeToggle } from '@/components/ss/theme-toggle'
 
 // ✅ 7 comptes démo cliquables directement sur la page
 const DEMO_ACCOUNTS = [
-  { label: 'Direction',     email: 'direction@smartshule.demo',  role: 'DIRECTION',  icon: Shield,    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-  { label: 'Professeur',   email: 'prof@smartshule.demo',       role: 'TEACHER',    icon: BookOpen,  color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-  { label: 'Comptable',    email: 'comptable@smartshule.demo',  role: 'ACCOUNTANT', icon: Wallet,    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  { label: 'Secrétariat',  email: 'secretaire@smartshule.demo', role: 'SECRETARY',  icon: Briefcase, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
-  { label: 'Parent',       email: 'parent@smartshule.demo',     role: 'PARENT',     icon: Users,     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400' },
-  { label: 'Élève',        email: 'eleve@smartshule.demo',       role: 'STUDENT',   icon: User,      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' },
-  { label: 'PromoServeur', email: 'server@smartshule.demo',     role: 'SERVER',    icon: Server,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400' },
+  { label: 'Direction',     email: 'direction@smartshule.demo',  role: 'DIRECTION',  icon: Shield,    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+  { label: 'Professeur',    email: 'prof@smartshule.demo',       role: 'TEACHER',    icon: BookOpen,  color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+  { label: 'Comptable',     email: 'comptable@smartshule.demo',   role: 'ACCOUNTANT', icon: Wallet,    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  { label: 'Secrétariat',   email: 'secretaire@smartshule.demo',  role: 'SECRETARY',  icon: Briefcase, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
+  { label: 'Parent',        email: 'parent@smartshule.demo',      role: 'PARENT',     icon: Users,     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20' },
+  { label: 'Élève',         email: 'eleve@smartshule.demo',        role: 'STUDENT',   icon: User,      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
+  { label: 'PromoServeur',  email: 'server@smartshule.demo',      role: 'SERVER',    icon: Server,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
 ]
 
 const DEMO_PASSWORD = 'SmartShule2026!'
@@ -38,184 +38,196 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col lg:flex-row">
+    <div className="relative min-h-screen flex flex-col">
       {/* Bannière marketing temporaire - À SUPPRIMER */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-center text-xs sm:text-sm font-medium shadow-md">
-        <span className="inline-flex items-center gap-2">
-          <span className="text-base">💡</span>
-          <span>
-            <strong>Version démo en ligne</strong> — Ce logiciel est conçu pour ordinateur desktop (Windows/macOS/Linux).
-            Cette version web est uniquement pour démonstration.
-          </span>
-          <span className="hidden sm:inline-flex items-center gap-1 ml-2 bg-white/20 px-2 py-0.5 rounded-full">
-            <span>📞</span>
-            <span>Contactez le <strong>+243 999 071 754</strong> pour tout renseignement</span>
-          </span>
-        </span>
-      </div>
-
-      {/* Panneau gauche (décoratif) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-[var(--ss-color-secondary)] p-12 flex-col justify-between text-primary-foreground">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-            <GraduationCap className="h-6 w-6" />
+      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shrink-0">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 text-center sm:text-left">
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+            <Monitor className="h-4 w-4 shrink-0" />
+            <span>
+              <strong>Version démo en ligne</strong> — Logiciel conçu pour ordinateur desktop (Windows/macOS/Linux)
+            </span>
           </div>
-          <div>
-            <p className="text-lg font-semibold">SmartShule</p>
-            <p className="text-xs text-primary-foreground/80">Portail famille</p>
-          </div>
-        </div>
-
-        <div className="space-y-4 max-w-md">
-          <h1 className="text-3xl xl:text-4xl font-semibold leading-tight">
-            {schoolSlogan || 'L\'intelligence qui rapproche l\'école et la famille.'}
-          </h1>
-          <p className="text-primary-foreground/80">
-            Consultez les résultats, bulletins, devoirs et frais de vos enfants.
-            Communiquez avec la direction via une messagerie institutionnelle sécurisée.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-6 text-xs text-primary-foreground/70">
-          <div>
-            <p className="font-semibold text-primary-foreground text-lg">2 500+</p>
-            <p>Élèves accompagnés</p>
-          </div>
-          <div>
-            <p className="font-semibold text-primary-foreground text-lg">98%</p>
-            <p>De satisfaction</p>
-          </div>
-          <div>
-            <p className="font-semibold text-primary-foreground text-lg">24/7</p>
-            <p>Accès portail</p>
+          <div className="hidden sm:flex items-center gap-1 text-xs sm:text-sm bg-white/20 px-3 py-0.5 rounded-full">
+            <Phone className="h-3 w-3" />
+            <span>Renseignements : <strong>+243 999 071 754</strong></span>
           </div>
         </div>
       </div>
 
-      {/* Panneau droit (formulaire) */}
-      <div className="flex flex-1 items-center justify-center p-6 sm:p-12 bg-background">
-        <div className="w-full max-w-md space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="lg:hidden flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <GraduationCap className="h-5 w-5" />
-              </div>
-              <span className="font-semibold">SmartShule</span>
+      {/* Contenu principal - 2 colonnes sur desktop, 1 colonne sur mobile */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        {/* Panneau gauche (décoratif) - visible seulement sur desktop */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-[var(--ss-color-secondary)] p-12 flex-col justify-between text-primary-foreground">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
+              <GraduationCap className="h-6 w-6" />
             </div>
-            <div className="ml-auto">
+            <div>
+              <p className="text-lg font-semibold">SmartShule</p>
+              <p className="text-xs text-primary-foreground/80">Portail famille</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 max-w-md">
+            <h1 className="text-3xl xl:text-4xl font-semibold leading-tight">
+              {schoolSlogan || 'L\'intelligence qui rapproche l\'école et la famille.'}
+            </h1>
+            <p className="text-primary-foreground/80">
+              Consultez les résultats, bulletins, devoirs et frais de vos enfants.
+              Communiquez avec la direction via une messagerie institutionnelle sécurisée.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6 text-xs text-primary-foreground/70">
+            <div>
+              <p className="font-semibold text-primary-foreground text-lg">2 500+</p>
+              <p>Élèves accompagnés</p>
+            </div>
+            <div>
+              <p className="font-semibold text-primary-foreground text-lg">98%</p>
+              <p>De satisfaction</p>
+            </div>
+            <div>
+              <p className="font-semibold text-primary-foreground text-lg">24/7</p>
+              <p>Accès portail</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Panneau droit (formulaire) */}
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-background overflow-y-auto">
+          <div className="w-full max-w-md space-y-6 my-4">
+            {/* En-tête mobile */}
+            <div className="flex justify-between items-center lg:hidden">
+              <div className="flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <span className="font-semibold">SmartShule</span>
+              </div>
               <ThemeToggle />
             </div>
-          </div>
 
-          <Card className="ss-shadow-card">
-            <CardHeader>
-              <CardTitle className="text-xl">Connexion au portail</CardTitle>
-              <CardDescription>
-                Accédez à l'espace {schoolName}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form action={formAction} className="space-y-4">
-                {state && !state.ok && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{state.error}</AlertDescription>
-                  </Alert>
-                )}
+            {/* En-tête desktop (toggle en haut à droite) */}
+            <div className="hidden lg:flex justify-end">
+              <ThemeToggle />
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      placeholder="vous@exemple.com"
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Mot de passe</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      className="pl-9 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:bg-muted"
-                      tabIndex={-1}
-                      aria-label={showPassword ? 'Masquer' : 'Afficher'}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={isPending} className="w-full">
-                  {isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Connexion…
-                    </>
-                  ) : (
-                    'Se connecter'
+            {/* Carte de connexion */}
+            <Card className="ss-shadow-card">
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-xl">Connexion au portail</CardTitle>
+                <CardDescription>
+                  Accédez à l'espace {schoolName}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form action={formAction} className="space-y-4">
+                  {state && !state.ok && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{state.error}</AlertDescription>
+                    </Alert>
                   )}
-                </Button>
-              </form>
 
-              {/* 7 comptes démo cliquables */}
-              <div className="mt-6 pt-4 border-t border-border">
-                <p className="text-xs font-medium text-muted-foreground mb-3">
-                  🔑 Comptes de démonstration (cliquez pour vous connecter) :
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {DEMO_ACCOUNTS.map((acc) => {
-                    const Icon = acc.icon
-                    const isSelected = selectedAccount === acc.email
-                    return (
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        autoComplete="email"
+                        placeholder="vous@exemple.com"
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        autoComplete="current-password"
+                        placeholder="••••••••"
+                        className="pl-9 pr-10"
+                      />
                       <button
-                        key={acc.email}
                         type="button"
-                        onClick={() => selectAccount(acc.email)}
-                        className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-xs transition-all hover:bg-muted ${isSelected ? 'border-primary bg-primary/5' : 'border-border bg-muted/40'}`}
-                        title={`Se connecter en tant que ${acc.label}`}
+                        onClick={() => setShowPassword((s) => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:bg-muted"
+                        tabIndex={-1}
+                        aria-label={showPassword ? 'Masquer' : 'Afficher'}
                       >
-                        <div className={`flex h-6 w-6 items-center justify-center rounded ${acc.color}`}>
-                          <Icon className="h-3.5 w-3.5" />
-                        </div>
-                        <span className="font-medium">{acc.label}</span>
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
-                    )
-                  })}
-                </div>
-                <div className="mt-3 p-2 bg-muted/40 rounded-md">
-                  <p className="text-[11px] text-muted-foreground">
-                    🔒 Mot de passe commun pour tous les comptes :{' '}
-                    <code className="font-mono text-primary font-semibold">{DEMO_PASSWORD}</code>
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                    </div>
+                  </div>
 
-          <p className="text-center text-xs text-muted-foreground">
-            SmartShule © 2026-2027 — Plateforme sécurisée. Toutes les actions sont journalisées.
-          </p>
-          <p className="text-center text-xs text-amber-600 dark:text-amber-400 sm:hidden">
-            📞 +243 999 071 754
-          </p>
+                  <Button type="submit" disabled={isPending} className="w-full">
+                    {isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Connexion…
+                      </>
+                    ) : (
+                      'Se connecter'
+                    )}
+                  </Button>
+                </form>
+
+                {/* 7 comptes démo cliquables */}
+                <div className="pt-4 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground mb-3 text-center sm:text-left">
+                    🔑 Comptes de démonstration (cliquez pour vous connecter)
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {DEMO_ACCOUNTS.map((acc) => {
+                      const Icon = acc.icon
+                      const isSelected = selectedAccount === acc.email
+                      return (
+                        <button
+                          key={acc.email}
+                          type="button"
+                          onClick={() => selectAccount(acc.email)}
+                          className={`flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2 rounded-md border px-2 py-2 text-xs transition-all hover:bg-muted/60 ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-muted/30'}`}
+                          title={`Se connecter en tant que ${acc.label}`}
+                        >
+                          <div className={`flex h-6 w-6 items-center justify-center rounded ${acc.color} border`}>
+                            <Icon className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="font-medium text-center sm:text-left">{acc.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 p-2.5 bg-muted/40 rounded-md text-center">
+                    <p className="text-[11px] text-muted-foreground">
+                      🔒 Mot de passe commun :{' '}
+                      <code className="font-mono text-primary font-semibold">{DEMO_PASSWORD}</code>
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Footer */}
+            <div className="space-y-1.5 text-center">
+              <p className="text-xs text-muted-foreground">
+                SmartShule © 2026-2027 — Plateforme sécurisée. Toutes les actions sont journalisées.
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 lg:hidden">
+                📞 Renseignements : +243 999 071 754
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
