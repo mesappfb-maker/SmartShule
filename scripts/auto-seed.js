@@ -195,11 +195,10 @@ async function updateDemoPasswords() {
   ]
 
   for (const email of demoEmails) {
-    const salt = crypto.randomBytes(16).toString('hex')
-    const passwordHash = await pbkdf2(password, salt)
+    const hash = await hashPassword(password)
     await db.user.updateMany({
       where: { email },
-      data: { passwordHash: `${salt}:${passwordHash}`, active: true },
+      data: { passwordHash: hash, active: true },
     })
     console.log(`  ✅ Mot de passe mis à jour: ${email}`)
   }
