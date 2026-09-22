@@ -33,6 +33,13 @@ async function pbkdf2(password: string, salt: string): Promise<string> {
   })
 }
 
+// Format attendu par verifyPassword : pbkdf2$ITERATIONS$DIGEST$SALT$HASH
+async function hashPasswordForSeed(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = await pbkdf2(password, salt)
+  return `pbkdf2$100000$sha512$${salt}$${hash}`
+}
+
 export async function GET(req: NextRequest) {
   return POST(req)
 }
@@ -68,11 +75,10 @@ export async function POST(_req: NextRequest) {
         'server@smartshule.demo',
       ]
       for (const email of demoEmails) {
-        const salt = crypto.randomBytes(16).toString('hex')
-        const passwordHash = await pbkdf2(password, salt)
+        const hash = await hashPasswordForSeed(password)
         await db.user.updateMany({
           where: { email },
-          data: { passwordHash: `${salt}:${passwordHash}`, active: true },
+          data: { passwordHash: hash, active: true },
         })
       }
       return NextResponse.json({
@@ -142,12 +148,11 @@ export async function POST(_req: NextRequest) {
 
     const createdUsers: Array<{ email: string; role: string; id: string }> = []
     for (const u of users) {
-      const salt = crypto.randomBytes(16).toString('hex')
-      const passwordHash = await pbkdf2(password, salt)
+      const hash = await hashPasswordForSeed(password)
       const user = await db.user.create({
         data: {
           email: u.email,
-          passwordHash: `${salt}:${passwordHash}`,
+          passwordHash: hash,
           role: u.role,
           displayName: u.displayName,
           active: true,
