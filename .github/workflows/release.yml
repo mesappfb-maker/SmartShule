@@ -54,25 +54,16 @@ jobs:
       - name: 📦 Installation
         run: npm install --include=dev
 
-      - name: 🔍 Prisma generate
-        run: npx prisma generate
-        env:
-          DATABASE_URL: 'file:./db/prod.db'
-
       - name: 🔧 Switch provider to SQLite (desktop build)
         run: |
           mkdir -p db
-          node scripts/switch-provider.js
-        env:
-          DATABASE_URL: 'file:./db/prod.db'
+          DATABASE_URL="file:./db/prod.db" node scripts/switch-provider.js
+
+      - name: 🔍 Prisma generate
+        run: DATABASE_URL="file:./db/prod.db" npx prisma generate
 
       - name: 🏗️ Build Next.js (standalone)
-        run: |
-          mkdir -p db
-          npx prisma generate
-          next build
-          cp -r .next/static .next/standalone/.next/
-          cp -r public .next/standalone/
+        run: bash scripts/build-electron.sh
         env:
           DATABASE_URL: 'file:./db/prod.db'
           NODE_ENV: production
