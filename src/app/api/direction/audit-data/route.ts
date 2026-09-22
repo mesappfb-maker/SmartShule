@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server'
 import { getUserFromSession } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { getSchoolIdForUser } from '@/lib/school-context'
 import {
   getDirectionLessonLogs,
   getDirectionLiveClasses,
@@ -29,14 +30,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: 'Accès réservé à la Direction.' }, { status: 403 })
   }
 
-  // Trouver l'école de l'utilisateur
-  const employee = await db.employee.findFirst({
-    where: { email: user.email },
-    select: { schoolId: true },
-  })
-  const schoolId = employee?.schoolId
+  // Trouver l'école de l'utilisateur (helper robuste)
+  const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
   if (!schoolId) {
-    return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
+    return NextResponse.json({ ok: false, error: 'École introuvable. Veuillez visitez /api/seed pour initialiser la base.' }, { status: 404 })
   }
 
   // Filtres optionnels

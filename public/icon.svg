@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="32" fill="url(#bg)"/>
+  <!-- Graduation cap -->
+  <g transform="translate(96, 96)">
+    <path d="M -40 -10 L 0 -25 L 40 -10 L 0 5 Z" fill="white"/>
+    <path d="M -25 -5 L -25 15 Q 0 25 25 15 L 25 -5 L 0 5 Z" fill="white" opacity="0.9"/>
+    <line x1="35" y1="-8" x2="35" y2="12" stroke="white" stroke-width="2"/>
+    <circle cx="35" cy="14" r="3" fill="#F59E0B"/>
+  </g>
+  <text x="96" y="160" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" fill="white">SmartShule</text>
+</svg>
