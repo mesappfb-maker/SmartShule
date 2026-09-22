@@ -20,11 +20,9 @@ const { autoUpdater } = require('electron-updater')
 
 const isDev = !app.isPackaged
 const DEV_SERVER_URL = process.env.DEV_SERVER_URL || 'http://localhost:3000'
-// En production, on peut soit :
-//   - Charger l'app buildée localement (fichiers .next/standalone)
-//   - Charger l'URL distante (Cloudflare Pages / Render)
+// En production : charge l'URL distante (Vercel) ou le bundle local
 const PROD_LOCAL_PATH = path.join(__dirname, '..', '.next', 'standalone')
-const PROD_REMOTE_URL = process.env.PROD_REMOTE_URL || 'https://your-app.pages.dev'
+const PROD_REMOTE_URL = process.env.PROD_REMOTE_URL || 'https://smart-shule-seven.vercel.app'
 
 let mainWindow
 
