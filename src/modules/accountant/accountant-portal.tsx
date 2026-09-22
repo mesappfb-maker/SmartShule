@@ -14,12 +14,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Home, Receipt, FileText, AlertTriangle, TrendingUp, Wallet,
-  Bell, Mail, Users, CheckCircle2, User,
+  Bell, Mail, Users, CheckCircle2, User, Settings,
 } from 'lucide-react'
 import { logoutAction } from '@/lib/actions'
 import { formatCents, formatDate, formatRelative } from '@/lib/format'
 import { toast } from 'sonner'
 import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
+import { AccountantFullPortal } from './accountant-full-portal'
 
 type AccountantData = NonNullable<Awaited<ReturnType<typeof import('@/lib/accountant-portal-queries').getAccountantPortalData>>>
 
@@ -38,8 +39,9 @@ export function AccountantPortal({
     id: 'main', label: 'Portail Comptable',
     items: [
       { key: 'dashboard', label: 'Tableau de bord', icon: <Home className="h-4 w-4" /> },
-      { key: 'encash', label: 'Encaissements', icon: <Receipt className="h-4 w-4" /> },
-      { key: 'lines', label: 'Lignes de frais', icon: <FileText className="h-4 w-4" /> },
+      { key: 'full', label: 'Module Comptable ERP', icon: <Settings className="h-4 w-4" /> },
+      { key: 'encash', label: 'Encaissements (legacy)', icon: <Receipt className="h-4 w-4" /> },
+      { key: 'lines', label: 'Lignes de frais (legacy)', icon: <FileText className="h-4 w-4" /> },
       { key: 'alerts', label: 'Élèves en litige', icon: <AlertTriangle className="h-4 w-4" />, badge: data.pendingStudents.length },
       { key: 'notifications', label: 'Notifications', icon: <Mail className="h-4 w-4" /> },
       { key: 'profile', label: 'Mon profil', icon: <User className="h-4 w-4" /> },
@@ -79,6 +81,7 @@ export function AccountantPortal({
           </Card>
         </div>
       )}
+      {view === 'full' && <AccountantFullPortal />}
       {view === 'encash' && (
         <div className="space-y-6">
           <PageHeader title="Encaissements" description="Validez un encaissement contre une ligne de frais existante" breadcrumbs={[{ label: 'Comptable' }, { label: 'Encaissements' }]} />
