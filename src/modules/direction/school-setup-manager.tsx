@@ -24,7 +24,8 @@ import { PageHeader } from '@/components/ss/page-header'
 import { EmptyState } from '@/components/ss/empty-state'
 import {
   Loader2, Building2, Layers, GraduationCap, BookOpen,
-  Wallet, Plus, RefreshCw, CheckCircle2, Users,
+  Wallet, Plus, RefreshCw, CheckCircle2, Users, Calendar,
+  UserCheck, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/format'
@@ -70,7 +71,7 @@ export function SchoolSetupManager() {
     feeLines: FeeLine[]
   } | null>(null)
   const [loading, setLoading] = React.useState(true)
-  const [tab, setTab] = React.useState<'directorates' | 'sections' | 'options' | 'subjects' | 'classrooms' | 'fees'>('directorates')
+  const [tab, setTab] = React.useState<'directorates' | 'sections' | 'options' | 'subjects' | 'classrooms' | 'fees' | 'assignments' | 'schedule'>('directorates')
 
   const loadData = React.useCallback(async () => {
     setLoading(true)
@@ -147,7 +148,7 @@ export function SchoolSetupManager() {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1 h-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 gap-1 h-auto">
           <TabsTrigger value="directorates" className="flex flex-col items-center gap-1 py-2 text-xs">
             <Building2 className="h-4 w-4" /> Directions
           </TabsTrigger>
@@ -165,6 +166,12 @@ export function SchoolSetupManager() {
           </TabsTrigger>
           <TabsTrigger value="fees" className="flex flex-col items-center gap-1 py-2 text-xs">
             <Wallet className="h-4 w-4" /> Frais
+          </TabsTrigger>
+          <TabsTrigger value="assignments" className="flex flex-col items-center gap-1 py-2 text-xs">
+            <UserCheck className="h-4 w-4" /> Affectations
+          </TabsTrigger>
+          <TabsTrigger value="schedule" className="flex flex-col items-center gap-1 py-2 text-xs">
+            <Calendar className="h-4 w-4" /> Agenda
           </TabsTrigger>
         </TabsList>
 
@@ -197,6 +204,14 @@ export function SchoolSetupManager() {
 
         <TabsContent value="fees" className="mt-4">
           <FeeLinesManager data={data.feeLines} directorates={data.directorates} callApi={callApi} />
+        </TabsContent>
+
+        <TabsContent value="assignments" className="mt-4">
+          <AssignmentsManager />
+        </TabsContent>
+
+        <TabsContent value="schedule" className="mt-4">
+          <WeeklyScheduleManager />
         </TabsContent>
       </Tabs>
     </div>
@@ -765,6 +780,397 @@ function FeeLinesManager({ data, directorates, callApi }: { data: FeeLine[]; dir
           </div>
         )}
       </ListCard>
+    </div>
+  )
+}
+
+// ============================================================
+// 7. AFFECTATIONS PROF → MATIÈRE + CLASSE
+// ============================================================
+
+type Assignment = {
+  id: string
+  employeeId: string
+  employeeName: string
+  employeeEmail: string
+  subjectId: string
+  subjectName: string
+  classroomId: string
+  classroomName: string
+  directorateName?: string
+}
+
+function AssignmentsManager() {
+  const [data, setData] = React.useState<{
+    assignments: Assignment[]
+    employees: Array<{ id: string; name: string; email: string }>
+    subjects: Subject[]
+    classrooms: Array<{ id: string; name: string; directorateName: string }>
+  } | null>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [employeeId, setEmployeeId] = React.useState('')
+  const [subjectId, setSubjectId] = React.useState('')
+  const [classroomId, setClassroomId] = React.useState('')
+  const [pending, setPending] = React.useState(false)
+
+  const loadData = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/direction/assign-teacher', { cache: 'no-store' })
+      const result = await res.json()
+      if (result.ok) setData(result)
+    } catch (err) {
+      toast.error('Erreur réseau : ' + (err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => { loadData() }, [loadData])
+
+  async function submit() {
+    if (!employeeId || !subjectId || !classroomId) {
+      toast.error('Tous les champs obligatoires')
+      return
+    }
+    setPending(true)
+    try {
+      const res = await fetch('/api/direction/assign-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId, subjectId, classroomId }),
+      })
+      const result = await res.json()
+      if (result.ok) {
+        toast.success(result.message)
+        setEmployeeId(''); setSubjectId(''); setClassroomId('')
+        await loadData()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (err) {
+      toast.error('Erreur : ' + (err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Supprimer cette affectation ?')) return
+    try {
+      await fetch(`/api/direction/assign-teacher?id=${id}`, { method: 'DELETE' })
+      toast.success('Affectation supprimée')
+      await loadData()
+    } catch (err) {
+      toast.error('Erreur : ' + (err as Error).message)
+    }
+  }
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+  if (!data) return <EmptyState title="Données indisponibles" />
+
+  if (data.employees.length === 0 || data.subjects.length === 0 || data.classrooms.length === 0) {
+    return (
+      <EmptyState
+        icon={<UserCheck className="h-5 w-5" />}
+        title="Prérequis manquants"
+        description="Il faut au moins 1 professeur, 1 matière et 1 classe. Créez-les dans les onglets précédents."
+      />
+    )
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <CreateCard title="Nouvelle affectation prof">
+        <div className="space-y-2">
+          <Label>Professeur *</Label>
+          <select className="w-full p-2 border rounded-md bg-background text-sm" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+            <option value="">— Sélectionner —</option>
+            {data.employees.map((e) => <option key={e.id} value={e.id}>{e.name} ({e.email})</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label>Matière *</Label>
+          <select className="w-full p-2 border rounded-md bg-background text-sm" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+            <option value="">— Sélectionner —</option>
+            {data.subjects.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label>Classe *</Label>
+          <select className="w-full p-2 border rounded-md bg-background text-sm" value={classroomId} onChange={(e) => setClassroomId(e.target.value)}>
+            <option value="">— Sélectionner —</option>
+            {data.classrooms.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.directorateName})</option>)}
+          </select>
+        </div>
+        <Button onClick={submit} disabled={pending} className="w-full">
+          {pending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
+          Créer l'affectation
+        </Button>
+      </CreateCard>
+
+      <ListCard title="Affectations existantes" items={data.assignments} emptyMessage="Aucune affectation créée">
+        {(item: Assignment) => (
+          <div key={item.id} className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/20">
+            <div className="flex-1">
+              <p className="font-medium">{item.employeeName}</p>
+              <p className="text-xs text-muted-foreground">
+                {item.subjectName} → {item.classroomName}
+                {item.directorateName && ` (${item.directorateName})`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{item.subjectName}</Badge>
+              <Button size="sm" variant="ghost" onClick={() => remove(item.id)}>
+                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </ListCard>
+    </div>
+  )
+}
+
+// ============================================================
+// 8. AGENDA HEBDOMADAIRE (emploi du temps)
+// ============================================================
+
+type ScheduleSlot = {
+  id: string
+  employeeId: string
+  employeeName: string
+  classroomId: string
+  classroomName: string
+  directorateName?: string
+  subjectId: string
+  subjectName: string
+  dayOfWeek: number
+  dayName: string
+  startTime: string
+  endTime: string
+  room?: string | null
+}
+
+const WEEK_DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+const WORK_DAYS = [1, 2, 3, 4, 5, 6] // Lundi-Samedi (pas dimanche en RDC)
+
+function WeeklyScheduleManager() {
+  const [data, setData] = React.useState<{
+    schedules: ScheduleSlot[]
+    employees: Array<{ id: string; name: string; email: string }>
+    subjects: Subject[]
+    classrooms: Array<{ id: string; name: string; directorateName: string }>
+    days: string[]
+  } | null>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [filterClassroom, setFilterClassroom] = React.useState('')
+  const [filterEmployee, setFilterEmployee] = React.useState('')
+
+  // Formulaire de création
+  const [employeeId, setEmployeeId] = React.useState('')
+  const [subjectId, setSubjectId] = React.useState('')
+  const [classroomId, setClassroomId] = React.useState('')
+  const [dayOfWeek, setDayOfWeek] = React.useState('1')
+  const [startTime, setStartTime] = React.useState('08:00')
+  const [endTime, setEndTime] = React.useState('10:00')
+  const [room, setRoom] = React.useState('')
+  const [pending, setPending] = React.useState(false)
+
+  const loadData = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      let url = '/api/direction/schedule'
+      const params = new URLSearchParams()
+      if (filterClassroom) params.append('classroomId', filterClassroom)
+      if (filterEmployee) params.append('employeeId', filterEmployee)
+      if (params.toString()) url += '?' + params.toString()
+      const res = await fetch(url, { cache: 'no-store' })
+      const result = await res.json()
+      if (result.ok) setData(result)
+    } catch (err) {
+      toast.error('Erreur réseau : ' + (err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [filterClassroom, filterEmployee])
+
+  React.useEffect(() => { loadData() }, [loadData])
+
+  async function submit() {
+    if (!employeeId || !subjectId || !classroomId) {
+      toast.error('Professeur, matière et classe obligatoires')
+      return
+    }
+    if (startTime >= endTime) {
+      toast.error('Heure de début doit être avant la fin')
+      return
+    }
+    setPending(true)
+    try {
+      const res = await fetch('/api/direction/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId, subjectId, classroomId,
+          dayOfWeek: parseInt(dayOfWeek, 10),
+          startTime, endTime, room,
+        }),
+      })
+      const result = await res.json()
+      if (result.ok) {
+        toast.success(result.message)
+        setRoom('')
+        await loadData()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (err) {
+      toast.error('Erreur : ' + (err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Supprimer ce créneau ?')) return
+    try {
+      await fetch(`/api/direction/schedule?id=${id}`, { method: 'DELETE' })
+      toast.success('Créneau supprimé')
+      await loadData()
+    } catch (err) {
+      toast.error('Erreur : ' + (err as Error).message)
+    }
+  }
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+  if (!data) return <EmptyState title="Données indisponibles" />
+
+  if (data.employees.length === 0 || data.subjects.length === 0 || data.classrooms.length === 0) {
+    return (
+      <EmptyState
+        icon={<Calendar className="h-5 w-5" />}
+        title="Prérequis manquants"
+        description="Il faut au moins 1 professeur, 1 matière et 1 classe. Créez-les dans les onglets précédents."
+      />
+    )
+  }
+
+  // Grouper les créneaux par jour
+  const slotsByDay = new Map<number, ScheduleSlot[]>()
+  for (const day of WORK_DAYS) {
+    slotsByDay.set(day, (data.schedules || []).filter((s) => s.dayOfWeek === day).sort((a, b) => a.startTime.localeCompare(b.startTime)))
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filtres */}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Filtrer :</span>
+          <select className="p-1.5 border rounded-md bg-background text-xs" value={filterClassroom} onChange={(e) => setFilterClassroom(e.target.value)}>
+            <option value="">Toutes classes</option>
+            {data.classrooms.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="p-1.5 border rounded-md bg-background text-xs" value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}>
+            <option value="">Tous profs</option>
+            {data.employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Formulaire */}
+        <CreateCard title="Nouveau créneau horaire">
+          <div className="space-y-2">
+            <Label>Professeur *</Label>
+            <select className="w-full p-2 border rounded-md bg-background text-sm" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+              <option value="">— Sélectionner —</option>
+              {data.employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Matière *</Label>
+              <select className="w-full p-2 border rounded-md bg-background text-sm" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+                <option value="">—</option>
+                {data.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Classe *</Label>
+              <select className="w-full p-2 border rounded-md bg-background text-sm" value={classroomId} onChange={(e) => setClassroomId(e.target.value)}>
+                <option value="">—</option>
+                {data.classrooms.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Jour *</Label>
+            <select className="w-full p-2 border rounded-md bg-background text-sm" value={dayOfWeek} onChange={(e) => setDayOfWeek(e.target.value)}>
+              {WORK_DAYS.map((d) => <option key={d} value={d}>{WEEK_DAYS[d]}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Début *</Label>
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Fin *</Label>
+              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Salle (optionnel)</Label>
+            <Input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Ex : Salle 12" />
+          </div>
+          <Button onClick={submit} disabled={pending} className="w-full">
+            {pending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calendar className="h-4 w-4 mr-2" />}
+            Créer le créneau
+          </Button>
+        </CreateCard>
+
+        {/* Vue calendrier */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">📅 Emploi du temps hebdomadaire</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(data.schedules || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Aucun créneau créé</p>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {WORK_DAYS.map((day) => {
+                  const slots = slotsByDay.get(day) || []
+                  if (slots.length === 0) return null
+                  return (
+                    <div key={day} className="border border-border rounded-md">
+                      <div className="bg-muted/50 px-2 py-1 text-xs font-semibold border-b border-border">
+                        {WEEK_DAYS[day]} ({slots.length} cours)
+                      </div>
+                      <div className="p-2 space-y-1.5">
+                        {slots.map((s) => (
+                          <div key={s.id} className="flex items-center justify-between p-2 rounded-md bg-muted/20 text-xs">
+                            <div className="flex-1">
+                              <p className="font-medium">{s.startTime} - {s.endTime}</p>
+                              <p className="text-muted-foreground">{s.subjectName} · {s.classroomName}</p>
+                              <p className="text-muted-foreground">{s.employeeName}{s.room && ` · ${s.room}`}</p>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => remove(s.id)}>
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
