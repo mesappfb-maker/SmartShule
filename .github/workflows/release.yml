@@ -65,7 +65,7 @@ jobs:
           DATABASE_URL: 'file:./db/prod.db'
 
       - name: 🏗️ Build Next.js (standalone)
-        run: npm run build
+        run: npm run build:electron
         env:
           DATABASE_URL: 'file:./db/prod.db'
           NODE_ENV: production

@@ -9,6 +9,7 @@
     "dev": "node scripts/switch-provider.js && next dev -p 3000 2>&1 | tee dev.log",
     "prebuild": "node scripts/switch-provider.js",
     "build": "npx prisma db push --accept-data-loss && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build:electron": "node scripts/switch-provider.js && npx prisma generate && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "test": "bun test tests/unit/",
