@@ -1,45 +1,27 @@
-# SmartShule — Workflow de Release Production
+# SmartShule — Build .exe Windows (simplifié)
 # ============================================================
-# Déclenché par :
-#   1. Push d'un tag v* (ex: v1.0.0) → build + publish sur GitHub Releases
-#   2. Manuellement depuis l'onglet Actions
-#
-# Génère :
-#   - Windows : SmartShule-Setup-1.0.0.exe (NSIS installer)
-#   - macOS : SmartShule-1.0.0.dmg + SmartShule-1.0.0-mac.zip
-#   - Linux : SmartShule-1.0.0.AppImage
-#
-# Publie tout sur GitHub Releases avec latest.yml (pour electron-updater)
-# Les postes installés se mettront à jour automatiquement.
+# Workflow simplifié qui build le .exe directement sur Windows
+# sans job séparé pour le build web
 
-name: 📦 Release SmartShule
+name: 📦 Build SmartShule Desktop
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version (ex: 1.0.0)'
-        required: true
-        default: '1.0.0'
 
 env:
   NODE_VERSION: '20'
-  APP_VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
 permissions:
   contents: write
 
 jobs:
-  # ============================================================
-  # JOB 1 : Build Next.js (une seule fois, partagé)
-  # ============================================================
-  build-web:
-    name: 🌐 Build Next.js
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  build-windows:
+    name: 🪟 Windows .exe
+    runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -51,82 +33,37 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: 📦 Installation
+      - name: 📦 Install dependencies
         run: npm install --include=dev --legacy-peer-deps
 
       - name: 🔍 Prisma generate
-        run: mkdir -p db && DATABASE_URL="file:./db/prod.db" npx prisma generate
-
-      - name: 🔧 Switch provider to SQLite
-        run: mkdir -p db && DATABASE_URL="file:./db/prod.db" node scripts/switch-provider.js
-
-      - name: 🏗️ Build Next.js (standalone)
         run: |
           mkdir -p db
-          DATABASE_URL="file:./db/prod.db" \
-          NEXTAUTH_SECRET="desktop-build-secret" \
-          NEXTAUTH_URL="http://localhost:3000" \
-          NODE_ENV=production \
+          npx prisma generate
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🔧 Switch provider to SQLite
+        run: |
+          mkdir -p db
+          node scripts/switch-provider.js
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🏗️ Build Next.js
+        run: |
+          mkdir -p db
           npx next build
           mkdir -p .next/standalone/.next
           cp -r .next/static .next/standalone/.next/
           cp -r public .next/standalone/
-
-      - name: 📦 Préparation du bundle standalone
-        run: |
-          mkdir -p .next/standalone/.next
-          cp -r .next/static .next/standalone/.next/
-          cp -r public .next/standalone/
-
-      - name: 📤 Upload artifact web
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-bundle
-          path: |
-            .next/standalone
-            .next/static
-            public
-            prisma
-            electron
-            electron-builder.yml
-            package.json
-            scripts/switch-provider.js
-          retention-days: 1
-
-  # ============================================================
-  # JOB 2 : Build Windows .exe
-  # ============================================================
-  release-windows:
-    name: 🪟 Build .exe Windows
-    needs: build-web
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: 📥 Installation
-        run: npm install --include=dev
-
-      - name: 📥 Récupération du bundle web
-        uses: actions/download-artifact@v4
-        with:
-          name: web-bundle
-          path: .
-
-      - name: 🔍 Prisma generate (Windows)
-        run: npx prisma generate
         env:
           DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+          NEXTAUTH_SECRET: 'desktop-build-secret'
+          NEXTAUTH_URL: 'http://localhost:3000'
 
-      - name: 📦 Build Electron Windows (.exe)
+      - name: 📦 Build Electron .exe
         run: npx electron-builder --win --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -136,23 +73,15 @@ jobs:
       - name: 📤 Upload .exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
+          name: SmartShule-Windows-exe
           path: dist/*.exe
           retention-days: 30
 
-      - name: ✅ Résumé
-        run: |
-          echo "## 🪟 Windows .exe publié" >> $GITHUB_STEP_SUMMARY
-          echo "Téléchargez le .exe sur la page des [Releases](https://github.com/${{ github.repository }}/releases)." >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================
-  # JOB 3 : Build macOS .dmg
-  # ============================================================
-  release-macos:
-    name: 🍎 Build .dmg macOS
-    needs: build-web
+  build-macos:
+    name: 🍎 macOS .dmg
+    needs: build-windows
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     continue-on-error: true
     steps:
       - name: 📥 Checkout
@@ -165,21 +94,37 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: 📥 Installation
-        run: npm install --include=dev
+      - name: 📦 Install dependencies
+        run: npm install --include=dev --legacy-peer-deps
 
-      - name: 📥 Récupération du bundle web
-        uses: actions/download-artifact@v4
-        with:
-          name: web-bundle
-          path: .
-
-      - name: 🔍 Prisma generate (macOS)
-        run: npx prisma generate
+      - name: 🔍 Prisma generate
+        run: |
+          mkdir -p db
+          npx prisma generate
         env:
           DATABASE_URL: 'file:./db/prod.db'
 
-      - name: 📦 Build Electron macOS (.dmg)
+      - name: 🔧 Switch provider to SQLite
+        run: |
+          mkdir -p db
+          node scripts/switch-provider.js
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🏗️ Build Next.js
+        run: |
+          mkdir -p db
+          npx next build
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/
+          cp -r public .next/standalone/
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+          NEXTAUTH_SECRET: 'desktop-build-secret'
+          NEXTAUTH_URL: 'http://localhost:3000'
+
+      - name: 📦 Build Electron .dmg
         run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -189,69 +134,8 @@ jobs:
       - name: 📤 Upload .dmg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
+          name: SmartShule-macOS-dmg
           path: |
             dist/*.dmg
             dist/*.zip
           retention-days: 30
-
-      - name: ✅ Résumé
-        run: |
-          echo "## 🍎 macOS .dmg publié" >> $GITHUB_STEP_SUMMARY
-          echo "Téléchargez le .dmg sur la page des [Releases](https://github.com/${{ github.repository }}/releases)." >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================
-  # JOB 4 : Build Linux .AppImage
-  # ============================================================
-  release-linux:
-    name: 🐧 Build .AppImage Linux
-    needs: build-web
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    continue-on-error: true
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: 📥 Installation + deps Linux
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libnotify-dev libnss3 libxss1 libxtst-dev
-          npm install --include=dev
-
-      - name: 📥 Récupération du bundle web
-        uses: actions/download-artifact@v4
-        with:
-          name: web-bundle
-          path: .
-
-      - name: 🔍 Prisma generate (Linux)
-        run: npx prisma generate
-        env:
-          DATABASE_URL: 'file:./db/prod.db'
-
-      - name: 📦 Build Electron Linux (.AppImage)
-        run: npx electron-builder --linux --x64 --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DATABASE_URL: 'file:./db/prod.db'
-          NODE_ENV: production
-
-      - name: 📤 Upload .AppImage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-appimage
-          path: dist/*.AppImage
-          retention-days: 30
-
-      - name: ✅ Résumé
-        run: |
-          echo "## 🐧 Linux .AppImage publié" >> $GITHUB_STEP_SUMMARY
-          echo "Téléchargez le .AppImage sur la page des [Releases](https://github.com/${{ github.repository }}/releases)." >> $GITHUB_STEP_SUMMARY
