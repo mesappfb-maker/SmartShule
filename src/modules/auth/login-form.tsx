@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useActionState } from 'react'
-import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff } from 'lucide-react'
+import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff, User, Users, Briefcase, Wallet, Server, BookOpen, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,15 +11,31 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { loginAction } from '@/lib/actions'
 import { ThemeToggle } from '@/components/ss/theme-toggle'
 
+// ✅ 7 comptes démo cliquables directement sur la page
 const DEMO_ACCOUNTS = [
-  { label: 'Direction', email: 'direction@smartshule.demo', role: 'DIRECTION' },
-  { label: 'Parent', email: 'parent1@smartshule.demo', role: 'PARENT' },
-  { label: 'Élève', email: 'eleve1@smartshule.demo', role: 'STUDENT' },
+  { label: 'Direction',     email: 'direction@smartshule.demo',  role: 'DIRECTION',  icon: Shield,    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  { label: 'Professeur',   email: 'prof@smartshule.demo',       role: 'TEACHER',    icon: BookOpen,  color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+  { label: 'Comptable',    email: 'comptable@smartshule.demo',  role: 'ACCOUNTANT', icon: Wallet,    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  { label: 'Secrétariat',  email: 'secretaire@smartshule.demo', role: 'SECRETARY',  icon: Briefcase, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+  { label: 'Parent',       email: 'parent@smartshule.demo',     role: 'PARENT',     icon: Users,     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400' },
+  { label: 'Élève',        email: 'eleve@smartshule.demo',       role: 'STUDENT',   icon: User,      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' },
+  { label: 'PromoServeur', email: 'server@smartshule.demo',     role: 'SERVER',    icon: Server,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400' },
 ]
+
+const DEMO_PASSWORD = 'SmartShule2026!'
 
 export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; schoolSlogan?: string }) {
   const [state, formAction, isPending] = useActionState(loginAction, null)
   const [showPassword, setShowPassword] = React.useState(false)
+  const [selectedAccount, setSelectedAccount] = React.useState<string>('')
+
+  function selectAccount(email: string) {
+    setSelectedAccount(email)
+    const emailInput = document.getElementById('email') as HTMLInputElement
+    const passwordInput = document.getElementById('password') as HTMLInputElement
+    if (emailInput) emailInput.value = email
+    if (passwordInput) passwordInput.value = DEMO_PASSWORD
+  }
 
   return (
     <div className="relative min-h-screen flex flex-col lg:flex-row">
@@ -144,36 +160,43 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
                 </Button>
               </form>
 
+              {/* 7 comptes démo cliquables */}
               <div className="mt-6 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Comptes de démonstration :
+                <p className="text-xs font-medium text-muted-foreground mb-3">
+                  🔑 Comptes de démonstration (cliquez pour vous connecter) :
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {DEMO_ACCOUNTS.map((acc) => (
-                    <button
-                      key={acc.email}
-                      type="button"
-                      onClick={() => {
-                        const emailInput = document.getElementById('email') as HTMLInputElement
-                        const passwordInput = document.getElementById('password') as HTMLInputElement
-                        if (emailInput) emailInput.value = acc.email
-                        if (passwordInput) passwordInput.value = 'SmartShule2026!'
-                      }}
-                      className="rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs hover:bg-muted transition-colors"
-                    >
-                      {acc.label}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2">
+                  {DEMO_ACCOUNTS.map((acc) => {
+                    const Icon = acc.icon
+                    const isSelected = selectedAccount === acc.email
+                    return (
+                      <button
+                        key={acc.email}
+                        type="button"
+                        onClick={() => selectAccount(acc.email)}
+                        className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-xs transition-all hover:bg-muted ${isSelected ? 'border-primary bg-primary/5' : 'border-border bg-muted/40'}`}
+                        title={`Se connecter en tant que ${acc.label}`}
+                      >
+                        <div className={`flex h-6 w-6 items-center justify-center rounded ${acc.color}`}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="font-medium">{acc.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
-                <p className="mt-3 text-[11px] text-muted-foreground">
-                  Mot de passe pour tous : <code className="font-mono">SmartShule2026!</code>
-                </p>
+                <div className="mt-3 p-2 bg-muted/40 rounded-md">
+                  <p className="text-[11px] text-muted-foreground">
+                    🔒 Mot de passe commun pour tous les comptes :{' '}
+                    <code className="font-mono text-primary font-semibold">{DEMO_PASSWORD}</code>
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">
-            SmartShule © 2025-2026 — Plateforme sécurisée. Toutes les actions sont journalisées.
+            SmartShule © 2026-2027 — Plateforme sécurisée. Toutes les actions sont journalisées.
           </p>
         </div>
       </div>
