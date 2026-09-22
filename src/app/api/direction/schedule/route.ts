@@ -7,16 +7,10 @@ import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
+import { getSchoolIdForUser } from '@/lib/school-context'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-
-async function getSchoolId(email: string) {
-  const emp = await db.employee.findFirst({ where: { email }, select: { schoolId: true } })
-  if (emp?.schoolId) return emp.schoolId
-  const school = await db.school.findFirst()
-  return school?.id || null
-}
 
 const DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 
@@ -41,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Heure de début doit être avant l\'heure de fin.' }, { status: 400 })
     }
 
-    const schoolId = await getSchoolId(user.email || '')
+    const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
     if (!schoolId) return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
 
     // Vérifier chevauchement (même prof, même jour, même heure)
@@ -116,7 +110,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    const schoolId = await getSchoolId(user.email || '')
+    const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
     if (!schoolId) return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
 
     const url = new URL(req.url)

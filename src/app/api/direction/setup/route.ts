@@ -15,20 +15,11 @@ import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
+import { getSchoolIdForUser } from '@/lib/school-context'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 30
-
-async function getSchoolId(userEmail: string): Promise<string | null> {
-  const employee = await db.employee.findFirst({
-    where: { email: userEmail },
-    select: { schoolId: true },
-  })
-  if (employee?.schoolId) return employee.schoolId
-  const school = await db.school.findFirst()
-  return school?.id || null
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,9 +37,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { action } = body
 
-    const schoolId = await getSchoolId(user.email || '')
+    const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
     if (!schoolId) {
-      return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
+      return NextResponse.json({ ok: false, error: 'École introuvable. Veuillez contacter un administrateur ou visitez /api/seed pour initialiser la base.' }, { status: 404 })
     }
 
     const h = await headers()
@@ -367,9 +358,9 @@ export async function GET() {
       return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
     }
 
-    const schoolId = await getSchoolId(user.email || '')
+    const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
     if (!schoolId) {
-      return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
+      return NextResponse.json({ ok: false, error: 'École introuvable. Veuillez contacter un administrateur ou visitez /api/seed pour initialiser la base.' }, { status: 404 })
     }
 
     const [

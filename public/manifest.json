@@ -1,0 +1,67 @@
+{
+  "name": "SmartShule — Gestion Scolaire",
+  "short_name": "SmartShule",
+  "description": "Système intégré de gestion scolaire RDC — Direction, Professeurs, Parents, Élèves",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#2563EB",
+  "theme_color": "#2563EB",
+  "categories": ["education", "productivity"],
+  "lang": "fr-FR",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Connexion Direction",
+      "short_name": "Direction",
+      "description": "Accéder au portail Direction",
+      "url": "/?role=DIRECTION",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Connexion Professeur",
+      "short_name": "Prof",
+      "description": "Accéder au portail Professeur",
+      "url": "/?role=TEACHER",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Connexion Parent",
+      "short_name": "Parent",
+      "description": "Accéder au portail Parent",
+      "url": "/?role=PARENT",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
