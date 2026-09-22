@@ -123,6 +123,13 @@ model School {
   lessonLogs       LessonLog[]
   classIncidents   ClassIncident[]
   iqaSnapshots     IqaSnapshot[]
+  // Étape 5 RDC — Module comptable sécurisé
+  studentDebts     StudentDebt[]
+  receipts        Receipt[]
+  mobileMoneyPayments MobileMoneyPayment[]
+  scholarships    Scholarship[]
+  accountingPeriods AccountingPeriod[]
+  expenses        Expense[]
 }
 
 model Branding {
@@ -158,6 +165,10 @@ model Directorate {
   // Étape 3 RDC
   staffAttendanceReports StaffAttendanceReport[]
   invoiceLineConfigs InvoiceLineConfig[]
+  // Étape 5 RDC : Module comptable
+  studentDebts    StudentDebt[]
+  accountingPeriods AccountingPeriod[]
+  expenses        Expense[]
 }
 
 model Section {
@@ -186,6 +197,8 @@ model AcademicYear {
   classrooms   Classroom[]
   invoices     Invoice[]
   feeDefinitions FeeDefinition[]
+  // Étape 5 RDC : Module comptable
+  studentDebts StudentDebt[]
 }
 
 model Classroom {
@@ -225,6 +238,8 @@ model Classroom {
   lessonLogs        LessonLog[]
   classIncidents    ClassIncident[]
   iqaSnapshots      IqaSnapshot[]
+  // Étape 5 RDC : Module comptable
+  studentDebts    StudentDebt[]
 }
 
 model Subject {
@@ -287,6 +302,9 @@ model Student {
   studentAttendanceCalls StudentAttendanceCall[]
   classIncidents   ClassIncident[]
   iqaSnapshots     IqaSnapshot[]
+  // Étape 5 RDC : Module comptable
+  studentDebts     StudentDebt[]
+  receipts        Receipt[]
 }
 
 model Guardian {
@@ -335,6 +353,8 @@ model Enrollment {
   status          String   @default("ACTIVE") // ACTIVE | TRANSFERRED | ARCHIVED
   enrolledAt      DateTime @default(now())
   createdAt       DateTime @default(now())
+  // Étape 5 RDC : Module comptable
+  studentDebts    StudentDebt[]
 }
 
 // ============================================================
@@ -371,6 +391,8 @@ model Employee {
   lessonLogsAsTeacher  LessonLog[]
   incidentsReported    ClassIncident[]
   incidentsResolved    ClassIncident[] @relation("IncidentResolver")
+  // Étape 5 RDC : Module comptable — reçu émis par ce comptable
+  receiptsIssued       Receipt[]
 }
 
 model TeacherAssignment {
@@ -1660,6 +1682,8 @@ model InvoiceLineConfig {
   @@index([schoolId, period])
 
   encashments     Encashment[]
+  // Étape 5 RDC : Module comptable
+  studentDebts    StudentDebt[]
 }
 
 // 3. ENCAISSEMENTS (validés par le Comptable uniquement)
@@ -1971,4 +1995,245 @@ model IqaSnapshot {
   @@index([schoolId, period])
   @@index([studentId])
   @@index([schoolId, level])
+}
+
+// ============================================================
+// ÉTAPE 5 RDC — MODULE COMPTABLE SÉCURISÉ (ERP Multi-Section)
+// ============================================================
+// Architecture :
+//   - StudentDebt : dette élève générée automatiquement à l'inscription
+//   - Receipt : reçu infalsifiable (QR code + numérotation chronologique)
+//   - MobileMoneyPayment : paiements Mobile Money (M-Pesa, Orange, MTN, Wave, Airtel)
+//   - Scholarship : bourses & réductions (ex: -50% enfants du personnel)
+//   - AccountingPeriod : clôture périodique (mensuelle/trimestrielle)
+//   - Expense : dépenses (factures fournisseurs, achats)
+//
+// Règle d'or : jamais de paiement lié directement à Student.
+//   Toujours via Inscription (Enrollment) + StudentDebt + Receipt.
+
+// A. DETTE ÉLÈVE — générée automatiquement à l'inscription
+// Represente ce que l'élève doit pour une ligne de frais donnée
+model StudentDebt {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  studentId           String
+  student             Student  @relation(fields: [studentId], references: [id])
+  enrollmentId        String   // Lien vers l'inscription (multi-section)
+  enrollment          Enrollment @relation(fields: [enrollmentId], references: [id])
+  invoiceLineConfigId String   // Lien vers la configuration de frais
+  invoiceLineConfig   InvoiceLineConfig @relation(fields: [invoiceLineConfigId], references: [id])
+  directorateId       String?  // Pour cloisonnement multi-direction
+  directorate         Directorate? @relation(fields: [directorateId], references: [id])
+  classroomId         String?
+  classroom           Classroom? @relation(fields: [classroomId], references: [id])
+  academicYearId      String
+  academicYear        AcademicYear @relation(fields: [academicYearId], references: [id])
+  // Montants en centimes (précision BigInt native)
+  amountDueCents      Int      // Montant dû initial
+  amountPaidCents     Int      @default(0) // Montant déjà payé (cache, recalculé)
+  amountCancelledCents Int     @default(0) // Avoirs/annulations
+  currency            String   @default("CDF")
+  period              String?  // T1, T2, T3, EXAM, MENSUEL-2026-09
+  status              String   @default("OPEN") // OPEN | PARTIALLY_PAID | PAID | CANCELLED
+  // Réduction (si bourse appliquée)
+  scholarshipId       String?
+  scholarship         Scholarship? @relation(fields: [scholarshipId], references: [id])
+  reductionPercent    Int      @default(0) // 0-100
+  reductionAmountCents Int     @default(0) // Montant de la réduction en centimes
+  // Audit
+  generatedAt         DateTime @default(now()) // Auto à l'inscription
+  generatedById       String?
+  lastPaymentAt       DateTime?
+  closedAt            DateTime? // Quand status = PAID
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  receipts        Receipt[]
+
+  @@unique([enrollmentId, invoiceLineConfigId, period])
+  @@index([schoolId, status])
+  @@index([studentId, status])
+  @@index([directorateId, status])
+  @@index([academicYearId])
+  @@index([period])
+}
+
+// B. REÇU INFALSIFIABLE — numérotation chronologique + QR code
+// Jamais supprimable. Annulation uniquement via avoir tracé.
+model Receipt {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  receiptNumber       String   @unique // Numéro chronologique strict (ex: REC-2026-000001)
+  receiptType         String   @default("PAYMENT") // PAYMENT | CREDIT_NOTE (avoir)
+  // Liens
+  studentDebtId       String?  // Lien vers la dette (peut être null pour paiement global)
+  studentDebt         StudentDebt? @relation(fields: [studentDebtId], references: [id])
+  studentId           String
+  student             Student  @relation(fields: [studentId], references: [id])
+  enrollmentId        String?
+  // Montants
+  amountCents         Int      // Montant encaissé
+  currency            String   @default("CDF")
+  // Moyen de paiement
+  paymentMethod       String   // CASH | BANK | MOBILE_MONEY | CARD
+  paymentProvider     String?  // MPESA | ORANGE | MTN | WAVE | AIRTEL (si Mobile Money)
+  transactionReference String?  // Référence transaction Mobile Money / banque
+  payerName           String?  // Nom du payeur (parent, tuteur)
+  payerPhone          String?  // Téléphone du payeur (pour reçu Mobile Money)
+  // Sécurité
+  qrCodeData          String   // Données encodées dans le QR code
+  signature           String   // Signature HMAC du reçu (anti-falsification)
+  // Comptable émetteur
+  accountantId        String   // ID du comptable qui a encaissé
+  accountant          Employee @relation(fields: [accountantId], references: [id])
+  accountantUserId    String?  // User ID pour audit
+  // Annulation (avoir)
+  cancelledById       String?  // ID du reçu d'avoir lié (si annulé)
+  cancellationReason  String?
+  cancelledAt         DateTime?
+  cancelledByUserId   String?
+  // Audit
+  issuedAt            DateTime @default(now()) // Date d'émission
+  printedCount        Int      @default(0) // Nombre d'impressions
+  pdfUrl              String?  // URL du PDF généré
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  mobileMoneyPayment  MobileMoneyPayment?
+
+  @@index([schoolId, issuedAt])
+  @@index([schoolId, receiptNumber])
+  @@index([studentId, issuedAt])
+  @@index([paymentMethod, issuedAt])
+  @@index([accountantId])
+}
+
+// C. PAIEMENT MOBILE MONEY — intégrations API (M-Pesa, Orange, MTN, Wave, Airtel)
+model MobileMoneyPayment {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  receiptId           String   @unique // 1 reçu = 1 transaction Mobile Money
+  receipt             Receipt  @relation(fields: [receiptId], references: [id])
+  // Provider
+  provider            String   // MPESA | ORANGE | MTN | WAVE | AIRTEL
+  providerTransactionId String? // ID transaction côté provider
+  // Payer
+  payerPhoneNumber    String   // Numéro de téléphone du payeur
+  payerName           String?
+  // Montant
+  amountCents         Int
+  currency            String   @default("CDF")
+  // Workflow
+  status              String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
+  providerStatus      String?  // Statut brut retourné par le provider
+  errorMessage         String?
+  // API
+  apiRequestPayload   String?  // JSON envoyé au provider
+  apiResponsePayload  String?  // JSON reçu du provider
+  // Timestamps
+  initiatedAt         DateTime @default(now())
+  confirmedAt         DateTime?
+  failedAt            DateTime?
+  refundedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([provider, status])
+  @@index([payerPhoneNumber])
+}
+
+// D. BOURSE / RÉDUCTION
+model Scholarship {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  name                String   // "Bourse enfant personnel", "Réduction orphelin"
+  code                String   // "PERS-50", "ORPH-30"
+  description         String?
+  reductionPercent    Int      // 0-100 (ex: 50 = -50%)
+  // Conditions d'éligibilité
+  appliesToDirectorate String? // Null = toutes, sinon ID direction
+  appliesToCategory    String?  // ALL | ORPHAN | STAFF_CHILD | NEEDY
+  status              String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  // Audit
+  createdById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  studentDebts        StudentDebt[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId, status])
+}
+
+// E. CLÔTURE COMPTABLE — période mensuelle/trimestrielle
+model AccountingPeriod {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  directorateId       String?  // Null = clôture globale, sinon par direction
+  directorate         Directorate? @relation(fields: [directorateId], references: [id])
+  periodType          String   // MONTH | QUARTER | YEAR
+  periodLabel         String   // "2026-09" ou "T1-2026" ou "2026-2027"
+  startDate           DateTime
+  endDate             DateTime
+  // Totaux en centimes
+  totalCollectedCents Int      @default(0)
+  totalCancelledCents Int      @default(0)
+  totalExpensesCents  Int      @default(0)
+  netBalanceCents     Int      @default(0)
+  currency            String   @default("CDF")
+  // Statut
+  status              String   @default("OPEN") // OPEN | CLOSED | LOCKED
+  closedAt            DateTime?
+  closedById          String?
+  closedByName        String?
+  // Audit
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([schoolId, directorateId, periodType, periodLabel])
+  @@index([schoolId, status])
+}
+
+// F. DÉPENSES (factures fournisseurs, achats, paie)
+model Expense {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  directorateId       String?  // Null = dépense globale
+  directorate         Directorate? @relation(fields: [directorateId], references: [id])
+  expenseNumber       String   @unique // DEP-2026-000001
+  // Catégorie
+  category            String   // SUPPLIES | MAINTENANCE | SALARY | UTILITIES | RENT | OTHER
+  description         String
+  supplierName        String?  // Nom du fournisseur
+  supplierInvoice     String?  // Numéro facture fournisseur
+  // Montant
+  amountCents         Int
+  currency            String   @default("CDF")
+  paymentMethod       String   @default("CASH") // CASH | BANK | MOBILE_MONEY
+  // Période
+  expenseDate         DateTime
+  accountingPeriodId  String?  // Lien vers clôture comptable
+  // Workflow validation
+  status              String   @default("PENDING") // PENDING | APPROVED | PAID | REJECTED
+  requestedById       String?  // Demandeur (Direction)
+  requestedByName     String?
+  approvedById        String?  // Validateur (Promoteur)
+  approvedByName      String?
+  approvedAt          DateTime?
+  rejectionReason     String?
+  // Audit
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([schoolId, category])
+  @@index([directorateId, status])
+  @@index([expenseDate])
 }
