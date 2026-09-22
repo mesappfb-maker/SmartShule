@@ -39,6 +39,21 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
 
   return (
     <div className="relative min-h-screen flex flex-col lg:flex-row">
+      {/* Bannière marketing temporaire - À SUPPRIMER */}
+      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-center text-xs sm:text-sm font-medium shadow-md">
+        <span className="inline-flex items-center gap-2">
+          <span className="text-base">💡</span>
+          <span>
+            <strong>Version démo en ligne</strong> — Ce logiciel est conçu pour ordinateur desktop (Windows/macOS/Linux).
+            Cette version web est uniquement pour démonstration.
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1 ml-2 bg-white/20 px-2 py-0.5 rounded-full">
+            <span>📞</span>
+            <span>Contactez le <strong>+243 999 071 754</strong> pour tout renseignement</span>
+          </span>
+        </span>
+      </div>
+
       {/* Panneau gauche (décoratif) */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-[var(--ss-color-secondary)] p-12 flex-col justify-between text-primary-foreground">
         <div className="flex items-center gap-3">
@@ -197,6 +212,9 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
 
           <p className="text-center text-xs text-muted-foreground">
             SmartShule © 2026-2027 — Plateforme sécurisée. Toutes les actions sont journalisées.
+          </p>
+          <p className="text-center text-xs text-amber-600 dark:text-amber-400 sm:hidden">
+            📞 +243 999 071 754
           </p>
         </div>
       </div>

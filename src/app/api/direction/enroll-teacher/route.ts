@@ -23,6 +23,13 @@ async function pbkdf2(password: string, salt: string): Promise<string> {
   })
 }
 
+// Format attendu par verifyPassword : pbkdf2$ITERATIONS$DIGEST$SALT$HASH
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = await pbkdf2(password, salt)
+  return `pbkdf2$100000$sha512$${salt}$${hash}`
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromSession()
@@ -90,13 +97,12 @@ export async function POST(req: NextRequest) {
     })
 
     // Créer le compte utilisateur
-    const salt = crypto.randomBytes(16).toString('hex')
     const password = 'SmartShule2026!'
-    const passwordHash = await pbkdf2(password, salt)
+    const hash = await hashPassword(password)
     const newUser = await db.user.create({
       data: {
         email,
-        passwordHash: `${salt}:${passwordHash}`,
+        passwordHash: hash,
         role: 'TEACHER',
         displayName: `${firstName} ${lastName}`,
         active: true,
