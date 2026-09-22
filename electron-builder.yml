@@ -1,18 +1,17 @@
-# SmartShule — Configuration electron-builder
+# SmartShule — Configuration electron-builder (production)
 # ============================================================
-# Fichier externe (alternative au bloc "build" dans package.json).
-# Plus lisible et commenté. Utilisé automatiquement par `electron-builder`.
+# Génère :
+#   - Windows : .exe (NSIS installer) + latest.yml (auto-update)
+#   - macOS : .dmg + .zip (auto-update)
+#   - Linux : .AppImage + .deb
 #
-# Documentation : https://www.electron.build/configuration
+# Publie automatiquement sur GitHub Releases
+# Utilisé par GitHub Actions (release.yml)
 
 appId: com.smartshule.app
 productName: SmartShule
-copyright: Copyright © 2025-2026 SmartShule
-# Version lue depuis package.json par défaut, peut être surchargée via APP_VERSION
+copyright: Copyright © 2026-2027 SmartShule
 
-# ============================================================
-# Répertoires
-# ============================================================
 directories:
   output: dist
   buildResources: build
@@ -38,8 +37,7 @@ files:
   - "!**/.git"
 
 # ============================================================
-# Fichiers supplémentaires à décompresser côté client (ASAR ne les inclut pas)
-# Nécessaire pour Prisma (qui charge le binaire SQLite)
+# Fichiers supplémentaires (hors ASAR — Prisma nécessite un accès direct)
 # ============================================================
 extraResources:
   - from: node_modules/@prisma/client
@@ -48,61 +46,38 @@ extraResources:
   - from: node_modules/.prisma
     to: node_modules/.prisma
     filter: ['**/*']
-  - from: db/
-    to: db/
-    filter: ['*.db']
 
 # ============================================================
-# Build Windows (.exe)
+# Build Windows (.exe NSIS installer)
 # ============================================================
 win:
   target:
     - target: nsis
-      arch:
-        - x64
-        # - ia32  # décommenter pour support 32-bit
-  icon: public/icon.ico
-  # Code signing (optionnel — voir secrets GitHub)
-  # certificateFile: certificate.pfx
-  # certificatePassword: ${WINDOWS_CERTIFICATE_PASSWORD}
-  # timestampServer: http://timestamp.sectigo.com
-  # Signer tous les exécutables (recommandé pour éviter les faux positifs antivirus)
-  signAndEditExecutable: true
-  # Compression maximale pour réduire la taille du .exe
+      arch: [x64]
+  icon: public/icon.svg
   compression: maximum
 
-# ============================================================
-# NSIS — Installer Windows
-# ============================================================
 nsis:
-  oneClick: false # installeur classique (choix du répertoire)
-  perMachine: false # installe par utilisateur (pas besoin d'admin)
-  allowElevation: true # demande l'admin si nécessaire
+  oneClick: false
+  perMachine: false
+  allowElevation: true
   allowToChangeInstallationDirectory: true
-  installerIcon: public/icon.ico
-  uninstallerIcon: public/icon.ico
-  installerHeaderIcon: public/icon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: SmartShule
-  # Mises à jour : NSIS checkForUpdates supporté
-  differentialPackage: true # patches différentiels pour mises à jour plus rapides
+  differentialPackage: true
 
 # ============================================================
-# Build macOS (.dmg + .app)
+# Build macOS (.dmg)
 # ============================================================
 mac:
   target:
-    - dmg
-    - zip # requis pour electron-updater (auto-update macOS)
-  icon: public/icon.icns
+    - target: dmg
+      arch: [x64, arm64]
+  icon: public/icon.svg
   category: public.app-category.education
   hardenedRuntime: true
   gatekeeperAssess: false
-  # Code signing macOS (nécessite compte développeur Apple)
-  # identity: "Developer ID Application: Your Name (XXXXXXXXXX)"
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
 
 dmg:
   contents:
@@ -114,13 +89,13 @@ dmg:
       path: /Applications
 
 # ============================================================
-# Build Linux (.AppImage + .deb)
+# Build Linux (.AppImage)
 # ============================================================
 linux:
   target:
-    - AppImage
-    - deb
-  icon: public/icon.png
+    - target: AppImage
+      arch: [x64]
+  icon: public/icon.svg
   category: Education
   maintainer: SmartShule Team
   vendor: SmartShule
@@ -130,23 +105,11 @@ AppImage:
   artifactName: SmartShule-${version}-${arch}.AppImage
 
 # ============================================================
-# Publication sur GitHub Releases
-# (utilisé par electron-updater pour les mises à jour auto)
+# Publication GitHub Releases
 # ============================================================
 publish:
-  - provider: github
-    owner: ${GITHUB_REPOSITORY_OWNER}
-    repo: ${GITHUB_REPOSITORY_NAME}
-    releaseType: release
-    vPrefixedTagName: true
-  # Backup (optionnel) sur un bucket S3
-  # - provider: s3
-  #   bucket: smartshule-releases
-  #   region: eu-west-3
-  #   path: releases/
-
-# ============================================================
-# Mises à jour automatiques
-# ============================================================
-# electron-updater cherche automatiquement latest.yml dans la release GitHub.
-# Pour cela, --publish always doit être passé à electron-builder (voir release.yml).
+  provider: github
+  owner: mesappfb-maker
+  repo: SmartShule
+  releaseType: release
+  vPrefixedTagName: true
