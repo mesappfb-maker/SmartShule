@@ -29,7 +29,8 @@ async function main() {
   // Vérifier si l'école existe déjà
   let school = await db.school.findFirst()
   if (school) {
-    console.log('✅ École déjà existante — seed ignoré')
+    console.log('✅ École déjà existante — mise à jour des mots de passe démo...')
+    await updateDemoPasswords()
     return
   }
 
@@ -80,8 +81,8 @@ async function main() {
   })
   console.log('  ✅ Classe:', classroom.name)
 
-  // 5. Comptes utilisateurs (mots de passe : tous "Test1234!")
-  const password = 'Test1234!'
+  // 5. Comptes utilisateurs (mot de passe commun : SmartShule2026!)
+  const password = 'SmartShule2026!'
   const users = [
     { email: 'direction@smartshule.demo', role: 'DIRECTION', displayName: 'Directeur Général' },
     { email: 'prof@smartshule.demo', role: 'TEACHER', displayName: 'Professeur Test' },
@@ -170,8 +171,33 @@ async function main() {
   }
 
   console.log('\n🎉 Seed terminé avec succès !')
-  console.log('\n📋 Comptes de connexion démo (mot de passe: Test1234!) :')
+  console.log('\n📋 Comptes de connexion démo (mot de passe: SmartShule2026!) :')
   users.forEach((u) => console.log(`   - ${u.email} (${u.role})`))
+}
+
+// Met à jour les mots de passe des comptes démo existants (utile quand le mot de passe change)
+async function updateDemoPasswords() {
+  const password = 'SmartShule2026!'
+  const demoEmails = [
+    'direction@smartshule.demo',
+    'prof@smartshule.demo',
+    'comptable@smartshule.demo',
+    'secretaire@smartshule.demo',
+    'parent@smartshule.demo',
+    'eleve@smartshule.demo',
+    'server@smartshule.demo',
+  ]
+
+  for (const email of demoEmails) {
+    const salt = crypto.randomBytes(16).toString('hex')
+    const passwordHash = await pbkdf2(password, salt)
+    await db.user.updateMany({
+      where: { email },
+      data: { passwordHash: `${salt}:${passwordHash}`, active: true },
+    })
+    console.log(`  ✅ Mot de passe mis à jour: ${email}`)
+  }
+  console.log('\n📋 Mot de passe commun pour tous les comptes démo : SmartShule2026!')
 }
 
 main()

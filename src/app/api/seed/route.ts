@@ -56,11 +56,32 @@ export async function POST(_req: NextRequest) {
     // 1. Vérifier si l'école existe déjà
     const existingSchool = await db.school.findFirst()
     if (existingSchool) {
+      // Mise à jour des mots de passe des comptes démo existants
+      const password = 'SmartShule2026!'
+      const demoEmails = [
+        'direction@smartshule.demo',
+        'prof@smartshule.demo',
+        'comptable@smartshule.demo',
+        'secretaire@smartshule.demo',
+        'parent@smartshule.demo',
+        'eleve@smartshule.demo',
+        'server@smartshule.demo',
+      ]
+      for (const email of demoEmails) {
+        const salt = crypto.randomBytes(16).toString('hex')
+        const passwordHash = await pbkdf2(password, salt)
+        await db.user.updateMany({
+          where: { email },
+          data: { passwordHash: `${salt}:${passwordHash}`, active: true },
+        })
+      }
       return NextResponse.json({
         ok: true,
-        message: 'Base déjà seedée — aucune action nécessaire',
+        message: 'Base déjà seedée — mots de passe réinitialisés',
         schoolName: existingSchool.name,
         alreadySeeded: true,
+        defaultPassword: 'SmartShule2026!',
+        demoAccounts: demoEmails,
       })
     }
 
@@ -107,8 +128,8 @@ export async function POST(_req: NextRequest) {
       },
     })
 
-    // 6. Comptes utilisateurs (mot de passe : Test1234!)
-    const password = 'Test1234!'
+    // 6. Comptes utilisateurs (mot de passe commun : SmartShule2026!)
+    const password = 'SmartShule2026!'
     const users = [
       { email: 'direction@smartshule.demo', role: 'DIRECTION', displayName: 'Directeur Général' },
       { email: 'prof@smartshule.demo', role: 'TEACHER', displayName: 'Professeur Test' },
@@ -202,7 +223,7 @@ export async function POST(_req: NextRequest) {
       message: 'Base seedée avec succès',
       schoolName: school.name,
       users: createdUsers.map((u) => ({ email: u.email, role: u.role })),
-      defaultPassword: 'Test1234!',
+      defaultPassword: 'SmartShule2026!',
       alreadySeeded: false,
     })
   } catch (err) {

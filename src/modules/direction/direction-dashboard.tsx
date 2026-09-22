@@ -36,6 +36,7 @@ import { formatCurrency, formatDate, formatDateTime, formatRelative, initials } 
 import { FinanceView } from './finance-view'
 import { AcademicSupervision } from './academic-supervision'
 import { DirectionAuditView } from './direction-audit-view'
+import { EnrollmentManager } from './enrollment-manager'
 
 type DirectionData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getDirectionDashboardData>>>
 type FinanceData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getFinanceDashboardData>>>
@@ -63,6 +64,7 @@ export function DirectionDashboard({
       items: [
         { key: 'dashboard', label: 'Tableau de bord', icon: <Home className="h-4 w-4" /> },
         { key: 'supervision', label: 'Gestion de l\'école', icon: <Eye className="h-4 w-4" /> },
+        { key: 'enrollment', label: 'Inscription élève/prof', icon: <Users className="h-4 w-4" /> },
       ],
     },
     {
@@ -116,6 +118,7 @@ export function DirectionDashboard({
       {view === 'requests' && <RequestsManager data={data} />}
       {view === 'finance' && <FinanceView data={financeData} schoolId={school.id} />}
       {view === 'supervision' && <AcademicSupervision data={supervisionData} />}
+      {view === 'enrollment' && <EnrollmentManager schoolId={school.id} />}
       {view === 'invoices' && <InvoicesView data={data} />}
       {view === 'audit' && <AuditLogView data={data} />}
       {view === 'branding' && <BrandingView school={school} />}
