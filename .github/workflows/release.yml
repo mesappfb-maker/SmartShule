@@ -52,7 +52,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: 📦 Installation
-        run: npm install --include=dev
+        run: npm install --include=dev --legacy-peer-deps
 
       - name: 🔍 Prisma generate
         run: mkdir -p db && DATABASE_URL="file:./db/prod.db" npx prisma generate
