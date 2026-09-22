@@ -39,6 +39,13 @@ async function pbkdf2(password: string, salt: string): Promise<string> {
   })
 }
 
+// Format attendu par verifyPassword : pbkdf2$ITERATIONS$DIGEST$SALT$HASH
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = await pbkdf2(password, salt)
+  return `pbkdf2$100000$sha512$${salt}$${hash}`
+}
+
 export async function GET(req: NextRequest) {
   return POST(req)
 }
@@ -63,14 +70,13 @@ export async function POST(_req: NextRequest) {
 
     for (const acc of DEMO_ACCOUNTS) {
       try {
-        const salt = crypto.randomBytes(16).toString('hex')
-        const passwordHash = await pbkdf2(DEMO_PASSWORD, salt)
+        const hash = await hashPassword(DEMO_PASSWORD)
 
         // Essayer update d'abord (si user existe)
         const updated = await db.user.updateMany({
           where: { email: acc.email },
           data: {
-            passwordHash: `${salt}:${passwordHash}`,
+            passwordHash: hash,
             role: acc.role,
             displayName: acc.displayName,
             active: true,
@@ -85,7 +91,7 @@ export async function POST(_req: NextRequest) {
           await db.user.create({
             data: {
               email: acc.email,
-              passwordHash: `${salt}:${passwordHash}`,
+              passwordHash: hash,
               role: acc.role,
               displayName: acc.displayName,
               active: true,
