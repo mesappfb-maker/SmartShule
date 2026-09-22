@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import crypto from 'crypto'
+import { verifyPassword } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -42,30 +42,8 @@ export async function GET(req: NextRequest) {
       }, { status: 404 })
     }
 
-    // 2. Vérifier le mot de passe
-    const [salt, storedHash] = user.passwordHash.split(':')
-
-    if (!salt || !storedHash) {
-      return NextResponse.json({
-        ok: false,
-        error: 'Format de passwordHash invalide en base',
-        debug: {
-          email,
-          userExists: true,
-          passwordHashFormat: 'invalid',
-          storedHashPreview: user.passwordHash.substring(0, 30) + '...',
-        }
-      }, { status: 500 })
-    }
-
-    const computedHash = await new Promise<string>((resolve, reject) => {
-      crypto.pbkdf2(password, salt, 100000, 64, 'sha512', (err, derived) => {
-        if (err) reject(err)
-        else resolve(derived.toString('hex'))
-      })
-    })
-
-    const passwordMatches = computedHash === storedHash
+    // 2. Vérifier le mot de passe avec verifyPassword (fonction partagée)
+    const passwordMatches = await verifyPassword(password, user.passwordHash)
 
     return NextResponse.json({
       ok: passwordMatches,
@@ -78,10 +56,8 @@ export async function GET(req: NextRequest) {
         role: user.role,
         active: user.active,
         userExists: true,
-        passwordHashFormat: 'valid',
-        saltPreview: salt.substring(0, 16) + '...',
-        storedHashPreview: storedHash.substring(0, 30) + '...',
-        computedHashPreview: computedHash.substring(0, 30) + '...',
+        passwordHashFormat: user.passwordHash.startsWith('pbkdf2$') ? 'valid' : 'invalid',
+        storedHashPreview: user.passwordHash.substring(0, 40) + '...',
         passwordMatches,
         providedPassword: password,
       },
