@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 import {
   Home, Bell, MessageSquare, FileText, ShieldCheck, Palette,
   Users, TrendingUp, CreditCard, Plus, Send, Loader2, Archive,
-  CheckCircle2, Clock, Eye, Hash, Calculator,
+  CheckCircle2, Clock, Eye, Hash, Calculator, Settings,
 } from 'lucide-react'
 import {
   createAnnouncementAction, archiveAnnouncementAction, assignRequestAction,
@@ -37,6 +37,7 @@ import { FinanceView } from './finance-view'
 import { AcademicSupervision } from './academic-supervision'
 import { DirectionAuditView } from './direction-audit-view'
 import { EnrollmentManager } from './enrollment-manager'
+import { SchoolSetupManager } from './school-setup-manager'
 
 type DirectionData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getDirectionDashboardData>>>
 type FinanceData = NonNullable<Awaited<ReturnType<typeof import('@/lib/queries').getFinanceDashboardData>>>
@@ -64,6 +65,7 @@ export function DirectionDashboard({
       items: [
         { key: 'dashboard', label: 'Tableau de bord', icon: <Home className="h-4 w-4" /> },
         { key: 'supervision', label: 'Gestion de l\'école', icon: <Eye className="h-4 w-4" /> },
+        { key: 'setup', label: 'Configuration école', icon: <Settings className="h-4 w-4" /> },
         { key: 'enrollment', label: 'Inscription élève/prof', icon: <Users className="h-4 w-4" /> },
       ],
     },
@@ -118,6 +120,7 @@ export function DirectionDashboard({
       {view === 'requests' && <RequestsManager data={data} />}
       {view === 'finance' && <FinanceView data={financeData} schoolId={school.id} />}
       {view === 'supervision' && <AcademicSupervision data={supervisionData} />}
+      {view === 'setup' && <SchoolSetupManager />}
       {view === 'enrollment' && <EnrollmentManager schoolId={school.id} />}
       {view === 'invoices' && <InvoicesView data={data} />}
       {view === 'audit' && <AuditLogView data={data} />}
