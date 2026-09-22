@@ -76,3 +76,4 @@ server.log
 certificate.pfxsmartshule-*.bundle
 smartshule-source.tar.gz
 *.tar.gz
+smartshule-*.bundle
