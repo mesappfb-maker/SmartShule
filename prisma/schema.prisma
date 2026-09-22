@@ -130,6 +130,11 @@ model School {
   scholarships    Scholarship[]
   accountingPeriods AccountingPeriod[]
   expenses        Expense[]
+  // Étape 6 RDC — Modules contenu & communication
+  articles        Article[]
+  contacts        Contact[]
+  slideshowImages SlideshowImage[]
+  receptions      Reception[]
 }
 
 model Branding {
@@ -2236,4 +2241,129 @@ model Expense {
   @@index([schoolId, category])
   @@index([directorateId, status])
   @@index([expenseDate])
+}
+
+// ============================================================
+// ÉTAPE 6 RDC — MODULES CONTENU & COMMUNICATION
+// ============================================================
+//   - Article : articles/news filtrés par rôle (élève, parent, enseignant)
+//   - Contact : annuaire des contacts utiles
+//   - SlideshowImage : diaporama pour page d'accueil
+//   - Reception : gestion des visiteurs / rendez-vous
+
+// G. ARTICLES — filtrés par rôle cible
+model Article {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  title           String
+  slug            String
+  excerpt         String?  // résumé court
+  content         String   // contenu complet (HTML ou Markdown)
+  category        String   @default("GENERAL") // NEWS | EVENT | ANNOUNCEMENT | GENERAL
+  // Filtrage par rôle cible
+  targetRoles     String   @default("ALL") // ALL | STUDENT | PARENT | TEACHER | DIRECTION (séparés par virgules)
+  targetClassroomIds String? // Null = toutes classes, sinon liste d'IDs séparés par virgules
+  // Média
+  imageUrl        String?
+  imageAlt        String?
+  // Publication
+  status          String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishedAt     DateTime?
+  pinned          Boolean  @default(false) // article épinglé en haut
+  // Ordre d'affichage
+  sortOrder       Int      @default(0)
+  // Audit
+  createdById     String?
+  createdByName   String?
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, slug])
+  @@index([schoolId, status, publishedAt])
+  @@index([schoolId, category])
+}
+
+// H. CONTACTS — annuaire
+model Contact {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Catégorie
+  category        String   @default("STAFF") // STAFF | EMERGENCY | PARTNER | SUPPLIER | OTHER
+  // Identité
+  firstName       String?
+  lastName        String
+  function        String?  // fonction / poste
+  organization    String?  // organisation / entreprise
+  // Coordonnées
+  email           String?
+  phone           String?
+  mobilePhone     String?
+  address         String?
+  // Visibilité
+  isPublic        Boolean  @default(true) // visible dans l'annuaire public
+  sortOrder       Int      @default(0)
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, category])
+  @@index([schoolId, isPublic])
+}
+
+// I. SLIDESHOW — diaporama page d'accueil
+model SlideshowImage {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  title           String?
+  description     String?
+  imageUrl        String   // URL de l'image
+  linkUrl         String?  // lien optionnel au clic
+  // Ordre d'affichage
+  sortOrder       Int      @default(0)
+  // Affichage
+  status          String   @default("ACTIVE") // ACTIVE | HIDDEN
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status, sortOrder])
+}
+
+// J. RECEPTIONS — gestion des visiteurs / rendez-vous
+model Reception {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Visiteur
+  visitorName     String
+  visitorPhone    String?
+  visitorEmail    String?
+  visitorOrganization String?
+  // Motif
+  purpose         String   // INTERVIEW | MEETING | DELIVERY | PARENT_MEETING | OTHER
+  purposeDetail    String?
+  // Cible (personne visitée)
+  targetPersonName String?
+  targetPersonId   String? // Employee ID si interne
+  // Planification
+  scheduledDate   DateTime
+  scheduledEndTime DateTime?
+  checkInTime     DateTime? // arrivée réelle
+  checkOutTime    DateTime? // départ réel
+  // Statut
+  status          String   @default("SCHEDULED") // SCHEDULED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW
+  // Notes
+  notes           String?
+  // Audit
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, scheduledDate])
+  @@index([schoolId, status])
 }
