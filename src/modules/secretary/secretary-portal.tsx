@@ -25,6 +25,7 @@ import { formatRelative } from '@/lib/format'
 import { toast } from 'sonner'
 import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
 import { EnrollmentManager } from '@/modules/direction/enrollment-manager'
+import { StudentsList } from './students-list'
 
 type SecretaryData = NonNullable<Awaited<ReturnType<typeof import('@/lib/secretary-portal-queries').getSecretaryPortalData>>>
 
@@ -43,8 +44,9 @@ export function SecretaryPortal({
     id: 'main', label: 'Portail Secrétariat',
     items: [
       { key: 'dashboard', label: 'Tableau de bord', icon: <Home className="h-4 w-4" /> },
+      { key: 'students', label: 'Liste des élèves', icon: <Users className="h-4 w-4" /> },
       { key: 'enrollment', label: 'Inscriptions', icon: <Plus className="h-4 w-4" /> },
-      { key: 'classes', label: 'Listes de classes', icon: <Users className="h-4 w-4" /> },
+      { key: 'classes', label: 'Listes de classes', icon: <ClipboardList className="h-4 w-4" /> },
       { key: 'recent', label: 'Inscriptions récentes', icon: <TrendingUp className="h-4 w-4" /> },
       { key: 'profile', label: 'Mon profil', icon: <User className="h-4 w-4" /> },
     ],
@@ -104,6 +106,7 @@ export function SecretaryPortal({
           </div>
         </div>
       )}
+      {view === 'students' && <StudentsList />}
       {view === 'enrollment' && <EnrollmentManager schoolId="" />}
       {view === 'classes' && (
         <div className="space-y-6">
