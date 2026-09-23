@@ -56,9 +56,8 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
       const data = await res.json()
 
       if (data.ok) {
-        // Rediriger vers le dashboard
-        router.push('/dashboard')
-        router.refresh()
+        // Recharger la page (tout est sur /)
+        window.location.href = '/'
       } else {
         setError(data.error || 'Erreur de connexion.')
       }
