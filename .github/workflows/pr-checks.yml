@@ -1,0 +1,64 @@
+# SmartShule — Vérifications automatiques sur chaque Pull Request
+# Empêche de merger une PR qui casse les tests ou le lint.
+
+name: 🔍 PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev-agent
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: 🧪 Lint + Tests + Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+
+      - name: 📦 Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .next/cache
+          key: ${{ runner.os }}-pr-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-pr-
+
+      - name: 📥 Installation
+        run: bun install --frozen-lockfile
+
+      - name: 🔍 Prisma generate
+        run: bun run db:generate
+
+      - name: 🧹 Lint
+        run: bun run lint
+
+      - name: 🧪 Tests
+        run: bun test
+        env:
+          DATABASE_URL: 'file:./db/test.db'
+
+      - name: 🔍 Type Check (TypeScript strict)
+        run: bunx tsc --noEmit
+
+      - name: ✅ Toutes les vérifications sont passées
+        if: success()
+        run: |
+          echo "## ✅ PR prête à être mergée" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Lint propre" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Tests passent" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Type Check valide" >> $GITHUB_STEP_SUMMARY

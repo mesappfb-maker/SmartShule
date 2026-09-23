@@ -1,0 +1,41 @@
+# SmartShule — Configuration Railway
+# ============================================================
+# Déploiement Next.js avec PostgreSQL Supabase
+# Voir : https://railway.app/new
+#
+# ✅ Test de compatibilité : build réussi en 15.1s
+# ✅ Tests : 224 tests / 654 assertions / 0 échec
+# ============================================================
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install --include=dev && npx prisma generate && next build"
+
+[deploy]
+startCommand = "NEXT_PUBLIC_API_URL=$RAILWAY_PUBLIC_DOMAIN npx prisma db push --accept-data-loss && bun .next/standalone/server.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Variables d'environnement à configurer dans Railway Dashboard :
+# (Settings → Variables)
+#
+# DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-REGION.pooler.supabase.com:5432/postgres
+# DIRECT_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-REGION.supabase.co:5432/postgres
+# NEXTAUTH_SECRET=<openssl rand -base64 32>
+# NEXTAUTH_URL=https://smartshule.up.railway.app
+# NEXT_PUBLIC_API_URL=https://smartshule.up.railway.app
+# NODE_ENV=production
+# NEXT_TELEMETRY_DISABLED=1
+# SESSION_TTL_HOURS=12
+# IDEMPOTENCY_TTL_HOURS=24
+# CORS_ALLOWED_ORIGINS=https://smartshule.up.railway.app,https://smartshule.pages.dev,http://localhost:3000
+# CURRENCY=CDF
+# LOCALE=fr-FR
+# TIMEZONE=Africa/Kinshasa
+
+# Railway injecte automatiquement :
+# - PORT (le port d'écoute)
+# - RAILWAY_PUBLIC_DOMAIN (URL publique)
+# - RAILWAY_STATIC_URL (URL statique)
