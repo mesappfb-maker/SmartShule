@@ -29,6 +29,7 @@ import { StudentsList } from './students-list'
 import { ClassListsDynamic } from './class-lists-dynamic'
 import { AdmissionsManager } from './admissions-manager'
 import { AdmissionsManagerV2 } from './admissions-manager-v2'
+import { SecretaryDashboardV2 } from './secretary-dashboard-v2'
 
 type SecretaryData = NonNullable<Awaited<ReturnType<typeof import('@/lib/secretary-portal-queries').getSecretaryPortalData>>>
 
@@ -65,51 +66,7 @@ export function SecretaryPortal({
       onOpenSearch={() => toast.info('Recherche à venir')}
       sidebarFooter={<div><p>{schoolName}</p><p className="text-[10px]">Secrétariat</p></div>}
     >
-      {view === 'dashboard' && (
-        <div className="space-y-6">
-          <PageHeader title={`Bonjour, ${data.secretary?.name || user.displayName} 👋`} breadcrumbs={[{ label: 'Accueil' }]} />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Élèves actifs" value={data.stats.activeStudents} icon={<Users className="h-5 w-5" />} tone="primary" />
-            <StatCard label="Classes" value={data.stats.totalClasses} icon={<ClipboardList className="h-5 w-5" />} tone="info" />
-            <StatCard label="Parents" value={data.stats.totalGuardians} icon={<UserCheck className="h-5 w-5" />} tone="success" />
-            <StatCard label="Demandes en attente" value={data.stats.pendingParentRequests} icon={<FileText className="h-5 w-5" />} tone={data.stats.pendingParentRequests > 0 ? 'danger' : 'success'} />
-          </div>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle className="text-base">📋 Inscriptions récentes (30 jours)</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {data.recentEnrollments.length === 0 ? <EmptyState title="Aucune inscription récente" /> : (
-                  data.recentEnrollments.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm p-2 rounded-md border border-border">
-                      <div>
-                        <p className="font-medium">{e.studentName}</p>
-                        <p className="text-xs text-muted-foreground">{e.matricule} · {e.classroomName}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{formatRelative(e.enrolledAt)}</span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base">📊 Répartition par classe</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {data.classrooms.length === 0 ? <EmptyState title="Aucune classe" /> : (
-                  data.classrooms.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between text-sm p-2 rounded-md border border-border">
-                      <div>
-                        <p className="font-medium">{c.name}</p>
-                        <p className="text-xs text-muted-foreground">{c.directorateName}{c.optionName && ` · ${c.optionName}`}</p>
-                      </div>
-                      <Badge variant="outline">{c.enrolledCount}/{c.capacity}</Badge>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
+      {view === 'dashboard' && <SecretaryDashboardV2 onNavigate={setView} />}
       {view === 'admissions' && <AdmissionsManagerV2 />}
       {view === 'students' && <StudentsList />}
       {view === 'enrollment' && <EnrollmentManager schoolId="" />}
