@@ -30,8 +30,7 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
   const user = await getUserFromSession()
   if (!user) {
-    // Pas connecté → rediriger vers /login
-    redirect('/login')
+    redirect('/')
   }
 
   const [school, notifications] = await Promise.all([
@@ -40,7 +39,7 @@ export default async function DashboardPage() {
   ])
 
   if (!school) {
-    redirect('/login')
+    redirect('/')
   }
 
   const schoolData = {
