@@ -135,6 +135,8 @@ model School {
   contacts        Contact[]
   slideshowImages SlideshowImage[]
   receptions      Reception[]
+  // Étape 7 — Système de licences
+  license         License?
 }
 
 model Branding {
@@ -2366,4 +2368,97 @@ model Reception {
 
   @@index([schoolId, scheduledDate])
   @@index([schoolId, status])
+}
+
+// ============================================================
+// ÉTAPE 7 — SYSTÈME DE LICENCES & PROTECTION
+// ============================================================
+//   - License : licence d'utilisation par école (période + modules)
+//   - ActivationCode : code d'activation unique généré par le promoteur
+//   - LicenseAudit : journal des activations/vérifications
+
+// K. LICENCE — une par école
+model License {
+  id              String   @id @default(cuid())
+  schoolId        String?  @unique // Lié à l'école après activation (null avant)
+  school          School?  @relation(fields: [schoolId], references: [id])
+  // Clé de licence
+  licenseKey      String   @unique // Format: XXXX-XXXX-XXXX-XXXX-XXXX
+  // École cliente
+  clientName      String   // Nom de l'école cliente
+  clientEmail     String   // Email de contact
+  clientPhone     String?  // Téléphone
+  clientCity      String?  // Ville
+  clientCountry   String   @default("RDC")
+  // Période
+  planType        String   @default("ANNUAL") // MONTHLY | QUARTERLY | ANNUAL | LIFETIME
+  maxStudents     Int      @default(500) // Limite d'élèves
+  maxDirections   Int      @default(3) // Limite de directions
+  // Modules autorisés
+  modules         String   @default("ALL") // ALL ou liste: ADMIN,PEDAGOGY,FINANCE,PARENT_PORTAL
+  // Dates
+  issuedAt        DateTime @default(now())
+  activatedAt     DateTime? // Date d'activation (premier usage)
+  expiresAt      DateTime? // Date d'expiration (null = à vie)
+  // Statut
+  status          String   @default("PENDING") // PENDING | ACTIVE | SUSPENDED | EXPIRED | REVOKED
+  // Machine liée (anti-piratage)
+  machineId       String?  // ID unique de la machine activée
+  machineName     String?  // Nom de l'ordinateur
+  activationCount Int      @default(0) // Nombre de tentatives d'activation
+  maxActivations  Int      @default(1) // 1 = une seule machine
+  // Audit
+  createdById     String?  // Promoteur qui a créé la licence
+  createdByName   String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  activations     ActivationCode[]
+  audits          LicenseAudit[]
+
+  @@index([status])
+  @@index([clientEmail])
+}
+
+// L. CODE D'ACTIVATION — généré par le promoteur
+model ActivationCode {
+  id              String   @id @default(cuid())
+  licenseId       String
+  license         License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  // Code unique
+  code            String   @unique // Format: AC-XXXXXX-XXXXXX-XXXXXX (18 chars)
+  // Type
+  codeType        String   @default("ACTIVATION") // ACTIVATION | RENEWAL | UPGRADE
+  // Usage
+  isUsed          Boolean  @default(false)
+  usedAt          DateTime?
+  usedByMachine   String?  // Machine ID qui a utilisé le code
+  // Expiration du code lui-même
+  expiresAt       DateTime? // Le code expire s'il n'est pas utilisé
+  // Audit
+  createdAt       DateTime @default(now())
+
+  @@index([licenseId])
+  @@index([isUsed])
+}
+
+// M. AUDIT DE LICENCE — journal des vérifications
+model LicenseAudit {
+  id              String   @id @default(cuid())
+  licenseId       String
+  license         License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  // Action
+  action          String   // ACTIVATED | VERIFIED | EXPIRED | SUSPENDED | REVOKED | RENEWED
+  // Machine
+  machineId       String?
+  machineName     String?
+  ipAddress       String?
+  // Détails
+  details         String?
+  success         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([licenseId])
+  @@index([action])
 }
