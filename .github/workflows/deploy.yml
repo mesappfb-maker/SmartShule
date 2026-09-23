@@ -1,0 +1,296 @@
+# SmartShule — Workflow principal de déploiement
+# ============================================================
+# Déclenché à chaque push sur `main` ou `dev-agent`.
+# Effectue : lint + tests + build Next.js + build Electron .exe + upload artifact.
+# Pour une release publique (avec .exe téléchargeable), voir release.yml (sur tag).
+
+name: 🚀 Build & Deploy SmartShule
+
+on:
+  push:
+    branches:
+      - main
+      - dev-agent
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # Permet de déclencher manuellement depuis l'onglet Actions
+
+# Évite les exécutions concurrentes sur la même branche
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  BUN_VERSION: '1.3.14'
+  # bump-ce à chaque release mineure pour electron-updater
+  APP_VERSION: '1.0.${{ github.run_number }}'
+
+permissions:
+  contents: write # Pour créer les GitHub Releases (release.yml)
+  packages: write # Pour publier des artifacts si nécessaire
+
+jobs:
+  # ============================================================
+  # JOB 1 : Qualité (lint + tests) — rapide, sur Linux
+  # ============================================================
+  quality:
+    name: 🧪 Qualité (lint + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 📦 Cache des dépendances (bun)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .next/cache
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: 📥 Installation des dépendances
+        run: bun install --frozen-lockfile
+
+      - name: 🔍 Génération du client Prisma
+        run: bun run db:generate
+
+      - name: 🧹 Lint (ESLint)
+        run: bun run lint
+
+      - name: 🧪 Tests unitaires + intégration
+        run: bun test --coverage
+        env:
+          DATABASE_URL: 'file:./db/test.db'
+
+      - name: 📊 Upload du rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ============================================================
+  # JOB 2 : Build Next.js — génère l'application web
+  # ============================================================
+  build-web:
+    name: 🌐 Build Next.js
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 📦 Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-next-
+
+      - name: 📥 Installation
+        run: bun install --frozen-lockfile
+
+      - name: 🔍 Génération du client Prisma
+        run: bun run db:generate
+
+      - name: 🏗️ Build Next.js (mode standalone)
+        run: bun run build
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'dev-secret-change-me' }}
+          NODE_ENV: production
+
+      - name: 📦 Préparation du bundle standalone
+        run: |
+          mkdir -p dist/web
+          cp -r .next/standalone dist/web/
+          cp -r .next/static dist/web/.next/
+          cp -r public dist/web/
+          # Le client desktop Electron chargera cette version
+
+      - name: 📤 Upload de l'artifact web
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartshule-web
+          path: dist/web/
+          retention-days: 7
+
+  # ============================================================
+  # JOB 3 : Build Electron .exe (Windows) — le plus important
+  # ============================================================
+  build-electron-windows:
+    name: 🪟 Build .exe Windows (Electron)
+    needs: [quality, build-web]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Installation des dépendances (npm pour compatibilité Windows)
+        run: npm ci
+
+      - name: 📥 Récupération du bundle web (depuis job précédent)
+        uses: actions/download-artifact@v4
+        with:
+          name: smartshule-web
+          path: dist/web/
+
+      - name: 🔍 Génération du client Prisma
+        run: npx prisma generate
+
+      - name: 🏗️ Build Next.js (sur Windows pour matcher l'electron build)
+        run: npm run build
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+
+      - name: 🔐 Configuration du code signing (optionnel)
+        if: env.WINDOWS_CERTIFICATE_PFX != ''
+        env:
+          WINDOWS_CERTIFICATE_PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$WINDOWS_CERTIFICATE_PFX" | base64 -d > certificate.pfx
+          echo "Certificat chargé pour signature"
+        # Sans certificat : Electron produit un .exe non signé (avertissement SmartScreen)
+
+      - name: 📦 Build Electron (.exe avec electron-builder)
+        run: npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Version incrémentale pour electron-updater
+          APP_VERSION: ${{ env.APP_VERSION }}
+          # Code signing (optionnel — décommenter si certificat)
+          # CSC_LINK: certificate.pfx
+          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+
+      - name: 📤 Upload de l'artefact .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartShule-Setup-${{ env.APP_VERSION }}-Windows
+          path: |
+            dist/*.exe
+            dist/latest*.yml
+          retention-days: 30
+
+  # ============================================================
+  # JOB 4 : Build Electron pour macOS et Linux (optionnel)
+  # ============================================================
+  build-electron-multi:
+    name: 🍎🐧 Build macOS & Linux (optionnel)
+    needs: [quality, build-web]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: dmg
+            artifact: SmartShule.dmg
+          - os: ubuntu-latest
+            target: AppImage
+            artifact: SmartShule.AppImage
+    continue-on-error: true # Non bloquant
+    timeout-minutes: 30
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Installation (Linux nécessite des deps supplémentaires pour Electron)
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev libnotify-dev libnss3 libxss1 libxtst-dev xauth xvfb
+          fi
+          npm ci
+
+      - name: 🔍 Prisma generate
+        run: npx prisma generate
+
+      - name: 🏗️ Build Next.js
+        run: npm run build
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+
+      - name: 📥 Récupération du bundle web
+        uses: actions/download-artifact@v4
+        with:
+          name: smartshule-web
+          path: dist/web/
+
+      - name: 📦 Build Electron (${{ matrix.target }})
+        run: npx electron-builder --${{ matrix.target }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_VERSION: ${{ env.APP_VERSION }}
+          # macOS code signing (optionnel — nécessite APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD)
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # CSC_LINK: ${{ secrets.MAC_CERTIFICATE_P12 }}
+          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+
+      - name: 📤 Upload de l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartShule-${{ matrix.target }}-${{ env.APP_VERSION }}
+          path: dist/*.${{ matrix.target == 'dmg' && 'dmg' || 'AppImage' }}
+          retention-days: 14
+
+  # ============================================================
+  # JOB 5 : Notification (récap par email/Slack — optionnel)
+  # ============================================================
+  notify:
+    name: 📬 Notification
+    needs: [quality, build-web, build-electron-windows]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: ✅ Résumé du build
+        run: |
+          echo "## SmartShule Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Quality (lint + tests) | ${{ needs.quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Web | ${{ needs.build-web.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Electron Windows | ${{ needs.build-electron-windows.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Téléchargez l'exe depuis l'onglet **Artifacts**." >> $GITHUB_STEP_SUMMARY

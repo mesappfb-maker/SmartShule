@@ -1,0 +1,2002 @@
+     1→smartshule-dossier-complet (1).md
+     2→# SmartShule (SS) — Dossier complet du projet
+     3→
+     4→> **Slogan : _SmartShule — L’intelligence qui rapproche l’école et la famille._**
+     5→>
+     6→> Ce document regroupe en un seul fichier le cahier des charges fonctionnel et technique, le prompt système de l’agent autonome et le template du journal de bord.
+     7→
+     8→## Table des matières
+     9→
+    10→1. [Cahier des charges fonctionnel et technique](#partie-i--cahier-des-charges-fonctionnel-et-technique)
+    11→2. [Prompt système de l’agent autonome](#partie-ii--prompt-système-de-lagent-autonome)
+    12→3. [Template du journal de bord](#partie-iii--template-du-journal-de-bord)
+    13→
+    14→---
+    15→
+    16→# Partie I — Cahier des charges fonctionnel et technique
+    17→
+    18→# SmartShule (SS)
+    19→## Cahier des charges fonctionnel et technique pour un système intégré de gestion scolaire, administrative et commerciale
+    20→
+    21→**Version :** 1.0  
+    22→**Cible technique :** C# avec .NET 8, ASP.NET Core, Entity Framework Core 8  
+    23→**Type de solution :** application multi-postes, centralisée, sécurisée et utilisable hors connexion  
+    24→**Périmètre :** établissement scolaire comprenant plusieurs directions, sections, cycles, services et activités génératrices de revenus
+    25→
+    26→---
+    27→
+    28→## 1. Vision du produit
+    29→
+    30→**SmartShule (SS)** est un progiciel intégré destiné à administrer une école complète. Il doit réunir dans une même plateforme les activités pédagogiques, les inscriptions, les élèves, les enseignants, les ressources humaines, la paie, les frais académiques, la comptabilité, le patrimoine et les services commerciaux de l’établissement.
+    31→
+    32→> **Slogan recommandé : _SmartShule — L’intelligence qui rapproche l’école et la famille._**
+    33→
+    34→Autres variantes possibles : **« SmartShule — Une école connectée, une réussite partagée »** et **« SmartShule — Piloter l’école, accompagner chaque élève »**. Le premier slogan est recommandé, car il couvre à la fois la gestion centrale, le portail et la communication avec les parents.
+    35→
+    36→Le logiciel doit prendre en charge une organisation composée, par exemple, d’une direction maternelle, d’une direction primaire, d’une direction secondaire et de sections spécialisées telles que les mathématiques, la physique, la biologie-chimie, les lettres, les langues, l’informatique ou toute autre section ajoutée ultérieurement.
+    37→
+    38→Le système doit également gérer les services qui ne sont pas strictement scolaires, notamment la location de salles de fête et la location de véhicules. Ces services doivent être reliés à la facturation, aux encaissements, aux dépenses, au patrimoine et à la comptabilité générale de l’école. Il ne s’agit donc pas de deux modules isolés, mais de deux activités commerciales intégrées au même système financier.
+    39→
+    40→Le logiciel doit rester opérationnel lorsque certains postes ne disposent pas d’une connexion Internet ou d’un accès au serveur central. La connexion permet ensuite de synchroniser les opérations avec le serveur administratif central. Cette synchronisation doit être contrôlée, traçable, sécurisée et résistante aux doublons.
+    41→
+    42→> **Principe directeur :** une donnée est saisie une seule fois dans le module responsable, puis réutilisée par les autres modules selon les droits de l’utilisateur.
+    43→
+    44→---
+    45→
+    46→## 2. Objectifs
+    47→
+    48→Le projet poursuit les objectifs suivants :
+    49→
+    50→1. Centraliser les informations scolaires, administratives, financières et patrimoniales.
+    51→2. Réduire la double saisie et les erreurs de transcription.
+    52→3. Donner à chaque service un espace de travail adapté à ses responsabilités.
+    53→4. Permettre le fonctionnement local en cas de coupure réseau.
+    54→5. Synchroniser les opérations entre les postes et le serveur central.
+    55→6. Assurer une traçabilité complète des créations, modifications, validations et annulations.
+    56→7. Produire des tableaux de bord fiables pour la direction.
+    57→8. Relier les inscriptions, les élèves, les classes, les cours, les paiements et la comptabilité.
+    58→9. Relier les réservations de salles et de véhicules à la facturation et aux disponibilités réelles.
+    59→10. Préparer le système à l’évolution de l’établissement et à l’ajout de nouvelles directions ou sections.
+    60→
+    61→---
+    62→
+    63→## 3. Périmètre fonctionnel
+    64→
+    65→### 3.1 Paramétrage général et référentiels
+    66→
+    67→Le système doit permettre de configurer :
+    68→
+    69→- l’établissement, ses sites et ses bâtiments ;
+    70→- les années scolaires et les périodes académiques ;
+    71→- les directions et sous-directions ;
+    72→- les cycles : maternel, primaire, secondaire et supérieur, si nécessaire ;
+    73→- les sections, options et orientations ;
+    74→- les niveaux, classes, salles et groupes ;
+    75→- les matières et unités d’enseignement ;
+    76→- les types de frais et tarifs ;
+    77→- les devises, modes de paiement et comptes financiers ;
+    78→- les types de documents et numérotations ;
+    79→- les catégories d’équipements, véhicules, salles et contrats ;
+    80→- les calendriers, jours fériés et horaires de fonctionnement.
+    81→
+    82→Tous ces référentiels doivent posséder un identifiant global unique afin de rester cohérents entre les bases locales et la base centrale.
+    83→
+    84→### 3.2 Gestion des directions et de la structure scolaire
+    85→
+    86→Une direction peut posséder ses propres responsables, enseignants, classes, cours, élèves et règles de validation, tout en restant rattachée à l’établissement principal.
+    87→
+    88→Le système doit permettre de représenter une structure comme celle-ci :
+    89→
+    90→```text
+    91→Établissement
+    92→├── Direction maternelle
+    93→│   ├── Niveaux
+    94→│   ├── Classes
+    95→│   └── Corps enseignant
+    96→├── Direction primaire
+    97→│   ├── Niveaux
+    98→│   ├── Classes
+    99→│   └── Corps enseignant
+   100→├── Direction secondaire
+   101→│   ├── Tronc commun
+   102→│   ├── Section mathématiques
+   103→│   ├── Section physique
+   104→│   ├── Section biologie-chimie
+   105→│   ├── Section lettres et langues
+   106→│   └── Corps enseignant
+   107→└── Services administratifs et commerciaux
+   108→```
+   109→
+   110→La structure doit être configurable. Le code ne doit pas contenir de noms de directions en dur.
+   111→
+   112→### 3.3 Admissions, inscriptions et réinscriptions
+   113→
+   114→Le module doit gérer le cycle complet de l’élève : candidature, admission, inscription, réinscription, affectation dans une classe, transfert, suspension et sortie.
+   115→
+   116→Fonctions attendues :
+   117→
+   118→- préinscription d’un candidat ;
+   119→- collecte des pièces exigées ;
+   120→- validation du dossier ;
+   121→- attribution d’un matricule ;
+   122→- gestion des responsables légaux ;
+   123→- gestion des contacts d’urgence ;
+   124→- choix du niveau, de la section et de l’année scolaire ;
+   125→- génération d’un contrat ou d’une fiche d’inscription ;
+   126→- facturation automatique des frais selon le niveau et la section ;
+   127→- réinscription avec reprise contrôlée des informations ;
+   128→- changement de classe ou de section avec historique ;
+   129→- suivi des dossiers incomplets ;
+   130→- impression ou export des listes d’inscrits.
+   131→
+   132→Un élève ne doit pas être supprimé physiquement après une inscription. Il doit être archivé avec son historique académique, financier et administratif.
+   133→
+   134→### 3.4 Gestion des élèves et des responsables
+   135→
+   136→Le dossier élève doit regrouper l’identité, la photo, les coordonnées, les responsables, les documents, l’historique scolaire, les absences, les résultats et la situation financière autorisée par le rôle de l’utilisateur.
+   137→
+   138→Un responsable légal peut être lié à plusieurs élèves. Un élève peut avoir plusieurs responsables avec des liens différents : père, mère, tuteur, institution ou autre.
+   139→
+   140→### 3.5 Gestion des classes, sections et groupes
+   141→
+   142→Le module doit gérer :
+   143→
+   144→- les classes par année scolaire ;
+   145→- leur capacité maximale ;
+   146→- leur salle principale ;
+   147→- leur direction et leur section ;
+   148→- leur professeur principal ;
+   149→- les groupes pédagogiques ;
+   150→- les sous-groupes pour les travaux pratiques ;
+   151→- les changements de classe ;
+   152→- l’historique des affectations.
+   153→
+   154→Le système doit empêcher l’affectation d’un élève dans une classe inactive ou dans une classe dont la capacité validée est dépassée, sauf dérogation autorisée et journalisée.
+   155→
+   156→### 3.6 Gestion des enseignants, des cours et des emplois du temps
+   157→
+   158→Un enseignant peut dispenser la même matière dans plusieurs classes, plusieurs niveaux et plusieurs sections. Il peut également être rattaché à plusieurs directions.
+   159→
+   160→Le système doit donc séparer clairement :
+   161→
+   162→- la personne ;
+   163→- le dossier du personnel ;
+   164→- la qualification ;
+   165→- la matière enseignée ;
+   166→- l’affectation de l’enseignant à une classe ;
+   167→- l’affectation à une section ;
+   168→- la séance planifiée ;
+   169→- la séance réellement dispensée ;
+   170→- les élèves concernés ;
+   171→- les évaluations et résultats.
+   172→
+   173→Fonctions attendues :
+   174→
+   175→- création des matières ;
+   176→- affectation d’un enseignant à une ou plusieurs matières ;
+   177→- affectation à plusieurs classes et sections ;
+   178→- gestion des volumes horaires ;
+   179→- création d’emplois du temps ;
+   180→- détection des conflits d’enseignant, de salle et de classe ;
+   181→- suivi des cours prévus et réalisés ;
+   182→- saisie des présences des élèves ;
+   183→- saisie des présences des enseignants ;
+   184→- préparation des supports et observations de cours ;
+   185→- gestion des devoirs, interrogations et examens ;
+   186→- calcul des notes selon des règles configurables ;
+   187→- bulletins et relevés de notes ;
+   188→- verrouillage des notes après validation.
+   189→
+   190→Le logiciel doit offrir à l’enseignant une vue limitée à ses propres cours, classes, groupes et évaluations, sauf autorisation particulière.
+   191→
+   192→### 3.7 Absences, discipline et vie scolaire
+   193→
+   194→Le module doit permettre de suivre les absences et retards des élèves et du personnel. Chaque absence doit comporter une date, une durée, un motif, une justification éventuelle, son statut et l’utilisateur qui l’a enregistrée.
+   195→
+   196→Il doit également gérer les incidents disciplinaires, les avertissements, les sanctions, les convocations et les observations, avec une confidentialité renforcée.
+   197→
+   198→### 3.8 Ressources humaines
+   199→
+   200→Le module RH doit gérer les employés, enseignants et agents administratifs :
+   201→
+   202→- dossier personnel ;
+   203→- contrat et type de contrat ;
+   204→- poste et service ;
+   205→- qualification ;
+   206→- date d’entrée et de sortie ;
+   207→- affectation à une direction ;
+   208→- congés et absences ;
+   209→- avances et retenues ;
+   210→- documents administratifs ;
+   211→- historique des changements ;
+   212→- évaluations internes ;
+   213→- état actif, suspendu ou sorti.
+   214→
+   215→Un même employé peut exercer plusieurs fonctions, mais les responsabilités doivent être distinguées dans les autorisations informatiques.
+   216→
+   217→### 3.9 Paie et rémunération
+   218→
+   219→Le module de paie doit être paramétrable selon la réglementation et les règles internes de l’établissement. Il ne doit pas imposer des taux légaux codés en dur.
+   220→
+   221→Il doit gérer :
+   222→
+   223→- période de paie ;
+   224→- salaire de base ;
+   225→- primes ;
+   226→- heures supplémentaires ;
+   227→- retenues ;
+   228→- avances ;
+   229→- absences non rémunérées ;
+   230→- état provisoire ;
+   231→- validation ;
+   232→- clôture ;
+   233→- bulletin de paie ;
+   234→- écriture comptable générée après validation.
+   235→
+   236→La paie doit être contrôlée par des rôles séparés. La personne qui saisit les éléments ne doit pas nécessairement être celle qui valide le paiement.
+   237→
+   238→### 3.10 Frais académiques, facturation et encaissements
+   239→
+   240→Le système doit gérer les frais d’inscription, de scolarité, de transport, de cantine, d’uniforme, de fournitures, d’examen et tout autre frais configuré.
+   241→
+   242→Fonctions attendues :
+   243→
+   244→- grille tarifaire par année, direction, niveau, section et catégorie ;
+   245→- facturation individuelle ou en masse ;
+   246→- échéancier ;
+   247→- réduction et bourse soumise à autorisation ;
+   248→- paiement partiel ;
+   249→- reçu numéroté ;
+   250→- paiement par espèces, banque, mobile money ou autre mode configurable ;
+   251→- annulation contrôlée d’un reçu ;
+   252→- remboursement soumis à validation ;
+   253→- relance des impayés ;
+   254→- état de compte par élève ;
+   255→- rapprochement des encaissements ;
+   256→- transfert vers la comptabilité.
+   257→
+   258→Aucune modification directe d’un paiement validé ne doit être autorisée. Toute correction doit produire une annulation, un avoir ou une écriture de régularisation avec justification.
+   259→
+   260→### 3.11 Comptabilité intégrée
+   261→
+   262→La comptabilité doit être alimentée par les événements validés des autres modules. Elle doit permettre, selon le niveau de sophistication retenu :
+   263→
+   264→- plan comptable configurable ;
+   265→- journaux ;
+   266→- comptes clients et fournisseurs ;
+   267→- caisse et banques ;
+   268→- recettes académiques ;
+   269→- recettes de location ;
+   270→- dépenses ;
+   271→- achats ;
+   272→- salaires ;
+   273→- immobilisations ;
+   274→- amortissements ;
+   275→- pièces justificatives ;
+   276→- rapprochement bancaire ;
+   277→- clôture de période ;
+   278→- balance ;
+   279→- grand livre ;
+   280→- compte de résultat ;
+   281→- états de caisse et de trésorerie.
+   282→
+   283→La comptabilité doit distinguer les centres de responsabilité, par exemple la direction primaire, la section scientifique, la location de salles et la location de véhicules.
+   284→
+   285→Le système doit utiliser le principe de **double entrée** lorsque la comptabilité générale est activée. Les règles de génération des écritures doivent être configurées et testées avec le responsable financier.
+   286→
+   287→#### 3.11.1 Principe de calcul comptable
+   288→
+   289→Le logiciel doit distinguer quatre notions qui ne doivent jamais être confondues :
+   290→
+   291→- le **devis**, qui constitue une proposition commerciale sans écriture comptable ;
+   292→- la **réservation ou le contrat**, qui matérialise un engagement opérationnel, mais ne crée pas nécessairement un produit comptable ;
+   293→- la **facture**, qui constate la créance du client et le produit ou la prestation facturée ;
+   294→- l’**encaissement**, qui diminue la créance et augmente la caisse, la banque ou le compte de paiement concerné.
+   295→
+   296→La comptabilité doit être calculée sur le montant hors taxe, la taxe éventuelle et le montant toutes taxes comprises. Les taux de taxe, les règles d’exonération, les comptes de taxe et la date d’exigibilité doivent être paramétrables par période et par type de prestation. Le logiciel ne doit pas déduire automatiquement une règle fiscale nationale non configurée.
+   297→
+   298→Pour chaque ligne facturée, le système doit conserver :
+   299→
+   300→1. le prix unitaire ;
+   301→2. la quantité ou la durée ;
+   302→3. la remise ;
+   303→4. le montant brut ;
+   304→5. le montant net hors taxe ;
+   305→6. le taux et le montant de taxe ;
+   306→7. le montant toutes taxes comprises ;
+   307→8. le compte de produit ;
+   308→9. le centre de coût ou de profit ;
+   309→10. la source métier : frais académiques, salle, véhicule, prestation additionnelle, pénalité ou dommage.
+   310→
+   311→Les montants doivent être calculés avec le type `decimal`, jamais avec `double`. La précision interne doit être supérieure à la précision d’affichage. Les arrondis doivent être appliqués selon une règle configurée, de préférence au niveau de chaque ligne puis contrôlés au niveau de la facture. La différence éventuelle d’arrondi doit être imputée à un compte d’écart d’arrondi autorisé et auditée.
+   312→
+   313→#### 3.11.2 Structure recommandée du plan comptable
+   314→
+   315→Les numéros ci-dessous constituent un exemple de structure fonctionnelle. Ils doivent être remplacés ou mappés vers le plan comptable légal applicable au pays de l’établissement.
+   316→
+   317→| Classe fonctionnelle | Comptes proposés | Utilisation |
+   318→|---|---|---|
+   319→| Trésorerie | `51xx` Banque, `53xx` Caisse, `54xx` comptes de paiement | Encaissements, décaissements et virements |
+   320→| Clients | `411xxx` Clients académiques, `4112xx` Clients salles, `4113xx` Clients véhicules | Créances par catégorie de client |
+   321→| Autres créances | `4457xx` Taxes à recevoir, `467xxx` avances ou comptes divers | Créances fiscales et opérations à régulariser |
+   322→| Immobilisations | `21xx` Salles et bâtiments, `218x` équipements, `2182` véhicules | Actifs utilisés par l’école ou loués |
+   323→| Fournisseurs | `401xxx` Fournisseurs d’achats, `404xxx` Fournisseurs d’immobilisations | Dettes envers les fournisseurs |
+   324→| Dettes diverses | `419xxx` Avances reçues, `467xxx` cautions à restituer | Acomptes et cautions qui ne sont pas encore des produits |
+   325→| Produits scolaires | `7061xx` Inscriptions, `7062xx` Scolarité, `7063xx` transport, `7064xx` cantine | Revenus issus de l’activité pédagogique |
+   326→| Produits salles | `7065xx` Location de salles, `70651x` prestations annexes, `70652x` pénalités facturables | Revenus de l’activité de salles |
+   327→| Produits véhicules | `7066xx` Location de véhicules, `70661x` kilomètres ou carburant, `70662x` prestations annexes, `70663x` pénalités facturables | Revenus de l’activité de véhicules |
+   328→| Charges d’exploitation | `60xx` achats, `61xx` services, `62xx` entretien, `64xx` personnel | Coûts opérationnels |
+   329→| Charges spécifiques | `615xxx` maintenance véhicules et salles, `681xxx` amortissements | Coûts directement rattachables aux locations |
+   330→| Résultat analytique | Centres `ECOLE`, `SALLE`, `VEHICULE`, par direction ou site | Analyse de rentabilité |
+   331→
+   332→Le logiciel doit séparer le **compte général** du **code analytique**. Une location de salle peut donc être enregistrée dans le même compte général de produit tout en étant affectée au centre `LOC-SALLE`, à une salle précise et à un site donné. Cette séparation évite de créer un nouveau compte général pour chaque salle ou chaque véhicule.
+   333→
+   334→#### 3.11.3 Journaux comptables
+   335→
+   336→Le système doit prévoir au minimum les journaux suivants :
+   337→
+   338→| Journal | Code exemple | Événements |
+   339→|---|---|---|
+   340→| Ventes scolaires | `VE-SCO` | Factures d’inscription et de scolarité |
+   341→| Ventes salles | `VE-SAL` | Factures de location de salles et prestations annexes |
+   342→| Ventes véhicules | `VE-VEH` | Factures de location de véhicules et prestations annexes |
+   343→| Caisse | `CAIS` | Encaissements et sorties de caisse |
+   344→| Banque | `BQxx` | Encaissements et paiements bancaires |
+   345→| Achats | `ACHA` | Factures fournisseurs et charges |
+   346→| Paie | `PAIE` | Salaires, retenues et charges |
+   347→| Opérations diverses | `OD` | Régularisations, amortissements, provisions et clôture |
+   348→
+   349→Chaque journal doit posséder une numérotation séquentielle par exercice et période. Une pièce validée ne doit pas être supprimée. Une erreur doit être corrigée par une écriture inverse, un avoir ou une opération de régularisation référencée à la pièce initiale.
+   350→
+   351→#### 3.11.4 Règles de calcul d’une facture
+   352→
+   353→Pour chaque ligne, le calcul doit suivre les étapes suivantes :
+   354→
+   355→```text
+   356→Montant brut = Quantité ou durée × Prix unitaire
+   357→Montant de remise = Montant brut × Taux de remise / 100
+   358→Montant net HT = Montant brut - Montant de remise
+   359→Montant taxe = Montant net HT × Taux de taxe / 100
+   360→Montant TTC = Montant net HT + Montant taxe
+   361→Solde = Montant TTC - Somme des règlements imputés - Avoirs imputés
+   362→```
+   363→
+   364→Une remise doit avoir un motif, un utilisateur demandeur, un utilisateur approbateur et une limite maximale. Une remise exceptionnelle doit être validée avant l’émission de la facture.
+   365→
+   366→La facture doit être enregistrée dans la période de sa date comptable. La date de réservation ne doit pas remplacer automatiquement la date de facturation. Si l’établissement applique une comptabilité d’engagement, une facture émise constate une créance même si le client n’a encore rien payé.
+   367→
+   368→#### 3.11.5 Écritures des frais académiques
+   369→
+   370→Lors de la validation d’une facture de frais académiques :
+   371→
+   372→```text
+   373→Débit   411xxx Client ou responsable payeur       Montant TTC
+   374→Crédit  7061xx Produit d’inscription ou scolarité Montant HT
+   375→Crédit  4457xx Taxe collectée éventuelle         Montant taxe
+   376→```
+   377→
+   378→Lors de l’encaissement :
+   379→
+   380→```text
+   381→Débit   53xxx Caisse, 51xxx Banque ou 54xxx paiement  Montant encaissé
+   382→Crédit  411xxx Client                                  Montant encaissé
+   383→```
+   384→
+   385→Un paiement partiel ne solde que la partie correspondante de la créance. Le système doit conserver l’ordre d’imputation : facture précise, échéance précise et mode de paiement précis.
+   386→
+   387→#### 3.11.6 Acomptes et cautions de location
+   388→
+   389→Un acompte reçu avant l’émission de la facture finale ne doit pas être enregistré directement comme produit. Il doit être enregistré comme avance reçue :
+   390→
+   391→```text
+   392→À la réception de l’acompte :
+   393→Débit   53xxx ou 51xxx Trésorerie                  Montant reçu
+   394→Crédit  419xxx Avances reçues de clients           Montant reçu
+   395→```
+   396→
+   397→Lors de l’émission de la facture définitive, l’acompte est imputé :
+   398→
+   399→```text
+   400→Débit   411xxx Client                               Montant TTC de la facture
+   401→Crédit  7065xx ou 7066xx Produit de location        Montant HT
+   402→Crédit  4457xx Taxe collectée éventuelle             Montant taxe
+   403→```
+   404→
+   405→Puis l’acompte est transféré de la dette d’avance vers la créance client :
+   406→
+   407→```text
+   408→Débit   419xxx Avances reçues de clients            Montant de l’acompte
+   409→Crédit  411xxx Client                                Montant de l’acompte
+   410→```
+   411→
+   412→Une caution remboursable doit rester une dette envers le client :
+   413→
+   414→```text
+   415→Débit   53xxx ou 51xxx Trésorerie                   Montant caution
+   416→Crédit  419xxx Cautions reçues                       Montant caution
+   417→```
+   418→
+   419→Lors de la restitution :
+   420→
+   421→```text
+   422→Débit   419xxx Cautions reçues                       Montant restitué
+   423→Crédit  53xxx ou 51xxx Trésorerie                    Montant restitué
+   424→```
+   425→
+   426→Si une partie de la caution est retenue pour un dommage réellement facturable, seule cette partie est transférée vers la créance ou le produit concerné après validation d’un état des lieux et d’une pièce justificative. La caution entière ne doit jamais être reconnue automatiquement comme revenu.
+   427→
+   428→#### 3.11.7 Écritures des locations de salles
+   429→
+   430→Pour une facture de salle, le moteur comptable doit utiliser le compte produit `7065xx` et le centre analytique de la salle. Exemple : location facturée pour **1 000 unités monétaires hors taxe**, avec une taxe paramétrée à **20 %**, soit **1 200 TTC** :
+   431→
+   432→```text
+   433→Débit   4112xx Client location salle                1 200
+   434→Crédit  7065xx Location de salles                  1 000
+   435→Crédit  4457xx Taxe collectée                       200
+   436→```
+   437→
+   438→Les prestations annexes doivent être séparées lorsqu’elles ont une nature différente :
+   439→
+   440→```text
+   441→Débit   4112xx Client location salle                Total TTC
+   442→Crédit  7065xx Location de salle                    Prix salle HT
+   443→Crédit  70651x Sonorisation ou équipement            Prix prestation HT
+   444→Crédit  70652x Pénalité ou frais facturables         Prix pénalité HT
+   445→Crédit  4457xx Taxe collectée                       Total taxes
+   446→```
+   447→
+   448→Le centre analytique doit indiquer au minimum le site, la salle, le contrat, le type d’événement et la période. Les charges directement liées doivent être affectées au même centre : nettoyage, sécurité, énergie additionnelle, maintenance et personnel occasionnel. Le rapport doit distinguer le chiffre d’affaires, les coûts directs et la marge de la salle.
+   449→
+   450→#### 3.11.8 Écritures des locations de véhicules
+   451→
+   452→Pour une facture de véhicule, le moteur comptable doit utiliser `7066xx` et identifier le véhicule, le contrat, la période, le conducteur et le kilométrage de départ et de retour.
+   453→
+   454→Exemple pour une location de **800 unités monétaires hors taxe** et une taxe de **20 %** :
+   455→
+   456→```text
+   457→Débit   4113xx Client location véhicule             960
+   458→Crédit  7066xx Location de véhicules                800
+   459→Crédit  4457xx Taxe collectée                       160
+   460→```
+   461→
+   462→Si le contrat distingue le forfait, les kilomètres supplémentaires et le carburant :
+   463→
+   464→```text
+   465→Débit   4113xx Client location véhicule             Total TTC
+   466→Crédit  7066xx Forfait de location                  Forfait HT
+   467→Crédit  70661x Kilomètres ou carburant              Complément HT
+   468→Crédit  70662x Service chauffeur ou livraison       Service HT
+   469→Crédit  70663x Dommage ou pénalité facturable       Montant HT validé
+   470→Crédit  4457xx Taxe collectée                       Total taxes
+   471→```
+   472→
+   473→Les coûts de maintenance, assurance, carburant pris en charge par l’école et amortissement du véhicule doivent être enregistrés en charges selon leur nature. Ils doivent être affectés au centre du véhicule afin de calculer sa rentabilité réelle.
+   474→
+   475→Lors de l’acquisition d’un véhicule destiné à être utilisé durablement :
+   476→
+   477→```text
+   478→Débit   218x Immobilisation véhicule                Coût HT capitalisable
+   479→Débit   4456xx Taxe récupérable éventuelle           Taxe déductible
+   480→Crédit  404xxx Fournisseur d’immobilisation          Total facture
+   481→```
+   482→
+   483→Les dépenses d’entretien courant doivent rester en charges. Seules les dépenses répondant aux règles d’immobilisation configurées et validées doivent augmenter la valeur de l’actif.
+   484→
+   485→#### 3.11.9 Annulations, avoirs, dommages et pénalités
+   486→
+   487→Une réservation annulée ne produit pas automatiquement une écriture. Le traitement dépend de son état :
+   488→
+   489→- une réservation sans facture est simplement annulée avec motif ;
+   490→- un acompte remboursable est débité du compte d’avance et recrédité sur la trésorerie ;
+   491→- une facture non réglée est corrigée par un avoir ;
+   492→- une facture réglée est corrigée par un avoir et, si nécessaire, un remboursement ;
+   493→- une pénalité conservée doit être facturée ou imputée conformément au contrat ;
+   494→- un dommage doit être documenté par un état des lieux, une estimation et une validation.
+   495→
+   496→Un avoir doit reprendre les lignes originales, les comptes de produits, les taxes et les centres analytiques. Il ne doit pas être saisi comme une facture négative libre sans référence à la pièce initiale.
+   497→
+   498→#### 3.11.10 Comptabilité analytique des locations
+   499→
+   500→Chaque opération de location doit porter les dimensions analytiques suivantes : `Activite`, `Site`, `Ressource`, `Contrat`, `Client`, `Periode` et `DirectionResponsable`.
+   501→
+   502→Les dimensions minimales sont :
+   503→
+   504→```text
+   505→Activité : ECOLE | LOCATION_SALLE | LOCATION_VEHICULE
+   506→Ressource : identifiant de la salle ou du véhicule
+   507→Centre : direction, site ou service responsable
+   508→```
+   509→
+   510→Les tableaux de bord doivent présenter :
+   511→
+   512→1. chiffre d’affaires facturé ;
+   513→2. chiffre d’affaires encaissé ;
+   514→3. créances et impayés ;
+   515→4. acomptes et cautions en attente ;
+   516→5. taxes collectées éventuelles ;
+   517→6. coûts directs ;
+   518→7. amortissements ;
+   519→8. marge brute ;
+   520→9. taux d’occupation des salles ;
+   521→10. taux d’utilisation des véhicules ;
+   522→11. rentabilité par ressource et par période.
+   523→
+   524→La formule analytique de base est :
+   525→
+   526→```text
+   527→Marge brute = Produits de location HT - Charges directes - Amortissements affectés
+   528→Taux de marge = Marge brute / Produits de location HT × 100
+   529→```
+   530→
+   531→Les charges communes, comme l’administration générale ou une partie de l’électricité, doivent être réparties seulement si une clé de répartition validée est configurée. Le système doit conserver la clé utilisée et permettre de recalculer le rapport.
+   532→
+   533→#### 3.11.11 Clôture et contrôles comptables
+   534→
+   535→Avant la clôture d’une période, le système doit contrôler :
+   536→
+   537→- l’égalité débit/crédit de chaque pièce ;
+   538→- l’absence de facture validée sans compte comptable ;
+   539→- l’absence d’encaissement non imputé ;
+   540→- le rapprochement entre factures, acomptes, cautions et contrats ;
+   541→- les réservations terminées sans facture ou état de retour ;
+   542→- les véhicules et salles dont les coûts directs sont absents ;
+   543→- les écritures en brouillon ;
+   544→- les comptes de taxe configurés pour les prestations concernées ;
+   545→- les séquences manquantes de pièces ;
+   546→- les opérations de synchronisation rejetées ou en conflit.
+   547→
+   548→La clôture doit être irréversible pour un utilisateur ordinaire. Une réouverture doit demander un rôle spécifique, un motif et une trace d’audit. Les rapports de location doivent pouvoir être rapprochés avec le grand livre par journal, compte produit, centre analytique et période.
+   549→
+   550→### 3.12 Patrimoine et immobilisations
+   551→
+   552→Le module patrimoine doit inventorier les bâtiments, salles, meubles, équipements pédagogiques, équipements informatiques, véhicules et autres actifs.
+   553→
+   554→Pour chaque bien, il faut pouvoir conserver :
+   555→
+   556→- code d’inventaire ;
+   557→- catégorie ;
+   558→- désignation ;
+   559→- numéro de série ;
+   560→- localisation ;
+   561→- responsable ;
+   562→- date d’acquisition ;
+   563→- fournisseur ;
+   564→- coût ;
+   565→- état ;
+   566→- valeur résiduelle ;
+   567→- garantie ;
+   568→- documents ;
+   569→- mouvements ;
+   570→- maintenance ;
+   571→- sortie ou réforme.
+   572→
+   573→Les biens utilisés pour la location doivent être reliés aux contrats, réservations, dégradations éventuelles et factures concernées.
+   574→
+   575→### 3.13 Location de salles de fête
+   576→
+   577→La location de salles doit être une activité commerciale complète intégrée à la gestion financière.
+   578→
+   579→Le module doit gérer :
+   580→
+   581→- catalogue des salles ;
+   582→- capacité et équipements ;
+   583→- tarifs par durée, jour, type d’événement ou saison ;
+   584→- calendrier de disponibilité ;
+   585→- client particulier ou organisation ;
+   586→- demande de réservation ;
+   587→- devis ;
+   588→- contrat ;
+   589→- acompte ;
+   590→- facture ;
+   591→- solde ;
+   592→- caution ;
+   593→- état des lieux avant et après ;
+   594→- prestations additionnelles ;
+   595→- annulation et pénalités ;
+   596→- affectation d’un agent ;
+   597→- rapport de rentabilité.
+   598→
+   599→Le système doit empêcher deux réservations confirmées sur le même créneau pour la même salle. Les réservations provisoires doivent expirer après un délai configurable.
+   600→
+   601→### 3.14 Location de véhicules
+   602→
+   603→Le module de location de véhicules doit gérer :
+   604→
+   605→- parc automobile ;
+   606→- marque, modèle, immatriculation et kilométrage ;
+   607→- capacité et caractéristiques ;
+   608→- assurance et documents ;
+   609→- maintenance ;
+   610→- disponibilité ;
+   611→- client ;
+   612→- conducteur ;
+   613→- contrat de location ;
+   614→- état du véhicule au départ et au retour ;
+   615→- carburant ;
+   616→- kilométrage ;
+   617→- caution ;
+   618→- facture ;
+   619→- pénalités et dommages ;
+   620→- planning des véhicules ;
+   621→- coût et rentabilité par véhicule.
+   622→
+   623→Un véhicule immobilisé, expiré administrativement ou déjà réservé ne doit pas être proposé comme disponible.
+   624→
+   625→### 3.15 Achats, fournisseurs et dépenses
+   626→
+   627→Le module achats doit gérer les demandes internes, les validations, les fournisseurs, les bons de commande, les réceptions, les factures et les paiements.
+   628→
+   629→Une dépense doit être reliée à un budget, un service, un centre de coût et une pièce justificative. Les seuils de validation doivent dépendre du montant et du rôle.
+   630→
+   631→### 3.16 Documents et archivage
+   632→
+   633→Le système doit stocker les documents avec leurs métadonnées, leur type, leur propriétaire, leur version, leur date d’expiration et leur niveau de confidentialité.
+   634→
+   635→Les fichiers lourds ne doivent pas être systématiquement copiés dans toutes les bases locales. Le système doit prévoir un mécanisme de téléchargement différé et une miniature ou une empreinte locale lorsque cela est possible.
+   636→
+   637→### 3.17 Notifications et communication
+   638→
+   639→Le logiciel peut intégrer des notifications internes et, selon les services disponibles, l’envoi de courriels ou de messages. Chaque message doit être traçable : destinataire, statut, date d’envoi et erreur éventuelle.
+   640→
+   641→### 3.18 Tableaux de bord et rapports
+   642→
+   643→Les tableaux de bord doivent être filtrables par année scolaire, direction, section, niveau, période et centre de responsabilité.
+   644→
+   645→Les indicateurs prioritaires sont : effectif inscrit, inscriptions incomplètes, taux de présence, résultats, impayés, encaissements, dépenses, trésorerie, paie, occupation des salles, chiffre d’affaires des locations, disponibilité des véhicules, patrimoine et alertes administratives.
+   646→
+   647→---
+   648→
+   649→## 4. Rôles et autorisations
+   650→
+   651→Le système doit appliquer le principe du moindre privilège. Un rôle donne accès à des fonctions et à des périmètres de données. Une direction peut limiter la visibilité aux élèves et aux activités qui lui sont rattachés.
+   652→
+   653→| Rôle | Responsabilités principales |
+   654→|---|---|
+   655→| Super administrateur | Paramétrage technique, sécurité et gestion des tenants ou établissements |
+   656→| Administrateur fonctionnel | Référentiels, années scolaires, directions et règles métiers |
+   657→| Direction générale | Validation, supervision et tableaux de bord consolidés |
+   658→| Directeur de direction | Suivi des classes, enseignants, élèves et résultats de sa direction |
+   659→| Secrétariat | Admissions, dossiers, inscriptions et documents |
+   660→| Enseignant | Cours, présences, évaluations et suivi de ses classes |
+   661→| Responsable pédagogique | Programmes, emplois du temps, validations de notes |
+   662→| RH | Dossiers du personnel, congés et éléments de paie |
+   663→| Responsable de paie | Préparation et contrôle de la paie |
+   664→| Comptable | Factures, encaissements, dépenses et écritures |
+   665→| Caissier | Encaissements et édition de reçus selon limite autorisée |
+   666→| Gestionnaire patrimoine | Inventaire, équipements, maintenance et mouvements |
+   667→| Responsable locations | Salles, véhicules, contrats, états des lieux et planning |
+   668→| Auditeur | Consultation des journaux et rapports sans modification |
+   669→| Agent de synchronisation | Transmission technique limitée, sans accès métier direct |
+   670→
+   671→Il faut prévoir une séparation des tâches pour les opérations sensibles : création d’une facture, encaissement, annulation, validation comptable, remboursement, clôture et suppression logique.
+   672→
+   673→---
+   674→
+   675→## 5. Architecture technique recommandée
+   676→
+   677→### 5.1 Architecture logique
+   678→
+   679→L’architecture recommandée est composée de quatre éléments :
+   680→
+   681→1. **Application cliente de poste**, installée dans chaque service. Une application desktop en WPF est adaptée à un fonctionnement riche sur Windows. Une application .NET MAUI peut être retenue si une cible multiplateforme est requise.
+   682→2. **Base locale SQLite**, utilisée par le poste pour les données nécessaires à son périmètre et pour les opérations effectuées hors connexion.
+   683→3. **API centrale ASP.NET Core 8**, qui applique les règles métier, l’authentification, la synchronisation et l’accès aux données centrales.
+   684→4. **Base centrale relationnelle**, de préférence SQL Server ou PostgreSQL selon l’environnement d’exploitation et les compétences disponibles.
+   685→
+   686→Une architecture en couches doit séparer le domaine métier, les cas d’utilisation, l’infrastructure et l’interface. Le domaine ne doit pas dépendre directement de WPF, de SQLite ou d’un contrôleur HTTP.
+   687→
+   688→```text
+   689→Poste Secrétariat ─┐
+   690→Poste Comptabilité ─┼─ Base locale + moteur Sync ── HTTPS ── API centrale ── Base centrale
+   691→Poste Pédagogie ───┤
+   692→Poste Locations ───┘                         └── Stockage documentaire et journal d’audit
+   693→```
+   694→
+   695→### 5.2 Solution et projets .NET
+   696→
+   697→Une organisation possible est :
+   698→
+   699→```text
+   700→SmartShule.sln
+   701→├── SmartShule.Domain
+   702→├── SmartShule.Application
+   703→├── SmartShule.Infrastructure
+   704→├── SmartShule.Contracts
+   705→├── SmartShule.Api
+   706→├── SmartShule.Sync
+   707→├── SmartShule.Desktop
+   708→├── SmartShule.Reporting
+   709→└── SmartShule.Tests
+   710→```
+   711→
+   712→Le projet doit suivre des conventions cohérentes : nullable reference types activés, analyzers, validation des entrées, journalisation structurée, tests automatisés et migrations versionnées.
+   713→
+   714→### 5.3 Base de données
+   715→
+   716→Les principales agrégats sont : `School`, `AcademicYear`, `Directorate`, `Section`, `Level`, `Classroom`, `Student`, `Guardian`, `Enrollment`, `Employee`, `TeacherAssignment`, `Subject`, `CourseSession`, `Attendance`, `Assessment`, `Grade`, `FeeDefinition`, `Invoice`, `Payment`, `Account`, `JournalEntry`, `Asset`, `RoomRental`, `Vehicle`, `VehicleRental`, `Supplier`, `PurchaseOrder`, `AuditLog`, `SyncOperation` et `SyncConflict`.
+   717→
+   718→Chaque entité métier doit comporter au minimum :
+   719→
+   720→- un identifiant global de type `Guid` ;
+   721→- une date de création ;
+   722→- une date de dernière modification ;
+   723→- l’identité du créateur et du dernier modificateur ;
+   724→- un statut métier ;
+   725→- une version de concurrence ;
+   726→- un indicateur de suppression logique lorsque le cas le permet.
+   727→
+   728→Les opérations financières, les reçus, les écritures validées et les éléments d’audit ne doivent jamais être supprimés physiquement.
+   729→
+   730→---
+   731→
+   732→## 6. Mécanisme de fonctionnement hors connexion et de synchronisation
+   733→
+   734→### 6.1 Principe
+   735→
+   736→Le poste local n’est pas une copie complète et indépendante de toute l’école. Il reçoit uniquement les données nécessaires à son rôle et à son périmètre. Il peut créer des opérations locales dans une file d’attente appelée **Outbox**. Lorsque la connexion revient, le moteur transmet ces opérations au serveur central.
+   737→
+   738→Le serveur traite chaque opération de façon idempotente. Si la même opération est reçue deux fois, elle ne doit produire qu’un seul effet.
+   739→
+   740→### 6.2 Flux d’envoi
+   741→
+   742→1. L’utilisateur réalise une action validée sur son poste.
+   743→2. L’application enregistre la donnée dans SQLite dans une transaction locale.
+   744→3. Elle crée une opération `SyncOperation` dans l’Outbox.
+   745→4. L’opération reçoit un identifiant global, un type, une version, un horodatage et une empreinte.
+   746→5. Le moteur essaie l’envoi vers l’API centrale.
+   747→6. Le serveur vérifie l’authentification, les droits, la version et l’empreinte.
+   748→7. Le serveur applique l’opération dans une transaction.
+   749→8. Le serveur renvoie un accusé de réception.
+   750→9. Le poste marque l’opération comme synchronisée.
+   751→
+   752→### 6.3 Flux de réception
+   753→
+   754→Le poste demande au serveur les changements depuis son dernier curseur de synchronisation. Le serveur envoie des événements ou des changements autorisés pour le rôle et le périmètre du poste. Le poste applique les changements dans une transaction locale, puis avance son curseur.
+   755→
+   756→### 6.4 Conflits
+   757→
+   758→Les conflits doivent être traités explicitement. Ils ne doivent pas être masqués par un simple écrasement de la dernière valeur.
+   759→
+   760→| Type de donnée | Politique recommandée |
+   761→|---|---|
+   762→| Référentiel général | Le serveur central est prioritaire |
+   763→| Dossier élève | Conflit présenté à un responsable administratif |
+   764→| Présence d’élève | Fusion par événement daté, avec contrôle des doublons |
+   765→| Note validée | Interdiction de modification directe ; correction par procédure |
+   766→| Réservation de salle ou véhicule | Le serveur central réserve le créneau de manière atomique |
+   767→| Paiement ou écriture comptable | Aucune fusion automatique ; régularisation tracée |
+   768→| Documents | Versionnement et conservation des deux versions |
+   769→
+   770→### 6.5 Contraintes de sécurité de la synchronisation
+   771→
+   772→- Utiliser HTTPS avec authentification forte.
+   773→- Donner à chaque poste un identifiant d’installation et des clés renouvelables.
+   774→- Ne jamais faire confiance à l’horloge locale pour les validations sensibles.
+   775→- Vérifier les droits côté serveur même si l’interface les masque.
+   776→- Chiffrer les données locales contenant des informations sensibles lorsque l’environnement le permet.
+   777→- Journaliser les erreurs et les reprises.
+   778→- Prévoir un mécanisme de reprise après interruption au milieu d’un lot.
+   779→- Limiter la taille des lots et compresser les échanges.
+   780→- Ne jamais synchroniser les mots de passe.
+   781→
+   782→### 6.6 États d’une opération
+   783→
+   784→Une opération peut passer par les états suivants : `Pending`, `Sending`, `Acknowledged`, `Rejected`, `Conflict`, `Retrying` et `Cancelled`. Les erreurs doivent fournir un message compréhensible à l’utilisateur et un détail technique dans les journaux.
+   785→
+   786→### 6.7 Limites assumées
+   787→
+   788→Le mode hors connexion ne signifie pas que toutes les fonctions sont disponibles partout. La paie finale, la clôture comptable, la confirmation définitive d’une réservation concurrente et certaines validations doivent exiger une connexion au serveur central. L’interface doit indiquer clairement si l’action est locale, en attente ou confirmée par le serveur.
+   789→
+   790→---
+   791→
+   792→## 7. Sécurité, audit et protection des données
+   793→
+   794→Le système doit utiliser une authentification sécurisée, des mots de passe hachés, une gestion des sessions, une expiration des jetons et une politique de verrouillage. L’authentification à deux facteurs peut être activée pour les rôles sensibles.
+   795→
+   796→Les autorisations doivent être vérifiées sur trois niveaux : fonction, action et périmètre de données. Par exemple, un comptable peut consulter les paiements de l’établissement, tandis qu’un caissier peut seulement enregistrer les encaissements de sa caisse.
+   797→
+   798→Le journal d’audit doit enregistrer l’utilisateur, le poste, la date, l’action, l’entité, l’identifiant, l’ancienne valeur lorsque nécessaire, la nouvelle valeur, le motif et le résultat. Les journaux doivent être non modifiables par les utilisateurs ordinaires.
+   799→
+   800→Les sauvegardes doivent comprendre une copie de la base centrale, une copie des documents et une procédure de restauration testée. Une sauvegarde jamais restaurée ne doit pas être considérée comme vérifiée.
+   801→
+   802→---
+   803→
+   804→## 8. Règles métier critiques
+   805→
+   806→1. Un matricule élève est unique dans l’établissement.
+   807→2. Une inscription appartient à une année scolaire précise.
+   808→3. Une classe appartient à une direction et à une année scolaire.
+   809→4. Un enseignant peut avoir plusieurs affectations, mais chaque affectation précise la matière, la classe, la section et la période.
+   810→5. Un cours ne peut pas créer simultanément un conflit de salle, de classe ou d’enseignant sans dérogation explicite.
+   811→6. Un paiement validé n’est jamais modifié directement.
+   812→7. Une facture payée ne peut être supprimée ; elle doit être annulée ou régularisée.
+   813→8. Une réservation confirmée bloque la ressource et le créneau.
+   814→9. Un véhicule non disponible ne peut pas être affecté à un contrat.
+   815→10. Une note validée ne peut être corrigée que par un workflow autorisé.
+   816→11. Toute opération synchronisée doit être idempotente.
+   817→12. Toute opération sensible doit être auditable.
+   818→13. Les suppressions ordinaires sont logiques et conservent l’historique.
+   819→14. Les règles de tarifs et de paie doivent être paramétrables et datées.
+   820→
+   821→---
+   822→
+   823→## 9. Exigences non fonctionnelles
+   824→
+   825→| Domaine | Exigence |
+   826→|---|---|
+   827→| Performance | Les écrans courants doivent répondre rapidement sur un réseau local normal ; les recherches doivent utiliser des index adaptés |
+   828→| Disponibilité | Le serveur doit pouvoir être redémarré sans perte d’opérations déjà validées |
+   829→| Fiabilité | Toute transaction métier doit être atomique |
+   830→| Évolutivité | Ajouter une direction, une section ou un type de frais sans modifier le code central |
+   831→| Sécurité | Aucune autorisation ne doit reposer uniquement sur l’interface cliente |
+   832→| Maintenabilité | Code modulaire, tests et migrations versionnées |
+   833→| Exploitabilité | Journaux, métriques, sauvegardes et diagnostics de synchronisation |
+   834→| Accessibilité | Libellés clairs, navigation clavier et contrastes suffisants |
+   835→| Langue de l’interface | Français uniquement ; les formats locaux restent configurables |
+   836→| Traçabilité | Audit de toutes les opérations financières et administratives sensibles |
+   837→
+   838→---
+   839→
+   840→## 10. Phasage recommandé
+   841→
+   842→### Phase 0 — Cadrage
+   843→
+   844→Valider les procédures réelles de l’établissement, les rôles, les documents utilisés, les règles tarifaires, le plan comptable, les règles de paie et les besoins de connexion entre sites.
+   845→
+   846→### Phase 1 — Socle
+   847→
+   848→Construire l’authentification, les rôles, les établissements, les directions, les années scolaires, les référentiels, les journaux d’audit et le moteur de synchronisation de base.
+   849→
+   850→### Phase 2 — Scolarité
+   851→
+   852→Développer les élèves, responsables, admissions, inscriptions, classes, sections, enseignants, matières, cours, présences, évaluations et bulletins.
+   853→
+   854→### Phase 3 — Finance scolaire
+   855→
+   856→Développer les tarifs, factures, paiements, reçus, caisses et premières écritures comptables.
+   857→
+   858→### Phase 4 — RH et paie
+   859→
+   860→Développer les dossiers du personnel, congés, éléments variables, paie et validation.
+   861→
+   862→### Phase 5 — Patrimoine et achats
+   863→
+   864→Développer les actifs, salles, équipements, maintenance, fournisseurs, achats et dépenses.
+   865→
+   866→### Phase 6 — Locations
+   867→
+   868→Développer la location de salles de fête et de véhicules, les contrats, les acomptes, les cautions, les états des lieux, la facturation et la rentabilité.
+   869→
+   870→### Phase 7 — Consolidation
+   871→
+   872→Renforcer les rapports, les contrôles, les performances, les sauvegardes, la sécurité et la formation des utilisateurs.
+   873→
+   874→Il est préférable de livrer un premier périmètre fonctionnel stable plutôt que de construire tous les modules superficiellement.
+   875→
+   876→---
+   877→
+   878→## 11. Critères d’acceptation principaux
+   879→
+   880→Le produit sera considéré comme conforme lorsque :
+   881→
+   882→- un utilisateur autorisé peut travailler sans connexion sur son périmètre ;
+   883→- les données locales sont conservées après une coupure ;
+   884→- la reconnexion synchronise les opérations sans doublon ;
+   885→- les conflits sensibles sont bloqués ou soumis à validation ;
+   886→- un élève peut être inscrit, affecté à une classe, facturé et payé ;
+   887→- un enseignant peut être affecté à plusieurs classes et sections ;
+   888→- un cours ne peut pas créer de conflit non autorisé ;
+   889→- une réservation de salle ou de véhicule bloque correctement la ressource ;
+   890→- chaque paiement et chaque écritures validés sont auditables ;
+   891→- les rôles ne voient que les données autorisées ;
+   892→- une sauvegarde peut être restaurée sur un environnement de test ;
+   893→- les rapports de direction rapprochent les données scolaires et financières.
+   894→
+   895→---
+   896→
+   897→## 12. Prompt maître pour concevoir le logiciel
+   898→
+   899→Copiez le prompt suivant dans un assistant de développement capable de produire une architecture et du code :
+   900→
+   901→```text
+   902→Tu es un architecte logiciel senior et un expert métier des systèmes de gestion scolaire, financière et patrimoniale.
+   903→
+   904→Conçois une solution nommée « SmartShule » en C# avec .NET 8 et Entity Framework Core 8. La solution doit gérer un établissement comportant plusieurs directions : maternelle, primaire, secondaire et sections spécialisées comme mathématiques, physique, biologie-chimie, lettres, langues et informatique. La structure doit être entièrement paramétrable.
+   905→
+   906→La solution doit être offline-first. Chaque poste de travail possède une base locale SQLite limitée à son périmètre autorisé. Un serveur central expose une API ASP.NET Core 8 et utilise une base SQL Server ou PostgreSQL. Le poste local doit enregistrer les opérations dans une Outbox. Le serveur doit les traiter de manière idempotente. La réception des changements doit utiliser un curseur de synchronisation. Les conflits doivent être détectés et stockés dans une table SyncConflict. Les paiements, écritures comptables, notes validées et réservations confirmées ne doivent jamais être écrasés silencieusement.
+   907→
+   908→Modules obligatoires :
+   909→1. paramétrage de l’établissement, années scolaires, directions, cycles, sections, niveaux, classes, salles, matières et tarifs ;
+   910→2. admissions, inscriptions, réinscriptions, élèves, responsables et documents ;
+   911→3. classes, groupes, sections, emplois du temps et détection des conflits ;
+   912→4. enseignants, affectations multiples, cours, présences, évaluations et bulletins ;
+   913→5. ressources humaines, contrats, congés, absences et paie paramétrable ;
+   914→6. frais académiques, factures, paiements, reçus, remises, impayés et rapprochement ;
+   915→7. comptabilité intégrée avec plan comptable, journaux, double entrée, centres de coûts, fournisseurs, dépenses et clôture ;
+   916→8. patrimoine, immobilisations, équipements, maintenance et inventaire ;
+   917→9. location de salles de fête avec disponibilités, devis, contrat, acompte, caution, facture et état des lieux ;
+   918→10. location de véhicules avec parc, disponibilité, contrats, kilométrage, carburant, caution, dommages et maintenance ;
+   919→11. achats, fournisseurs, commandes, réceptions et paiements ;
+   920→12. tableaux de bord, rapports, notifications, audit et sauvegardes.
+   921→
+   922→Rôles minimum : super administrateur, administrateur fonctionnel, direction générale, directeur de direction, secrétariat, enseignant, responsable pédagogique, RH, responsable paie, comptable, caissier, gestionnaire patrimoine, responsable locations et auditeur.
+   923→
+   924→Contraintes d’architecture :
+   925→- utiliser une architecture en couches ou Clean Architecture ;
+   926→- séparer Domain, Application, Infrastructure, Contracts, Api, Sync, Desktop et Tests ;
+   927→- utiliser des identifiants Guid, la concurrence optimiste, la suppression logique et l’audit ;
+   928→- ne jamais supprimer physiquement les documents financiers validés ;
+   929→- vérifier les droits côté serveur ;
+   930→- utiliser des transactions ;
+   931→- rendre les opérations de synchronisation idempotentes ;
+   932→- écrire des tests unitaires, d’intégration et de synchronisation ;
+   933→- fournir les migrations EF Core ;
+   934→- documenter les décisions d’architecture et les limites du mode hors connexion.
+   935→
+   936→Avant d’écrire le code, produis dans cet ordre :
+   937→A. hypothèses et questions qui changent réellement l’architecture ;
+   938→B. architecture globale ;
+   939→C. modèle de domaine et agrégats ;
+   940→D. schéma relationnel détaillé ;
+   941→E. règles métier ;
+   942→F. matrice des rôles et permissions ;
+   943→G. protocole de synchronisation ;
+   944→H. plan de réalisation par itérations ;
+   945→I. stratégie de tests ;
+   946→J. risques et mesures de réduction.
+   947→
+   948→Ensuite, implémente une première tranche verticale complète : authentification, rôles, année scolaire, direction, élève, inscription, base locale SQLite, Outbox, API centrale et synchronisation idempotente. Ne génère pas tout le système en une seule réponse. Produis du code compilable, avec les chemins de fichiers, les commandes .NET, les migrations, les tests et les instructions d’exécution.
+   949→```
+   950→
+   951→---
+   952→
+   953→## 13. Prompts spécialisés pour le développement
+   954→
+   955→### Prompt architecture et modèle de données
+   956→
+   957→```text
+   958→À partir du cahier des charges SmartShule, propose un modèle de domaine normalisé. Définis les agrégats, les entités, les value objects, les relations, les contraintes d’unicité, les index, les stratégies de concurrence et les règles de suppression. Distingue les données scolaires, les données RH, les documents et les transactions financières. Retourne un diagramme Mermaid ER, le code des entités C# et les configurations Fluent API EF Core 8. Vérifie qu’un enseignant peut être affecté à plusieurs classes, directions, sections et matières.
+   959→```
+   960→
+   961→### Prompt synchronisation offline-first
+   962→
+   963→```text
+   964→Implémente un moteur de synchronisation offline-first en C# .NET 8 entre une base locale SQLite et une API ASP.NET Core centrale. Utilise une Outbox locale, une Inbox serveur, des identifiants Guid, une clé d’idempotence, un curseur de téléchargement, des lots limités, des retries avec backoff et des états Pending, Sending, Acknowledged, Rejected, Conflict et Retrying. Ajoute la détection de concurrence optimiste et une table SyncConflict. Donne le schéma SQL, les classes C#, les endpoints, les transactions, les tests d’interruption réseau et les tests de réception en double. Ne fais jamais de résolution silencieuse pour les paiements, notes validées, écritures et réservations.
+   965→```
+   966→
+   967→### Prompt module scolarité
+   968→
+   969→```text
+   970→Implémente le module scolarité d’SmartShule : candidat, élève, responsable légal, dossier, année scolaire, direction, section, niveau, classe, groupe, inscription, réinscription, matière, affectation enseignant-classe, cours, séance, présence, évaluation et bulletin. Ajoute les règles de capacité de classe, d’affectation multiple des enseignants, de conflit de salle et de conflit d’horaire. Fournis les commandes, requêtes, validateurs, API, écran desktop, migrations et tests.
+   971→```
+   972→
+   973→### Prompt module comptabilité et paiements
+   974→
+   975→```text
+   976→Implémente le module financier d’SmartShule. Utilise decimal et non double. Gère un plan comptable paramétrable, des journaux de ventes scolaires, ventes salles, ventes véhicules, caisse, banque, achats, paie et opérations diverses. Gère les tarifs académiques, factures, lignes de facture, paiements partiels, reçus, remises autorisées, avoirs, remboursements, caisses, banques, fournisseurs, dépenses et écritures comptables en double entrée.
+   977→
+   978→Pour chaque ligne, calcule montant brut, remise, montant HT, taxe paramétrable, montant TTC et solde. Sépare toujours devis, contrat, facture et encaissement. Une facture validée doit débiter le compte client et créditer le compte de produit ainsi que le compte de taxe éventuel. Un encaissement doit débiter caisse ou banque et créditer le compte client. Un acompte doit être enregistré dans un compte d’avances reçues et une caution remboursable dans un compte de dettes, jamais directement comme produit.
+   979→
+   980→Utilise des comptes produits distincts ou mappables pour les frais académiques, la location de salles, les prestations annexes de salles, la location de véhicules, les kilomètres, le carburant, les chauffeurs et les pénalités. Ajoute les dimensions analytiques Activité, Site, Ressource, Contrat, Client, Période et DirectionResponsable. Chaque événement financier validé doit générer une écriture équilibrée et traçable. Interdis la suppression ou modification directe d’un paiement validé. Les corrections passent par avoir, remboursement ou écriture inverse référencée.
+   981→
+   982→Pour les locations, bloque les réservations concurrentes au niveau serveur, rapproche contrat, acompte, facture, caution, état des lieux et paiement, puis produis les rapports de chiffre d’affaires HT, taxes, encaissements, créances, coûts directs, amortissements, marge et rentabilité par salle ou véhicule. Fournis les règles de validation, les transactions, l’audit, les migrations EF Core, les rapports et les tests de rapprochement et de clôture.
+   983→```
+   984→
+   985→### Prompt module location de salles
+   986→
+   987→```text
+   988→Implémente la gestion commerciale de location de salles de fête. Une salle possède une capacité, des équipements, un calendrier, des tarifs et un état de disponibilité. Gère prospect, devis, réservation provisoire, réservation confirmée, contrat, acompte, caution, solde, facture, prestation additionnelle, état des lieux, annulation et pénalité. Empêche les chevauchements confirmés par une transaction serveur atomique. Relie chaque opération aux comptes clients, à la caisse et à la comptabilité. Fournis les entités, cas d’utilisation, API, écran de calendrier et tests de concurrence.
+   989→```
+   990→
+   991→### Prompt module location de véhicules
+   992→
+   993→```text
+   994→Implémente la gestion de location de véhicules. Gère véhicule, catégorie, immatriculation, kilométrage, assurance, maintenance, disponibilité, client, conducteur, contrat, acompte, caution, carburant, état de départ, état de retour, dommages, pénalités, facture et écriture comptable. Un véhicule réservé, immobilisé ou administrativement expiré ne doit pas être proposé. Ajoute les tests de chevauchement, de retour, de calcul des kilomètres et de facturation.
+   995→```
+   996→
+   997→### Prompt sécurité et audit
+   998→
+   999→```text
+  1000→Ajoute une sécurité complète à SmartShule : authentification, rôles, permissions par module, action et direction, journal d’audit immuable, gestion des sessions, renouvellement des jetons, validation serveur, protection contre les doublons et contrôle des opérations sensibles. Produis une matrice de permissions et des tests qui vérifient qu’un utilisateur ne peut pas consulter ou modifier les données hors de son périmètre.
+  1001→```
+  1002→
+  1003→### Prompt qualité et livraison
+  1004→
+  1005→```text
+  1006→Prépare la solution SmartShule pour la production. Ajoute tests unitaires, tests d’intégration API, tests de base locale, tests de synchronisation, tests de concurrence, tests de sécurité et tests de restauration de sauvegarde. Ajoute journalisation structurée, métriques, health checks, migrations, configuration par environnement, scripts de déploiement, documentation d’installation et guide de support. Vérifie que la solution compile avec .NET 8 et que les erreurs sont corrigées avant de livrer.
+  1007→```
+  1008→
+  1009→---
+  1010→
+  1011→## 14. Portail web parents, élèves et direction
+  1012→
+  1013→### 14.1 Objectif du portail
+  1014→
+  1015→Le système doit être complété par un portail web sécurisé accessible depuis un ordinateur ou un téléphone. Ce portail ne remplace pas l’application administrative interne. Il expose uniquement les informations et services autorisés pour les parents, les élèves et la direction.
+  1016→
+  1017→Le portail doit permettre :
+  1018→
+  1019→- aux parents de suivre l’évolution de leurs enfants ;
+  1020→- aux élèves de consulter leurs cours, devoirs et résultats autorisés ;
+  1021→- à la direction de publier des informations et de répondre aux familles ;
+  1022→- à l’administration de gérer les annonces, documents et demandes ;
+  1023→- de centraliser les échanges institutionnels sans donner aux parents un accès direct aux professeurs.
+  1024→
+  1025→La règle de communication demandée est la suivante : **les parents et les élèves communiquent avec la direction ou le secrétariat, mais pas directement avec les enseignants depuis le portail familial**. Les enseignants peuvent déposer des cours, devoirs, présences et observations dans le système interne. La direction contrôle les messages et peut transmettre une réponse officielle à la famille.
+  1026→
+  1027→### 14.2 Architecture d’intégration
+  1028→
+  1029→Le portail doit utiliser la même API centrale que l’application administrative. Il ne doit jamais accéder directement à la base de données. L’API applique l’authentification, les autorisations, le filtrage par élève et les règles de confidentialité.
+  1030→
+  1031→```text
+  1032→Application interne des services
+  1033→              │
+  1034→Application locale offline-first ── API centrale ASP.NET Core 8 ── Base centrale
+  1035→              │                                  │
+  1036→              └──────────────────────────────────┼── Portail web
+  1037→                                                 ├── Espace parent
+  1038→                                                 ├── Espace élève
+  1039→                                                 └── Espace direction/secrétariat
+  1040→```
+  1041→
+  1042→Le portail peut être développé avec Blazor WebAssembly, Blazor Server, React ou une autre interface web compatible avec l’API ASP.NET Core 8. Le choix de l’interface ne doit pas modifier les règles du domaine métier.
+  1043→
+  1044→Les données sensibles doivent être filtrées côté serveur. Masquer un bouton dans le navigateur ne constitue pas une autorisation suffisante.
+  1045→
+  1046→### 14.2.1 Architecture détaillée de l’API REST
+  1047→
+  1048→L’API REST constitue l’unique point d’accès applicatif entre le portail web et le serveur central. Le navigateur ne doit jamais se connecter directement à SQL Server, PostgreSQL, SQLite ou au stockage de fichiers.
+  1049→
+  1050→L’architecture recommandée est la suivante :
+  1051→
+  1052→```text
+  1053→Navigateur parent / élève
+  1054→          │ HTTPS
+  1055→          ▼
+  1056→WAF ou reverse proxy
+  1057→          │
+  1058→          ▼
+  1059→ASP.NET Core 8 API
+  1060→ ┌──────────────────────────────┐
+  1061→ │ Authentification              │
+  1062→ │ Autorisation et périmètre     │
+  1063→ │ Validation des requêtes       │
+  1064→ │ Cas d’utilisation métier      │
+  1065→ │ Journalisation et audit       │
+  1066→ │ Limitation de débit           │
+  1067→ └──────────────┬───────────────┘
+  1068→                │
+  1069→        Services applicatifs
+  1070→       ┌────────┼────────┐
+  1071→       ▼        ▼        ▼
+  1072→ Base centrale  Stockage  Service notifications
+  1073→ SQL Server     fichiers  courriel/SMS
+  1074→```
+  1075→
+  1076→La solution doit respecter une séparation en couches :
+  1077→
+  1078→```text
+  1079→SmartShule.Api              Contrôleurs REST, middleware et configuration HTTP
+  1080→SmartShule.Application      Commandes, requêtes, DTO, validateurs et autorisations
+  1081→SmartShule.Domain           Entités, règles métier et événements de domaine
+  1082→SmartShule.Infrastructure   EF Core, identité, stockage fichiers, courriels et SMS
+  1083→SmartShule.Contracts        Contrats versionnés des requêtes et réponses
+  1084→SmartShule.Tests             Tests unitaires, intégration et sécurité
+  1085→```
+  1086→
+  1087→Les contrôleurs ne doivent pas contenir les règles métier. Ils doivent recevoir une requête, vérifier sa forme, appeler un cas d’utilisation et retourner une réponse HTTP cohérente.
+  1088→
+  1089→### 14.2.2 Principes REST et versionnement
+  1090→
+  1091→L’API doit utiliser des ressources métier et des verbes HTTP standards : `GET` pour consulter, `POST` pour créer une action ou une ressource, `PUT` pour remplacer une ressource complète, `PATCH` pour une modification partielle contrôlée et `DELETE` uniquement lorsque la suppression est autorisée. Pour les données sensibles et les transactions, la suppression sera généralement remplacée par une désactivation, une annulation ou une clôture.
+  1092→
+  1093→L’URL doit être versionnée dès la première version :
+  1094→
+  1095→```text
+  1096→https://api.ecole.example.com/api/v1/...
+  1097→```
+  1098→
+  1099→Une nouvelle version majeure ne doit pas modifier silencieusement la signification d’un champ ou d’une règle métier. Les anciennes versions doivent avoir une date de fin annoncée et une période de coexistence.
+  1100→
+  1101→Les réponses doivent utiliser `application/json` et suivre une structure homogène. Une erreur doit comporter un identifiant de corrélation, un code fonctionnel, un message lisible et, si nécessaire, une liste de détails de validation.
+  1102→
+  1103→Exemple :
+  1104→
+  1105→```json
+  1106→{
+  1107→  "type": "https://api.ecole.example.com/errors/validation",
+  1108→  "title": "La requête contient des erreurs",
+  1109→  "status": 422,
+  1110→  "code": "VALIDATION_ERROR",
+  1111→  "traceId": "01JEXAMPLE",
+  1112→  "errors": {
+  1113→    "dueDate": ["La date limite doit être postérieure à la date de publication."]
+  1114→  }
+  1115→}
+  1116→```
+  1117→
+  1118→L’API doit prendre en charge la pagination par curseur pour les listes importantes. Les réponses doivent accepter des paramètres de filtre, de tri et de limite contrôlée. Le serveur doit imposer une limite maximale afin d’éviter qu’un parent ou un client malveillant ne demande toute la base.
+  1119→
+  1120→### 14.2.3 Authentification
+  1121→
+  1122→L’API doit utiliser **OpenID Connect et OAuth 2.0 avec Authorization Code Flow et PKCE** pour le portail web. Le portail ne doit pas stocker de mot de passe utilisateur dans le navigateur et ne doit pas utiliser un flux implicite.
+  1123→
+  1124→Le serveur d’identité peut être intégré à ASP.NET Core Identity avec un fournisseur OpenID Connect compatible. Les éléments minimum sont :
+  1125→
+  1126→- identifiant unique du compte ;
+  1127→- mot de passe haché avec un algorithme adapté ;
+  1128→- vérification du courriel ou du téléphone ;
+  1129→- expiration des sessions ;
+  1130→- révocation des sessions ;
+  1131→- limitation des tentatives ;
+  1132→- récupération de compte ;
+  1133→- authentification multifactorielle optionnelle pour les parents et renforcée pour la direction ;
+  1134→- rotation des refresh tokens ;
+  1135→- détection de réutilisation d’un refresh token.
+  1136→
+  1137→Pour une application web classique, les jetons doivent être conservés dans une session serveur ou dans un cookie `HttpOnly`, `Secure` et `SameSite` correctement configuré. Ils ne doivent pas être exposés à JavaScript dans `localStorage` lorsque cette architecture peut être évitée.
+  1138→
+  1139→Le jeton d’accès doit être de courte durée. Il doit contenir uniquement les revendications nécessaires, par exemple :
+  1140→
+  1141→```json
+  1142→{
+  1143→  "sub": "user-global-id",
+  1144→  "aud": "ecole-fute-portal",
+  1145→  "iss": "https://identity.ecole.example.com",
+  1146→  "scope": "portal.read portal.write",
+  1147→  "role": "Parent",
+  1148→  "tenant_id": "school-id",
+  1149→  "session_id": "session-id",
+  1150→  "exp": 1780000000
+  1151→}
+  1152→```
+  1153→
+  1154→Le rôle contenu dans le jeton ne suffit pas à déterminer les élèves visibles. Le serveur doit interroger le rattachement officiel entre le compte parent et les dossiers élèves à chaque opération sensible ou depuis un cache court invalidé lors d’un changement.
+  1155→
+  1156→### 14.2.4 Autorisation par rôle et par périmètre
+  1157→
+  1158→L’API doit appliquer une autorisation en profondeur :
+  1159→
+  1160→1. **Autorisation de fonction :** le compte peut-il utiliser cette catégorie d’API ?
+  1161→2. **Autorisation d’action :** peut-il consulter, créer, modifier, publier ou clôturer ?
+  1162→3. **Autorisation de périmètre :** cette donnée appartient-elle à son ou ses enfants, sa classe, sa direction ou son établissement ?
+  1163→4. **Autorisation d’état :** la donnée est-elle publiée, validée ou encore confidentielle ?
+  1164→
+  1165→Exemples :
+  1166→
+  1167→| Appel | Contrôle obligatoire |
+  1168→|---|---|
+  1169→| Consulter un élève | Le compte parent est rattaché à cet élève |
+  1170→| Télécharger un bulletin | Le bulletin est publié et concerne l’enfant rattaché |
+  1171→| Consulter un devoir | Le devoir est publié pour la classe ou le groupe de l’élève |
+  1172→| Déposer un devoir | L’élève est inscrit dans la classe et le devoir est ouvert |
+  1173→| Créer une demande | Le parent est authentifié et choisit un enfant autorisé |
+  1174→| Répondre à une demande | L’utilisateur appartient au service ou à la direction autorisée |
+  1175→| Publier une note | Le rôle possède la permission de publication et la période est ouverte |
+  1176→| Consulter un paiement | Le parent est le responsable autorisé ou le compte est administratif habilité |
+  1177→
+  1178→Les politiques d’autorisation peuvent être implémentées avec des policies ASP.NET Core et des handlers dédiés, mais la vérification du périmètre doit rester dans le cas d’utilisation et non uniquement dans l’attribut du contrôleur.
+  1179→
+  1180→### 14.2.5 Catalogue des endpoints principaux
+  1181→
+  1182→Les endpoints suivants constituent le contrat initial de l’API. Les noms peuvent évoluer, mais les responsabilités doivent rester séparées.
+  1183→
+  1184→#### Identité et profil
+  1185→
+  1186→```text
+  1187→GET    /api/v1/me
+  1188→GET    /api/v1/me/children
+  1189→PATCH  /api/v1/me/contact-preferences
+  1190→POST   /api/v1/me/sessions/revoke
+  1191→GET    /api/v1/me/notifications
+  1192→POST   /api/v1/me/notifications/{id}/read
+  1193→```
+  1194→
+  1195→`GET /me/children` ne retourne que les élèves officiellement rattachés au compte connecté. Les informations retournées doivent être minimales : identifiant, nom affichable, photo autorisée, classe publiée et statut du compte.
+  1196→
+  1197→#### Tableau de bord parent
+  1198→
+  1199→```text
+  1200→GET /api/v1/parent/dashboard?childId={id}&period={period}
+  1201→GET /api/v1/parent/children/{childId}/summary
+  1202→GET /api/v1/parent/children/{childId}/attendance
+  1203→GET /api/v1/parent/children/{childId}/timetable
+  1204→GET /api/v1/parent/children/{childId}/grades
+  1205→GET /api/v1/parent/children/{childId}/report-cards
+  1206→GET /api/v1/parent/children/{childId}/fees
+  1207→```
+  1208→
+  1209→Le serveur doit vérifier le rattachement avant d’utiliser `childId`. Un identifiant deviné ou remplacé dans l’URL ne doit jamais permettre l’accès aux données d’un autre élève.
+  1210→
+  1211→#### Cours et devoirs
+  1212→
+  1213→```text
+  1214→GET  /api/v1/students/{studentId}/courses
+  1215→GET  /api/v1/students/{studentId}/courses/{courseId}
+  1216→GET  /api/v1/students/{studentId}/assignments
+  1217→GET  /api/v1/students/{studentId}/assignments/{assignmentId}
+  1218→POST /api/v1/students/{studentId}/assignments/{assignmentId}/submissions
+  1219→GET  /api/v1/students/{studentId}/submissions/{submissionId}
+  1220→POST /api/v1/students/{studentId}/submissions/{submissionId}/finalize
+  1221→```
+  1222→
+  1223→Le compte parent peut consulter les devoirs de son enfant, mais seul le compte élève peut déposer et finaliser une remise, sauf procédure administrative exceptionnelle.
+  1224→
+  1225→#### Demandes adressées à la direction
+  1226→
+  1227→```text
+  1228→GET  /api/v1/parent/requests
+  1229→POST /api/v1/parent/requests
+  1230→GET  /api/v1/parent/requests/{requestId}
+  1231→POST /api/v1/parent/requests/{requestId}/messages
+  1232→POST /api/v1/parent/requests/{requestId}/close
+  1233→GET  /api/v1/admin/requests
+  1234→POST /api/v1/admin/requests/{requestId}/assign
+  1235→POST /api/v1/admin/requests/{requestId}/reply
+  1236→POST /api/v1/admin/requests/{requestId}/status
+  1237→```
+  1238→
+  1239→Les endpoints `admin` ne doivent être accessibles qu’à la direction, au secrétariat ou à un service explicitement autorisé. Une affectation interne ne doit pas exposer aux parents les notes internes ou les utilisateurs internes non nécessaires.
+  1240→
+  1241→#### Annonces et publications
+  1242→
+  1243→```text
+  1244→GET  /api/v1/announcements
+  1245→GET  /api/v1/announcements/{announcementId}
+  1246→POST /api/v1/admin/announcements
+  1247→POST /api/v1/admin/announcements/{announcementId}/publish
+  1248→POST /api/v1/admin/announcements/{announcementId}/archive
+  1249→```
+  1250→
+  1251→Les annonces doivent être filtrées selon la cible : établissement, direction, classe, section ou groupe. Le serveur doit exclure les annonces en brouillon ou expirées.
+  1252→
+  1253→#### Documents et fichiers
+  1254→
+  1255→```text
+  1256→POST /api/v1/files/upload-intents
+  1257→PUT  /api/v1/files/{fileId}/content
+  1258→POST /api/v1/files/{fileId}/complete
+  1259→GET  /api/v1/files/{fileId}/download-url
+  1260→DELETE /api/v1/files/{fileId}
+  1261→```
+  1262→
+  1263→Le téléchargement doit retourner une URL temporaire ou un flux autorisé. Le serveur doit vérifier le rattachement et le droit d’accès avant de générer cette URL. La suppression doit être logique et interdite si le fichier est rattaché à une pièce officielle ou financière.
+  1264→
+  1265→### 14.2.6 Écriture des commandes et idempotence
+  1266→
+  1267→Toutes les commandes qui créent une donnée ou déclenchent une action doivent accepter une clé `Idempotency-Key` unique par opération. Elle est obligatoire pour :
+  1268→
+  1269→- création d’une demande ;
+  1270→- dépôt d’un devoir ;
+  1271→- finalisation d’un dépôt ;
+  1272→- paiement ou initialisation de paiement ;
+  1273→- envoi d’un message ;
+  1274→- création d’une réservation ;
+  1275→- publication ou clôture d’une ressource.
+  1276→
+  1277→Exemple :
+  1278→
+  1279→```http
+  1280→POST /api/v1/parent/requests HTTP/1.1
+  1281→Authorization: Bearer <access-token>
+  1282→Idempotency-Key: 3d7f3c1e-...
+  1283→Content-Type: application/json
+  1284→```
+  1285→
+  1286→Le serveur doit enregistrer la clé avec le compte, l’empreinte de la requête, le résultat et la date d’expiration. Une même clé avec une requête différente doit être rejetée. Une répétition identique doit retourner le même résultat sans créer un doublon.
+  1287→
+  1288→### 14.2.7 Validation, concurrence et transactions
+  1289→
+  1290→Les DTO d’entrée doivent être validés avec des règles explicites : longueur, format, taille des fichiers, dates, statut autorisé et relation avec l’élève. Les validateurs doivent être exécutés côté serveur même si le formulaire web effectue déjà une validation.
+  1291→
+  1292→Les ressources publiées doivent utiliser une concurrence optimiste avec une version ou un `ETag`. Une modification basée sur une version ancienne doit retourner `412 Precondition Failed` ou `409 Conflict` selon la convention adoptée.
+  1293→
+  1294→Les opérations suivantes doivent être atomiques :
+  1295→
+  1296→- rattachement d’un parent à un élève ;
+  1297→- création d’une demande et de son premier message ;
+  1298→- finalisation d’une remise de devoir ;
+  1299→- publication d’un devoir ou d’une annonce ;
+  1300→- émission d’un reçu ou enregistrement d’un paiement ;
+  1301→- réservation d’une salle ou d’un véhicule ;
+  1302→- génération d’une écriture comptable.
+  1303→
+  1304→Une transaction doit valider la donnée métier, l’audit et l’événement de notification destiné à être traité. L’envoi réel d’un courriel ou SMS doit être réalisé de manière asynchrone depuis une file fiable, afin qu’une panne du fournisseur de messagerie ne fasse pas échouer l’opération métier déjà validée.
+  1305→
+  1306→### 14.2.8 Synchronisation et événements
+  1307→
+  1308→Le portail fonctionne principalement en ligne. Il doit toutefois tolérer une coupure momentanée lors de la consultation et réessayer les commandes idempotentes. Les données créées par l’application interne offline-first doivent être exposées au portail uniquement après réception, validation et publication sur le serveur central.
+  1309→
+  1310→Le serveur peut utiliser un pattern **Outbox** pour publier les événements suivants : `GradePublished`, `ReportCardPublished`, `AssignmentPublished`, `SubmissionReceived`, `AnnouncementPublished`, `ParentRequestCreated`, `ParentRequestAnswered` et `PaymentConfirmed`.
+  1311→
+  1312→Un worker traite les événements et crée les notifications. L’événement doit comporter un identifiant unique afin d’éviter les notifications en double. Les échecs doivent être réessayés avec un nombre maximum de tentatives et placés dans une file d’erreur après dépassement.
+  1313→
+  1314→### 14.2.9 Sécurité HTTP et protection de l’API
+  1315→
+  1316→Les mesures minimum sont :
+  1317→
+  1318→- HTTPS obligatoire, avec redirection du HTTP et en-têtes de sécurité ;
+  1319→- validation stricte de l’origine CORS, sans `AllowAnyOrigin` pour les requêtes authentifiées ;
+  1320→- protection CSRF si les cookies sont utilisés ;
+  1321→- limitation de débit par IP, compte et endpoint ;
+  1322→- protection contre l’énumération des comptes et des élèves ;
+  1323→- contrôle de taille et de type des requêtes ;
+  1324→- analyse antivirus des pièces jointes ;
+  1325→- journalisation des refus sans enregistrer de mot de passe ni de jeton ;
+  1326→- masquage des données personnelles dans les logs ;
+  1327→- protection contre l’injection SQL par EF Core et requêtes paramétrées ;
+  1328→- en-têtes `Content-Security-Policy`, `X-Content-Type-Options` et `Referrer-Policy` ;
+  1329→- désactivation des messages d’erreur détaillés en production ;
+  1330→- secrets conservés dans un coffre ou des variables sécurisées, jamais dans le dépôt Git.
+  1331→
+  1332→Les endpoints de connexion, de récupération de compte, de dépôt de fichiers et de messagerie doivent avoir des limites de débit plus strictes. Les administrateurs doivent disposer d’une authentification renforcée et d’une journalisation plus détaillée.
+  1333→
+  1334→### 14.2.10 Journalisation, audit et observabilité
+  1335→
+  1336→Chaque requête doit recevoir un `traceId` et un `requestId`. Les journaux techniques doivent enregistrer la méthode, le chemin, le statut, la durée, la taille et le résultat général. Ils ne doivent pas enregistrer les mots de passe, les jetons, les pièces jointes ou les messages privés en clair.
+  1337→
+  1338→Les événements d’audit métier doivent enregistrer : utilisateur, rôle, établissement, adresse IP éventuellement hachée ou protégée, poste ou session, action, ressource, ancienne version, nouvelle version, motif et résultat.
+  1339→
+  1340→L’API doit exposer des health checks protégés :
+  1341→
+  1342→```text
+  1343→GET /health/live
+  1344→GET /health/ready
+  1345→```
+  1346→
+  1347→Le premier indique que le processus fonctionne. Le second vérifie les dépendances nécessaires, sans révéler de détails sensibles. Les métriques doivent surveiller les temps de réponse, les erreurs 4xx et 5xx, les conflits de version, les fichiers rejetés, les événements en attente et les notifications échouées.
+  1348→
+  1349→### 14.2.11 Déploiement recommandé
+  1350→
+  1351→Le serveur central doit être déployé dans des environnements séparés : développement, test, préproduction et production. Chaque environnement doit posséder ses bases, ses secrets et ses clés d’identité propres.
+  1352→
+  1353→Une configuration de production minimale comprend :
+  1354→
+  1355→- reverse proxy ou WAF ;
+  1356→- certificat TLS renouvelé automatiquement ;
+  1357→- API ASP.NET Core 8 sans accès public à la base ;
+  1358→- base centrale sur réseau privé ;
+  1359→- stockage de fichiers privé ;
+  1360→- worker de notifications ;
+  1361→- sauvegardes chiffrées ;
+  1362→- supervision et alertes ;
+  1363→- plan de restauration testé ;
+  1364→- migrations de base exécutées de manière contrôlée.
+  1365→
+  1366→Les migrations destructives doivent être interdites dans le déploiement automatique. Toute modification de schéma doit être compatible avec la version précédente pendant la période de déploiement progressif.
+  1367→
+  1368→### 14.2.12 Tests obligatoires de l’API
+  1369→
+  1370→Avant la mise en production, les tests doivent couvrir :
+  1371→
+  1372→1. authentification valide, expirée, révoquée et MFA ;
+  1373→2. isolation entre deux familles ;
+  1374→3. interdiction pour un parent de modifier une note ou une présence ;
+  1375→4. accès aux seuls bulletins publiés ;
+  1376→5. accès d’un élève à ses seuls devoirs ;
+  1377→6. impossibilité de réutiliser une remise d’un autre élève ;
+  1378→7. idempotence des commandes répétées ;
+  1379→8. conflit de version sur une publication ;
+  1380→9. limitation de débit ;
+  1381→10. téléchargement interdit d’un fichier non rattaché ;
+  1382→11. protection CORS et CSRF ;
+  1383→12. absence de données sensibles dans les logs ;
+  1384→13. fonctionnement après redémarrage du worker de notifications ;
+  1385→14. restauration d’une sauvegarde et reprise du service.
+  1386→
+  1387→L’API ne doit pas être déclarée prête sur la seule base de tests unitaires. Des tests d’intégration doivent exécuter les contrôleurs, l’authentification, les policies, la base de test, le stockage de fichiers et le mécanisme d’idempotence.
+  1388→
+  1389→### 14.2.13 Spécifications techniques d’implémentation de l’API
+  1390→
+  1391→#### A. Configuration du projet
+  1392→
+  1393→Le projet `SmartShule.Api` doit cibler `net8.0` et activer les fonctionnalités suivantes :
+  1394→
+  1395→```xml
+  1396→<TargetFramework>net8.0</TargetFramework>
+  1397→<Nullable>enable</Nullable>
+  1398→<ImplicitUsings>enable</ImplicitUsings>
+  1399→<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  1400→```
+  1401→
+  1402→Les dépendances principales sont :
+  1403→
+  1404→```text
+  1405→Microsoft.AspNetCore.Authentication.JwtBearer
+  1406→Microsoft.AspNetCore.OpenApi
+  1407→Microsoft.EntityFrameworkCore
+  1408→Microsoft.EntityFrameworkCore.SqlServer ou Npgsql.EntityFrameworkCore.PostgreSQL
+  1409→Microsoft.EntityFrameworkCore.Design
+  1410→FluentValidation.AspNetCore
+  1411→AspNetCoreRateLimit ou Microsoft.AspNetCore.RateLimiting
+  1412→Serilog.AspNetCore
+  1413→Swashbuckle.AspNetCore
+  1414→Microsoft.AspNetCore.Mvc.Testing
+  1415→Testcontainers ou une base de test dédiée
+  1416→```
+  1417→
+  1418→Les versions des packages doivent être alignées sur .NET 8 et verrouillées dans le fichier de projet ou dans un fichier de gestion centralisée des packages. Les dépendances non nécessaires ne doivent pas être ajoutées au projet API.
+  1419→
+  1420→#### B. Organisation des projets
+  1421→
+  1422→```text
+  1423→src/
+  1424→├── SmartShule.Api/
+  1425→│   ├── Controllers/
+  1426→│   ├── Middleware/
+  1427→│   ├── Extensions/
+  1428→│   ├── OpenApi/
+  1429→│   └── Program.cs
+  1430→├── SmartShule.Application/
+  1431→│   ├── Abstractions/
+  1432→│   ├── Behaviors/
+  1433→│   ├── Features/
+  1434→│   │   ├── ParentPortal/
+  1435→│   │   ├── StudentPortal/
+  1436→│   │   ├── Assignments/
+  1437→│   │   ├── Requests/
+  1438→│   │   └── Notifications/
+  1439→│   └── Common/
+  1440→├── SmartShule.Domain/
+  1441→├── SmartShule.Infrastructure/
+  1442→└── SmartShule.Contracts/
+  1443→tests/
+  1444→├── SmartShule.UnitTests/
+  1445→├── SmartShule.IntegrationTests/
+  1446→└── SmartShule.SecurityTests/
+  1447→```
+  1448→
+  1449→Les contrôleurs doivent rester minces. Un contrôleur ne doit pas appeler directement `DbContext` pour appliquer une règle métier. Il doit déléguer à une commande ou à une requête de l’application.
+  1450→
+  1451→#### C. Contrats d’API
+  1452→
+  1453→Les entités EF Core ne doivent jamais être retournées directement au portail. Chaque endpoint doit utiliser des DTO dédiés : `ChildSummaryDto`, `ParentDashboardDto`, `AssignmentDto`, `SubmissionDto`, `ParentRequestDto`, `AnnouncementDto` et `ProblemDetailsDto`.
+  1454→
+  1455→Exemple de contrat de tableau de bord :
+  1456→
+  1457→```csharp
+  1458→public sealed record ParentDashboardDto(
+  1459→    Guid ChildId,
+  1460→    string DisplayName,
+  1461→    string? ClassName,
+  1462→    IReadOnlyList<AlertDto> Alerts,
+  1463→    IReadOnlyList<UpcomingAssignmentDto> UpcomingAssignments,
+  1464→    IReadOnlyList<PublishedReportCardDto> ReportCards,
+  1465→    FeeSummaryDto? Fees);
+  1466→```
+  1467→
+  1468→Les DTO de sortie ne doivent pas contenir de données internes telles que les notes privées, les identifiants techniques inutiles, les mots de passe, les chemins de fichiers ou les commentaires non publiés.
+  1469→
+  1470→#### D. Pipeline HTTP obligatoire
+  1471→
+  1472→L’ordre du pipeline doit garantir que les requêtes sont sécurisées avant leur traitement :
+  1473→
+  1474→```text
+  1475→Exception handler
+  1476→→ HTTPS redirection / HSTS en production
+  1477→→ Correlation ID
+  1478→→ Serilog request logging
+  1479→→ Security headers
+  1480→→ CORS strict
+  1481→→ Rate limiting
+  1482→→ Authentication
+  1483→→ Authorization
+  1484→→ Routing
+  1485→→ Validation
+  1486→→ Controllers / Endpoints
+  1487→```
+  1488→
+  1489→Le middleware d’exception doit retourner `ProblemDetails` et ne doit pas exposer la trace .NET en production. Il doit inscrire l’exception complète dans un système de journalisation protégé avec le `traceId`.
+  1490→
+  1491→#### E. Configuration sécurisée
+  1492→
+  1493→Les paramètres sensibles doivent être fournis par variables d’environnement, gestionnaire de secrets ou coffre sécurisé : chaîne de connexion, secret d’identité, certificats, clés de stockage et clés de fournisseurs de notification.
+  1494→
+  1495→Exemple de configuration non sensible :
+  1496→
+  1497→```json
+  1498→{
+  1499→  "Api": {
+  1500→    "PublicBaseUrl": "https://api.smartshule.example",
+  1501→    "MaxPageSize": 100,
+  1502→    "DefaultPageSize": 25,
+  1503→    "UploadMaxBytes": 10485760
+  1504→  },
+  1505→  "Authentication": {
+  1506→    "Authority": "https://identity.smartshule.example",
+  1507→    "Audience": "smartshule-portal",
+  1508→    "RequireHttpsMetadata": true
+  1509→  },
+  1510→  "Cors": {
+  1511→    "AllowedOrigins": ["https://portal.smartshule.example"]
+  1512→  }
+  1513→}
+  1514→```
+  1515→
+  1516→La configuration doit être validée au démarrage. Si une valeur obligatoire manque en production, l’application doit refuser de démarrer plutôt que fonctionner avec une valeur par défaut dangereuse.
+  1517→
+  1518→#### F. Authentification JWT Bearer
+  1519→
+  1520→L’API doit valider au minimum l’émetteur, l’audience, la signature, la durée de validité et la présence du sujet utilisateur. Les tokens expirés, révoqués ou destinés à une autre API doivent être rejetés.
+  1521→
+  1522→Exemple de configuration conceptuelle :
+  1523→
+  1524→```csharp
+  1525→builder.Services.AddAuthentication("Bearer")
+  1526→    .AddJwtBearer("Bearer", options =>
+  1527→    {
+  1528→        options.Authority = configuration["Authentication:Authority"]!;
+  1529→        options.Audience = configuration["Authentication:Audience"]!;
+  1530→        options.RequireHttpsMetadata = true;
+  1531→        options.MapInboundClaims = false;
+  1532→        options.TokenValidationParameters.ValidateIssuer = true;
+  1533→        options.TokenValidationParameters.ValidateAudience = true;
+  1534→        options.TokenValidationParameters.ValidateLifetime = true;
+  1535→        options.TokenValidationParameters.ClockSkew = TimeSpan.FromSeconds(30);
+  1536→    });
+  1537→```
+  1538→
+  1539→Le portail ne doit pas accepter un token portant seulement un rôle sans vérifier que le compte est actif et que son rattachement métier est toujours valide.
+  1540→
+  1541→#### G. Policies et autorisation métier
+  1542→
+  1543→Les policies minimales sont : `PortalParentRead`, `PortalParentWrite`, `PortalStudentRead`, `PortalStudentSubmit`, `DirectionManageRequests`, `DirectionPublishContent`, `FinanceViewOwnFees` et `AdminAuditRead`.
+  1544→
+  1545→Chaque commande doit utiliser un service tel que `IAccessScopeService` :
+  1546→
+  1547→```csharp
+  1548→Task<bool> CanParentAccessChildAsync(
+  1549→    Guid userId,
+  1550→    Guid childId,
+  1551→    CancellationToken cancellationToken);
+  1552→```
+  1553→
+  1554→Ce service doit vérifier le rattachement en base centrale. Il ne doit pas faire confiance à un `childId` transmis par le navigateur ni à une simple valeur de rôle.
+  1555→
+  1556→#### H. Accès aux données avec EF Core
+  1557→
+  1558→Les requêtes de consultation doivent être en lecture seule lorsque cela est possible : `AsNoTracking()`. Les projections doivent sélectionner uniquement les colonnes utiles. Les listes doivent être paginées et indexées.
+  1559→
+  1560→Les index prioritaires sont :
+  1561→
+  1562→```text
+  1563→ParentStudentLink(UserId, StudentId, IsActive)
+  1564→Enrollment(StudentId, AcademicYearId, Status)
+  1565→Assignment(ClassId, PublishedAt, DueAt)
+  1566→Submission(StudentId, AssignmentId, Version)
+  1567→ParentRequest(ParentId, Status, UpdatedAt)
+  1568→Announcement(TargetType, TargetId, PublishedAt, ExpiresAt)
+  1569→AuditLog(UserId, CreatedAt)
+  1570→IdempotencyRecord(UserId, Key)
+  1571→```
+  1572→
+  1573→Les filtres globaux EF Core peuvent être utilisés pour l’archivage, mais la vérification de périmètre parent–élève doit rester explicite dans les requêtes sensibles afin d’éviter une erreur de configuration de filtre.
+  1574→
+  1575→#### I. Pattern CQRS léger
+  1576→
+  1577→Le portail doit utiliser des requêtes et commandes séparées :
+  1578→
+  1579→```text
+  1580→GetParentDashboardQuery
+  1581→GetChildAssignmentsQuery
+  1582→CreateParentRequestCommand
+  1583→AddRequestMessageCommand
+  1584→SubmitAssignmentCommand
+  1585→FinalizeSubmissionCommand
+  1586→PublishAnnouncementCommand
+  1587→```
+  1588→
+  1589→Chaque handler doit :
+  1590→
+  1591→1. vérifier l’utilisateur courant ;
+  1592→2. vérifier le périmètre de données ;
+  1593→3. charger uniquement les données nécessaires ;
+  1594→4. appliquer les règles métier ;
+  1595→5. enregistrer la transaction et l’audit ;
+  1596→6. publier l’événement Outbox si une notification est nécessaire ;
+  1597→7. retourner un DTO ou un résultat métier.
+  1598→
+  1599→#### J. Codes HTTP à respecter
+  1600→
+  1601→| Situation | Réponse |
+  1602→|---|---:|
+  1603→| Consultation ou commande réussie | `200 OK` |
+  1604→| Ressource créée | `201 Created` |
+  1605→| Opération acceptée en arrière-plan | `202 Accepted` |
+  1606→| Requête valide sans contenu | `204 No Content` |
+  1607→| Token absent ou invalide | `401 Unauthorized` |
+  1608→| Compte authentifié mais action interdite | `403 Forbidden` |
+  1609→| Ressource inexistante ou non visible | `404 Not Found` |
+  1610→| Conflit de version ou doublon métier | `409 Conflict` |
+  1611→| Précondition `ETag` non respectée | `412 Precondition Failed` |
+  1612→| Validation métier incorrecte | `422 Unprocessable Entity` |
+  1613→| Trop de requêtes | `429 Too Many Requests` |
+  1614→| Erreur inattendue | `500 Internal Server Error` |
+  1615→
+  1616→Pour éviter de révéler l’existence d’un élève ou d’un document, l’API peut retourner `404 Not Found` lorsqu’un utilisateur authentifié ne possède pas le droit de voir la ressource.
+  1617→
+  1618→#### K. Idempotence et transactions
+  1619→
+  1620→Un middleware ou un behavior applicatif doit traiter `Idempotency-Key` pour les commandes. La clé doit être liée à l’utilisateur et à l’empreinte de la requête. La réponse originale doit être stockée dans `IdempotencyRecord` pendant une durée configurable.
+  1621→
+  1622→La transaction doit inclure la ressource métier, l’audit et l’événement Outbox :
+  1623→
+  1624→```text
+  1625→BEGIN TRANSACTION
+  1626→  vérifier clé d’idempotence
+  1627→  vérifier autorisation et version
+  1628→  modifier la ressource
+  1629→  écrire AuditLog
+  1630→  écrire OutboxMessage
+  1631→  écrire IdempotencyRecord
+  1632→COMMIT
+  1633→```
+  1634→
+  1635→Le worker de notification ne doit pas modifier la transaction métier. Il consomme l’Outbox, envoie le message et inscrit le résultat dans `NotificationDelivery`.
+  1636→
+  1637→#### L. Upload et téléchargement sécurisé
+  1638→
+  1639→Le serveur doit contrôler l’extension, le type MIME réel, la taille et l’empreinte du fichier. Le nom envoyé par l’utilisateur ne doit pas devenir le nom physique du fichier. Les fichiers doivent être stockés sous un identifiant aléatoire dans un conteneur privé.
+  1640→
+  1641→Le flux recommandé est : intention d’envoi, transfert vers le stockage privé, confirmation, association au devoir ou à la demande. Une URL de téléchargement doit être courte, signée et générée seulement après autorisation.
+  1642→
+  1643→#### M. Documentation OpenAPI
+  1644→
+  1645→Swagger/OpenAPI doit être activé en développement et en préproduction. En production, sa disponibilité doit être protégée par authentification administrative ou désactivée selon la politique de sécurité.
+  1646→
+  1647→La documentation doit présenter les schémas DTO, les réponses d’erreur, les scopes nécessaires, les exemples de pagination, les clés d’idempotence et les en-têtes `If-Match` / `ETag`.
+  1648→
+  1649→#### N. Tests et définition de terminé
+  1650→
+  1651→Une fonctionnalité API est terminée seulement si elle possède :
+  1652→
+  1653→- DTO d’entrée et de sortie ;
+  1654→- validation serveur ;
+  1655→- policy ou vérification de permission ;
+  1656→- contrôle du périmètre de données ;
+  1657→- handler applicatif ;
+  1658→- contrôleur ou endpoint ;
+  1659→- audit ;
+  1660→- gestion d’erreur ;
+  1661→- test unitaire ;
+  1662→- test d’intégration avec base de test ;
+  1663→- test négatif d’accès à une autre famille ;
+  1664→- documentation OpenAPI ;
+  1665→- métrique ou journal pertinent.
+  1666→
+  1667→Le pipeline CI doit exécuter `dotnet restore`, `dotnet build --no-restore`, les tests avec couverture, l’analyse statique et la vérification des vulnérabilités des dépendances. Aucun secret ne doit être présent dans le dépôt et aucune alerte critique ne doit être ignorée sans justification documentée.
+  1668→
+  1669→### 14.2.14 Stratégie de synchronisation hors-ligne des postes
+  1670→
+  1671→#### A. Objectif et périmètre
+  1672→
+  1673→SmartShule doit fonctionner même lorsque le poste d’un service administratif ou d’un professeur ne peut pas joindre le serveur central. Le mode hors-ligne ne doit pas créer une seconde école indépendante. Il doit permettre de continuer un travail limité, puis de transmettre des opérations contrôlées au serveur central dès que la connexion est rétablie.
+  1674→
+  1675→La synchronisation concerne deux catégories de postes :
+  1676→
+  1677→| Poste | Peut travailler hors-ligne sur | Ne doit pas confirmer hors-ligne |
+  1678→|---|---|---|
+  1679→| Administration | dossiers, inscriptions préparatoires, affectations autorisées, présences, documents légers, demandes internes | clôture comptable, remboursement, paie finale, réservation commerciale définitive |
+  1680→| Professeur | cours préparés, présences de ses classes, devoirs, observations, évaluations en brouillon | publication officielle des notes, modification d’une note validée, données d’une autre classe |
+  1681→
+  1682→Les paiements, écritures comptables, réservations confirmées, publications officielles et validations définitives doivent être confirmés par le serveur central. L’application doit afficher clairement la différence entre `Enregistré localement`, `En attente de synchronisation`, `Accepté par le serveur`, `Rejeté` et `En conflit`.
+  1683→
+  1684→#### B. Architecture locale
+  1685→
+  1686→Chaque installation possède une base SQLite locale chiffrée autant que le permet l’environnement de déploiement. Elle contient uniquement le périmètre nécessaire au poste : établissement, direction, classes, groupes, matières, élèves autorisés et documents utiles.
+  1687→
+  1688→```text
+  1689→SmartShule Desktop
+  1690→├── Interface métier
+  1691→├── Domaine local et validation
+  1692→├── SQLite locale
+  1693→├── Outbox des opérations locales
+  1694→├── Inbox des changements du serveur
+  1695→├── Curseur de téléchargement
+  1696→├── Moteur de synchronisation
+  1697→└── Journal local de diagnostic
+  1698→```
+  1699→
+  1700→La base locale ne doit pas être une copie complète de la base centrale. La réplication doit être filtrée par établissement, direction, classe, matière, rôle et période scolaire. Un professeur ne doit jamais recevoir en local les dossiers des autres classes uniquement parce qu’ils existent sur le serveur.
+  1701→
+  1702→#### C. Identité des données
+  1703→
+  1704→Toutes les entités synchronisables doivent utiliser un identifiant global `Guid` créé au moment de la création locale. Elles doivent aussi comporter :
+  1705→
+  1706→```text
+  1707→GlobalId
+  1708→TenantId ou SchoolId
+  1709→CreatedAtUtc
+  1710→UpdatedAtUtc
+  1711→CreatedBy
+  1712→UpdatedBy
+  1713→EntityVersion
+  1714→IsDeleted
+  1715→LastServerSequence
+  1716→```
+  1717→
+  1718→Les dates échangées avec le serveur doivent être en UTC. L’heure locale ne doit jamais décider seule de l’ordre d’une opération sensible. Le serveur attribue une séquence globale ou un curseur de changement pour permettre une réception ordonnée.
+  1719→
+  1720→#### D. Outbox : file d’envoi locale
+  1721→
+  1722→Toute commande locale doit être enregistrée dans la même transaction que la modification métier locale. Ainsi, une présence enregistrée localement ne peut pas être validée sans que son opération de synchronisation soit également conservée.
+  1723→
+  1724→Structure minimale de `SyncOutbox` :
+  1725→
+  1726→```text
+  1727→OperationId       Guid unique
+  1728→AggregateType     Type d’entité
+  1729→AggregateId       Guid de l’entité
+  1730→OperationType     Create | Update | Delete | Submit | Publish
+  1731→Payload           JSON versionné
+  1732→PayloadHash       Empreinte du payload
+  1733→BaseVersion       Version connue au moment de l’édition
+  1734→DeviceId          Identifiant de l’installation
+  1735→UserId            Utilisateur local
+  1736→CreatedAtUtc      Date de création
+  1737→Status            Pending | Sending | Accepted | Rejected | Conflict
+  1738→AttemptCount      Nombre de tentatives
+  1739→LastErrorCode     Code technique ou métier
+  1740→```
+  1741→
+  1742→Le payload doit décrire une intention métier plutôt qu’une copie arbitraire de ligne SQL. Exemples : `RecordStudentAttendance`, `SaveTeacherDraftGrade`, `SubmitAssignment`, `CreateEnrollmentDraft` et `UpdateLessonMaterial`.
+  1743→
+  1744→#### E. Inbox et curseur de réception
+  1745→
+  1746→Le serveur expose un flux de changements autorisés par le poste :
+  1747→
+  1748→```http
+  1749→GET /api/v1/sync/changes?cursor=18420&limit=200
+  1750→```
+  1751→
+  1752→La réponse contient les changements, le prochain curseur et une indication éventuelle de resynchronisation complète :
+  1753→
+  1754→```json
+  1755→{
+  1756→  "items": [],
+  1757→  "nextCursor": 18620,
+  1758→  "hasMore": true,
+  1759→  "requiresSnapshot": false
+  1760→}
+  1761→```
+  1762→
+  1763→Le poste applique les changements entrants dans une transaction SQLite. Il ne déplace le curseur qu’après l’application réussie de tout le lot. Si le poste s’arrête au milieu du traitement, il reprend avec le même curseur sans perdre les changements.
+  1764→
+  1765→Une table `SyncInbox` doit conserver les `ChangeId` déjà appliqués. La réception répétée du même changement doit être ignorée sans produire de doublon.
+  1766→
+  1767→#### F. Cycle complet de synchronisation
+  1768→
+  1769→Le moteur suit le cycle suivant :
+  1770→
+  1771→```text
+  1772→1. Détecter la connectivité
+  1773→2. Authentifier le poste et l’utilisateur
+  1774→3. Envoyer les opérations Outbox par petits lots
+  1775→4. Recevoir les accusés de réception
+  1776→5. Marquer les opérations acceptées
+  1777→6. Isoler les opérations rejetées ou en conflit
+  1778→7. Télécharger les changements depuis le dernier curseur
+  1779→8. Appliquer l’Inbox dans une transaction locale
+  1780→9. Avancer le curseur
+  1781→10. Télécharger les métadonnées ou fichiers autorisés
+  1782→11. Afficher l’état de synchronisation à l’utilisateur
+  1783→```
+  1784→
+  1785→La synchronisation doit être déclenchée manuellement et automatiquement. Le déclenchement automatique doit utiliser un délai progressif en cas d’échec : par exemple 30 secondes, 2 minutes, 5 minutes, 15 minutes, puis une limite configurable. Il ne faut pas créer une boucle de requêtes permanente lorsque le serveur est indisponible.
+  1786→
+  1787→#### G. API de synchronisation
+  1788→
+  1789→Les endpoints minimum sont :
+  1790→
+  1791→```text
+  1792→POST /api/v1/sync/push
+  1793→GET  /api/v1/sync/changes
+  1794→POST /api/v1/sync/acknowledge
+  1795→GET  /api/v1/sync/status
+  1796→POST /api/v1/sync/resolve-conflict
+  1797→POST /api/v1/sync/request-snapshot
+  1798→```
+  1799→
+  1800→`POST /sync/push` doit accepter un lot limité et retourner un résultat par opération :
+  1801→
+  1802→```json
+  1803→{
+  1804→  "results": [
+  1805→    {
+  1806→      "operationId": "...",
+  1807→      "status": "Accepted",
+  1808→      "serverVersion": 42,
+  1809→      "serverSequence": 18621
+  1810→    },
+  1811→    {
+  1812→      "operationId": "...",
+  1813→      "status": "Conflict",
+  1814→      "code": "STALE_VERSION",
+  1815→      "conflictId": "..."
+  1816→    }
+  1817→  ]
+  1818→}
+  1819→```
+  1820→
+  1821→Le serveur doit traiter chaque `OperationId` de manière idempotente. Si un lot est renvoyé après une coupure, une opération déjà acceptée doit retourner son résultat précédent sans être rejouée.
+  1822→
+  1823→#### H. Stratégies par type de donnée
+  1824→
+  1825→Les données ne doivent pas toutes utiliser la même résolution de conflit.
+  1826→
+  1827→| Donnée | Stratégie hors-ligne |
+  1828→|---|---|
+  1829→| Référentiels | Téléchargement depuis le serveur ; modification réservée à l’administration centrale |
+  1830→| Dossier élève | Modification locale limitée ; conflit envoyé au secrétariat |
+  1831→| Inscription | Brouillon local ; validation centrale obligatoire |
+  1832→| Présence | Événement daté avec identifiant unique ; fusion si deux postes ne saisissent pas le même événement |
+  1833→| Note en brouillon | Dernière version valide ou comparaison manuelle selon la version de base |
+  1834→| Note publiée | Modification interdite ; correction par procédure officielle |
+  1835→| Cours | Brouillon local du professeur puis publication contrôlée |
+  1836→| Devoir | Création locale possible ; publication après validation ou règle configurée |
+  1837→| Paiement | Aucun paiement financier définitif hors confirmation centrale |
+  1838→| Réservation de salle ou véhicule | Consultation locale possible ; confirmation atomique en ligne obligatoire |
+  1839→| Document | Versionnement ; conservation des versions concurrentes |
+  1840→| Suppression | Suppression logique sous forme d’événement auditable |
+  1841→
+  1842→#### I. Présences des élèves et enseignants
+  1843→
+  1844→Les présences doivent être modélisées comme des événements, et non comme une simple valeur écrasable :
+  1845→
+  1846→```text
+  1847→AttendanceEventId
+  1848→StudentId ou EmployeeId
+  1849→ClassId
+  1850→SessionId
+  1851→Status: Present | Late | Absent | Excused
+  1852→RecordedAtUtc
+  1853→RecordedBy
+  1854→DeviceId
+  1855→CorrectionOfEventId éventuel
+  1856→```
+  1857→
+  1858→Si deux postes enregistrent la présence pour la même séance et le même élève, le serveur doit détecter le doublon logique. Il peut fusionner automatiquement les enregistrements identiques. Si les statuts diffèrent, il doit créer un conflit pour le responsable pédagogique, sans choisir silencieusement la dernière saisie.
+  1859→
+  1860→#### J. Notes et évaluations
+  1861→
+  1862→Un professeur peut saisir une note hors-ligne uniquement dans l’état `Brouillon`. Le poste peut calculer localement un aperçu, mais la note n’est pas officielle.
+  1863→
+  1864→Le serveur doit contrôler : élève, matière, évaluation, barème, période, professeur habilité et version de l’évaluation. La publication suit ce flux :
+  1865→
+  1866→```text
+  1867→Brouillon local → Synchronisé → Contrôlé → Validé → Publié
+  1868→```
+  1869→
+  1870→Après publication, toute modification crée une correction référencée à la note initiale. Le portail parent ne reçoit que la note publiée.
+  1871→
+  1872→#### K. Documents et contenus de cours
+  1873→
+  1874→Les métadonnées d’un document peuvent être synchronisées avant le contenu. Les fichiers volumineux doivent être téléchargés à la demande et conservés dans un cache chiffré avec une date d’expiration.
+  1875→
+  1876→Un cours préparé hors-ligne possède une version locale. Si une version centrale plus récente existe, le professeur doit voir les différences et choisir de fusionner, remplacer ou conserver son brouillon. Aucun fichier central ne doit être remplacé automatiquement par un brouillon local.
+  1877→
+  1878→#### L. Gestion des conflits
+  1879→
+  1880→Une table `SyncConflict` doit conserver :
+  1881→
+  1882→```text
+  1883→ConflictId
+  1884→OperationId
+  1885→AggregateType
+  1886→AggregateId
+  1887→LocalPayload
+  1888→ServerPayload
+  1889→BaseVersion
+  1890→ServerVersion
+  1891→ConflictType
+  1892→AssignedTo
+  1893→Status: Open | UnderReview | Resolved | Rejected
+  1894→ResolutionNote
+  1895→ResolvedAtUtc
+  1896→ResolvedBy
+  1897→```
+  1898→
+  1899→L’interface doit présenter les valeurs locales et centrales, l’utilisateur source, les dates, les versions et les conséquences. Les résolutions possibles sont `KeepServer`, `KeepLocal`, `Merge` ou `CreateCorrection`. Les choix autorisés dépendent du rôle et du type de donnée.
+  1900→
+  1901→Un professeur ne peut pas résoudre un conflit de paiement, de dossier administratif ou de note publiée. Il peut uniquement corriger son brouillon ou transmettre le conflit au responsable autorisé.
+  1902→
+  1903→#### M. Sécurité du poste déconnecté
+  1904→
+  1905→Chaque installation doit avoir un `DeviceId` enregistré et révocable. Le serveur doit pouvoir désactiver un poste perdu ou compromis. Les tokens et secrets locaux doivent être protégés par le mécanisme sécurisé du système d’exploitation lorsque cela est disponible.
+  1906→
+  1907→L’accès hors-ligne doit être limité dans le temps. Après une durée configurable sans renouvellement de session, l’utilisateur doit pouvoir consulter uniquement les données non sensibles déjà autorisées, ou être contraint de se reconnecter. Les actions financières et les exports sensibles doivent être interdits si la session locale n’est plus considérée comme fiable.
+  1908→
+  1909→La base locale doit être chiffrée ou protégée au niveau du disque. Les journaux locaux ne doivent pas contenir de mots de passe, tokens, données médicales ou documents confidentiels en clair.
+  1910→
+  1911→#### N. Reprise, erreurs et resynchronisation complète
+  1912→
+  1913→Le moteur doit distinguer : absence de réseau, serveur indisponible, token expiré, opération rejetée, conflit métier, schéma local obsolète et corruption locale.
+  1914→
+  1915→Si le serveur indique que le curseur est trop ancien ou que les changements nécessaires ne sont plus disponibles, il doit demander un snapshot. Le poste réalise alors :
+  1916→
+  1917→```text
+  1918→1. sauvegarde locale chiffrée
+  1919→2. export des opérations Outbox non traitées
+  1920→3. téléchargement d’un snapshot filtré
+  1921→4. restauration dans une base temporaire
+  1922→5. réinjection contrôlée de l’Outbox
+  1923→6. reprise du curseur
+  1924→7. archivage du diagnostic
+  1925→```
+  1926→
+  1927→Une resynchronisation complète ne doit jamais écraser sans sauvegarde les opérations locales non confirmées.
+  1928→
+  1929→#### O. Indicateurs de supervision
+  1930→
+  1931→L’administration doit suivre :
+  1932→
+  1933→- dernier contact de chaque poste ;
+  1934→- durée depuis la dernière synchronisation réussie ;
+  1935→- nombre d’opérations en attente ;
+  1936→- nombre de rejets ;
+  1937→- nombre de conflits ouverts ;
+  1938→- taille de l’Outbox ;
+  1939→- délai moyen d’acceptation ;
+  1940→- version de l’application et du schéma local ;
+  1941→- postes désactivés ou obsolètes.
+  1942→
+  1943→Le professeur doit voir un indicateur simple dans l’application : **Synchronisé**, **Travail local en attente**, **Erreur à corriger** ou **Connexion requise**. L’administration doit disposer du détail technique et pouvoir relancer une opération autorisée.
+  1944→
+  1945→#### P. Tests obligatoires
+  1946→
+  1947→La synchronisation doit être validée par des tests d’intégration et de panne :
+  1948→
+  1949→1. saisie d’une présence sans réseau puis synchronisation réussie ;
+  1950→2. arrêt du poste pendant l’envoi d’un lot ;
+  1951→3. renvoi du même lot et absence de doublon ;
+  1952→4. expiration du token pendant la synchronisation ;
+  1953→5. serveur indisponible pendant plusieurs tentatives ;
+  1954→6. conflit entre deux saisies de présence ;
+  1955→7. conflit entre une note locale et une note centrale publiée ;
+  1956→8. restauration après corruption de la base locale ;
+  1957→9. resynchronisation complète avec Outbox non traitée ;
+  1958→10. interdiction pour un professeur de recevoir ou modifier les données d’une autre classe ;
+  1959→11. absence d’écriture financière définitive hors confirmation centrale ;
+  1960→12. téléchargement différé et sécurisé d’un document de cours.
+  1961→
+  1962→La définition de terminé exige que chaque scénario produise un journal de synchronisation exploitable, un résultat déterministe et une preuve que les données non confirmées n’ont pas été perdues.
+  1963→
+  1964→### 14.2.15 Architecture de base de données pour la synchronisation hors-ligne
+  1965→
+  1966→#### A. Modèle général
+  1967→
+  1968→SmartShule utilise une architecture **hub-and-spoke** : une base centrale fait autorité et plusieurs bases locales de postes échangent des opérations contrôlées avec elle. Une base locale n’est jamais une copie complète et autonome de l’établissement.
+  1969→
+  1970→```text
+  1971→Base locale Administration A ─┐
+  1972→Base locale Administration B ─┼─ API Sync ── Base centrale SmartShule
+  1973→Base locale Professeur P1 ───┤                    ├─ Portail web
+  1974→Base locale Professeur P2 ───┘                    ├─ Rapports
+  1975→                                                  └─ Sauvegardes
+  1976→```
+  1977→
+  1978→La base centrale est la source d’autorité pour les référentiels, les permissions, les validations officielles, les paiements, les écritures comptables, les réservations confirmées, les notes publiées et les documents officiels. La base locale est une zone de travail limitée au périmètre du poste.
+  1979→
+  1980→#### B. Technologies et responsabilités
+  1981→
+  1982→| Élément | Technologie recommandée | Responsabilité |
+  1983→|---|---|---|
+  1984→| Base centrale | SQL Server ou PostgreSQL | Données officielles, transactions, contraintes et historique |
+  1985→| Base locale | SQLite | Travail hors-ligne, cache filtré et Outbox |
+  1986→| Accès central | EF Core 8 | Migrations, transactions et requêtes paramétrées |
+  1987→| Accès local | EF Core SQLite | Modèle local et transactions embarquées |
+  1988→| Échange | API REST ASP.NET Core 8 | Push, pull, accusés et conflits |
+  1989→| Fichiers | Stockage privé central | Documents, pièces jointes et téléchargement différé |
+  1990→| Identité | Service d’identité central | Utilisateurs, appareils, tokens et permissions |
+  1991→
+  1992→Le code métier ne doit pas dépendre directement de SQLite ou de SQL Server. Les différences de fournisseur doivent être isolées dans l’infrastructure.
+  1993→
+  1994→#### C. Schéma logique central
+  1995→
+  1996→La base centrale doit distinguer les tables métier, les tables de synchronisation et les tables d’audit.
+  1997→
+  1998→Tables métier principales :
+  1999→
+  2000→```text
+
+[showing lines 1-2000 of 4287; use offset=2001 with limit to continue reading]

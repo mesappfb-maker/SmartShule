@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="6" fill="url(#bg)"/>
+  <!-- Graduation cap -->
+  <g transform="translate(16, 14)">
+    <!-- Mortarboard (flat top) -->
+    <path d="M -9 -3 L 0 -6 L 9 -3 L 0 0 Z" fill="white"/>
+    <!-- Cap base -->
+    <path d="M -5 -1 L -5 2 Q 0 4 5 2 L 5 -1 L 0 0 Z" fill="white" opacity="0.85"/>
+    <!-- Tassel -->
+    <line x1="7" y1="-2" x2="7" y2="3" stroke="#F59E0B" stroke-width="1.2"/>
+    <circle cx="7" cy="3.5" r="1" fill="#F59E0B"/>
+  </g>
+</svg>

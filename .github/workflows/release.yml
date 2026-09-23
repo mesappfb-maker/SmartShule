@@ -1,0 +1,141 @@
+# SmartShule — Build .exe Windows (simplifié)
+# ============================================================
+# Workflow simplifié qui build le .exe directement sur Windows
+# sans job séparé pour le build web
+
+name: 📦 Build SmartShule Desktop
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: 🪟 Windows .exe
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: npm install --include=dev --legacy-peer-deps
+
+      - name: 🔍 Prisma generate
+        run: |
+          mkdir -p db
+          npx prisma generate
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🔧 Switch provider to SQLite
+        run: |
+          mkdir -p db
+          node scripts/switch-provider.js
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🏗️ Build Next.js
+        run: |
+          mkdir -p db
+          npx next build
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/
+          cp -r public .next/standalone/
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+          NEXTAUTH_SECRET: 'desktop-build-secret'
+          NEXTAUTH_URL: 'http://localhost:3000'
+
+      - name: 📦 Build Electron .exe
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+
+      - name: 📤 Upload .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartShule-Windows-exe
+          path: dist/*.exe
+          retention-days: 30
+
+  build-macos:
+    name: 🍎 macOS .dmg
+    needs: build-windows
+    runs-on: macos-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: npm install --include=dev --legacy-peer-deps
+
+      - name: 🔍 Prisma generate
+        run: |
+          mkdir -p db
+          npx prisma generate
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🔧 Switch provider to SQLite
+        run: |
+          mkdir -p db
+          node scripts/switch-provider.js
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+
+      - name: 🏗️ Build Next.js
+        run: |
+          mkdir -p db
+          npx next build
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/
+          cp -r public .next/standalone/
+        env:
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+          NEXTAUTH_SECRET: 'desktop-build-secret'
+          NEXTAUTH_URL: 'http://localhost:3000'
+
+      - name: 📦 Build Electron .dmg
+        run: npx electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATABASE_URL: 'file:./db/prod.db'
+          NODE_ENV: production
+
+      - name: 📤 Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartShule-macOS-dmg
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          retention-days: 30

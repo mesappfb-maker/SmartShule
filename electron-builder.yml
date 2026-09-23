@@ -1,0 +1,118 @@
+# SmartShule — Configuration electron-builder (production)
+# ============================================================
+# Génère :
+#   - Windows : .exe (NSIS installer) + latest.yml (auto-update)
+#   - macOS : .dmg + .zip (auto-update)
+#   - Linux : .AppImage + .deb
+#
+# Publie automatiquement sur GitHub Releases
+# Utilisé par GitHub Actions (release.yml)
+
+appId: com.smartshule.app
+productName: SmartShule
+copyright: Copyright © 2026-2027 SmartShule
+
+directories:
+  output: dist
+  buildResources: build
+  app: .
+
+# ============================================================
+# Fichiers à inclure dans l'exécutable
+# ============================================================
+files:
+  - electron/**/*
+  - .next/standalone/**/*
+  - .next/static/**/*
+  - public/**/*
+  - prisma/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/*.ts"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!**/._*"
+  - "!**/.DS_Store"
+  - "!**/.git"
+
+# ============================================================
+# Fichiers supplémentaires (hors ASAR — Prisma nécessite un accès direct)
+# ============================================================
+extraResources:
+  - from: node_modules/@prisma/client
+    to: node_modules/@prisma/client
+    filter: ['**/*']
+  - from: node_modules/.prisma
+    to: node_modules/.prisma
+    filter: ['**/*']
+
+# ============================================================
+# Build Windows (.exe NSIS installer)
+# ============================================================
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: public/icon.ico
+  compression: maximum
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  installerIcon: public/icon.ico
+  uninstallerIcon: public/icon.ico
+  installerHeaderIcon: public/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: SmartShule
+  differentialPackage: true
+
+# ============================================================
+# Build macOS (.dmg)
+# ============================================================
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: public/icon.icns
+  category: public.app-category.education
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# ============================================================
+# Build Linux (.AppImage)
+# ============================================================
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  icon: public/icon.svg
+  category: Education
+  maintainer: SmartShule Team
+  vendor: SmartShule
+  synopsis: Système intégré de gestion scolaire
+
+AppImage:
+  artifactName: SmartShule-${version}-${arch}.AppImage
+
+# ============================================================
+# Publication GitHub Releases
+# ============================================================
+publish:
+  provider: github
+  owner: mesappfb-maker
+  repo: SmartShule
+  releaseType: release
+  vPrefixedTagName: true
