@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -480,6 +481,250 @@ export async function GET(
     return NextResponse.json(response)
   } catch (err) {
     console.error('[api/students/[id]] Error:', err)
+    return NextResponse.json(
+      { ok: false, error: (err as Error).message },
+      { status: 500 }
+    )
+  }
+}
+
+// ============================================================
+// PATCH /api/students/[id]
+// Édition directe d'un élève
+// Body possible:
+//   - { firstName, lastName, birthDate, gender, status, photoUrl }
+//   - { financialStatus: { status, reason } }  → met à jour le StudentFinancialStatus
+//   - { guardianId, fields: { phone, email, profession, address } }  → modifie un parent
+// ============================================================
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getUserFromSession()
+    if (!user) {
+      return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
+    }
+
+    // RBAC — réservé à DIRECTION, SECRETAIRE, ADMIN
+    const allowedRoles = ['DIRECTION', 'SECRETAIRE', 'ADMIN']
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { ok: false, error: 'Action réservée à la direction, au secrétariat ou à l\'administration.' },
+        { status: 403 }
+      )
+    }
+
+    const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
+    if (!schoolId) {
+      return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
+    }
+
+    const { id: studentId } = await params
+    const body = await req.json()
+
+    // Vérifier que l'élève appartient bien à l'école
+    const student = await db.student.findFirst({
+      where: { id: studentId, schoolId },
+      select: { id: true, firstName: true, lastName: true, matricule: true },
+    })
+    if (!student) {
+      return NextResponse.json({ ok: false, error: 'Élève introuvable.' }, { status: 404 })
+    }
+
+    // -------------------------------------------------------
+    // Cas A : édition du parent (guardianId + fields)
+    // -------------------------------------------------------
+    if (body.guardianId && body.fields) {
+      const { guardianId } = body
+      const { phone, email, profession, address, firstName, lastName } = body.fields
+
+      // Vérifier que le guardian est bien lié à cet élève et à cette école
+      const link = await db.guardianStudentLink.findFirst({
+        where: { studentId, guardianId },
+        include: { guardian: { select: { schoolId: true } } },
+      })
+      if (!link || link.guardian.schoolId !== schoolId) {
+        return NextResponse.json(
+          { ok: false, error: 'Parent introuvable ou non lié à cet élève.' },
+          { status: 404 }
+        )
+      }
+
+      const updateData: any = {}
+      if (typeof phone === 'string') updateData.phone = phone.trim() || null
+      if (typeof email === 'string') updateData.email = email.trim() || null
+      if (typeof profession === 'string') updateData.profession = profession.trim() || null
+      if (typeof address === 'string') updateData.address = address.trim() || null
+      if (typeof firstName === 'string' && firstName.trim()) updateData.firstName = firstName.trim()
+      if (typeof lastName === 'string' && lastName.trim()) updateData.lastName = lastName.trim()
+
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json(
+          { ok: false, error: 'Aucun champ à mettre à jour.' },
+          { status: 400 }
+        )
+      }
+
+      const updated = await db.guardian.update({
+        where: { id: guardianId },
+        data: updateData,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          email: true,
+          profession: true,
+          address: true,
+        },
+      })
+
+      await logAudit({
+        userId: user.id,
+        userName: user.displayName,
+        userRole: user.role,
+        schoolId,
+        action: 'UPDATE',
+        entityType: 'GUARDIAN',
+        entityId: guardianId,
+        description: `Modification du parent de ${student.firstName} ${student.lastName} (${student.matricule}) : ${Object.keys(updateData).join(', ')}`,
+        metadata: { fields: Object.keys(updateData), studentId },
+      })
+
+      return NextResponse.json({
+        ok: true,
+        message: 'Parent mis à jour avec succès.',
+        guardian: updated,
+      })
+    }
+
+    // -------------------------------------------------------
+    // Cas B : édition du statut financier
+    // -------------------------------------------------------
+    if (body.financialStatus) {
+      const { status: fs, reason } = body.financialStatus
+      if (!['REGULAR', 'LITIGATION', 'BLOCKED'].includes(fs)) {
+        return NextResponse.json(
+          { ok: false, error: 'Statut financier invalide. Valeurs acceptées : REGULAR, LITIGATION, BLOCKED.' },
+          { status: 400 }
+        )
+      }
+
+      // Upsert : si un enregistrement existe déjà on le met à jour, sinon on le crée
+      const existing = await db.studentFinancialStatus.findFirst({
+        where: { studentId },
+      })
+      let updated
+      if (existing) {
+        updated = await db.studentFinancialStatus.update({
+          where: { id: existing.id },
+          data: {
+            status: fs,
+            reason: reason?.trim() || null,
+            updatedById: user.id,
+            updatedAt: new Date(),
+            ...(fs === 'BLOCKED' ? { blockedAt: new Date() } : { blockedAt: null }),
+          },
+        })
+      } else {
+        updated = await db.studentFinancialStatus.create({
+          data: {
+            schoolId,
+            studentId,
+            status: fs,
+            reason: reason?.trim() || null,
+            updatedById: user.id,
+            ...(fs === 'BLOCKED' ? { blockedAt: new Date() } : {}),
+          },
+        })
+      }
+
+      await logAudit({
+        userId: user.id,
+        userName: user.displayName,
+        userRole: user.role,
+        schoolId,
+        action: 'UPDATE',
+        entityType: 'STUDENT',
+        entityId: studentId,
+        description: `Statut financier mis à jour pour ${student.firstName} ${student.lastName} (${student.matricule}) : ${fs}${reason ? ` — ${reason}` : ''}`,
+        metadata: { financialStatus: fs, reason: reason || null },
+      })
+
+      return NextResponse.json({
+        ok: true,
+        message: 'Statut financier mis à jour.',
+        financialStatus: updated,
+      })
+    }
+
+    // -------------------------------------------------------
+    // Cas C : édition directe de l'élève (identité)
+    // -------------------------------------------------------
+    const updateData: any = {}
+    const allowed = ['firstName', 'lastName', 'gender', 'status', 'photoUrl', 'birthDate']
+    for (const k of allowed) {
+      if (body[k] !== undefined) {
+        if (k === 'birthDate') {
+          if (body[k] === null) {
+            updateData.birthDate = null
+          } else {
+            const d = new Date(body[k])
+            if (!isNaN(d.getTime())) updateData.birthDate = d
+          }
+        } else if (k === 'status') {
+          if (['ACTIVE', 'ARCHIVED', 'TRANSFERRED'].includes(body[k])) {
+            updateData.status = body[k]
+          }
+        } else if (typeof body[k] === 'string') {
+          updateData[k] = body[k].trim()
+          // Si champs vides pour photoUrl, on met null
+          if (k === 'photoUrl' && !updateData[k]) updateData[k] = null
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { ok: false, error: 'Aucun champ à mettre à jour. Champs autorisés : firstName, lastName, gender, status, photoUrl, birthDate.' },
+        { status: 400 }
+      )
+    }
+
+    const updatedStudent = await db.student.update({
+      where: { id: studentId },
+      data: updateData,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        birthDate: true,
+        gender: true,
+        status: true,
+        photoUrl: true,
+      },
+    })
+
+    await logAudit({
+      userId: user.id,
+      userName: user.displayName,
+      userRole: user.role,
+      schoolId,
+      action: 'UPDATE',
+      entityType: 'STUDENT',
+      entityId: studentId,
+      description: `Modification de l'élève ${student.firstName} ${student.lastName} (${student.matricule}) : ${Object.keys(updateData).join(', ')}`,
+      metadata: { fields: Object.keys(updateData) },
+    })
+
+    return NextResponse.json({
+      ok: true,
+      message: 'Élève mis à jour avec succès.',
+      student: updatedStudent,
+    })
+  } catch (err) {
+    console.error('[api/students/[id]] PATCH Error:', err)
     return NextResponse.json(
       { ok: false, error: (err as Error).message },
       { status: 500 }

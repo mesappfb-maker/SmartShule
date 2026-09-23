@@ -52,3 +52,60 @@ Stage Summary:
 - Fonctionnalité livrée : clic sur le nom d'un élève dans la liste → ouverture d'un drawer plein écran avec 7 onglets contenant TOUTES les informations (dossier familial, états de paye, restes à payer, notes par matière et par période, présences avec IQA, génération de documents PDF)
 - Aucune régression : la liste existante et le petit modal rapide sont conservés
 - TypeScript propre sur les nouveaux fichiers
+
+---
+Task ID: student-edit-and-dossier-pdf
+Agent: main (Super Z)
+Task: Suite du drawer élève — (1) Permettre l'édition directe depuis le drawer (modifier le téléphone d'un parent, etc.) et (2) Ajouter un bouton "Imprimer tout le dossier" qui génère un PDF synthèse complet de l'élève.
+
+Work Log:
+- Exploration des patterns PDF existants dans `src/lib/exports.ts` (generatePaymentReceiptPDF via pdfkit, formatage Intl, branding école)
+- Lecture de `src/app/api/exports/attestation/route.ts` comme modèle pour la nouvelle route PDF
+- Vérification du modèle StudentFinancialStatus dans schema.prisma (champs status, reason, blockedAt, updatedById, updatedAt, @@unique [schoolId, studentId])
+
+- Ajout du PATCH sur `/api/students/[id]/route.ts` :
+  * 3 cas gérés : édition du parent (body.guardianId + body.fields), édition du statut financier (body.financialStatus), édition de l'élève (firstName, lastName, gender, birthDate, status, photoUrl)
+  * RBAC strict : DIRECTION, SECRETAIRE, ADMIN seulement
+  * Vérification de l'appartenance (élève+école, parent+élève+école)
+  * Upsert sur StudentFinancialStatus (create si pas existant, sinon update)
+  * Journalisation logAudit pour chaque modification (action UPDATE, entityType STUDENT ou GUARDIAN)
+  * Champs photoUrl et birthDate nullable
+  * Validation des enums (status ACTIVE|ARCHIVED|TRANSFERRED, financialStatus REGULAR|LITIGATION|BLOCKED)
+
+- Création de `/api/exports/student-dossier/route.ts` :
+  * Génération PDF multi-pages via pdfkit avec bufferPages pour le pied de page global
+  * Page 1 : En-tête école + Identité élève + Affectation + Statut financier (si non régulier)
+  * Page 2 : Dossier familial complet (parents, tuteurs, contacts, profession, adresse)
+  * Page 3 : Synthèse financière (4 cartes KPI colorées) + tableau des dettes (jusqu'à 20) + 10 derniers reçus
+  * Page 4 : Notes & Bulletins (bulletins officiels + notes par période et matière avec moyennes)
+  * Page 5 : Présences (IQA coloré selon seuils 90/75/50 + compteurs + 12 dernières absences)
+  * Pied de page sur toutes les pages : "Dossier générétique de X (matricule) · École · Date · Page i/N · SmartShule © 2026-2027"
+  * RBAC : DIRECTION, SECRETAIRE, ADMIN, ACCOUNTANT, TEACHER
+  * Journalisation audit EXPORT avec pages count et studentMatricule
+
+- Mise à jour de `student-detail-drawer.tsx` :
+  * Imports : Input, Label, Textarea, Pencil, Save, X en plus
+  * Nouvelle fonction `reload()` (sans repasser par loading) appelée après chaque édition
+  * Création de 3 sous-composants d'édition inline :
+    - EditableGuardianCard : bouton ✏️ sur chaque parent → formulaire inline (prénom, nom, téléphone, email, profession, adresse) + boutons Save (✓) et Annuler (✕)
+    - EditableStudentIdentity : bouton ✏️ sur la Card identité → formulaire (prénom, nom, genre, date naissance, statut, photo URL)
+    - EditableFinancialStatus : carte ambre avec édition du statut (REGULAR|LITIGATION|BLOCKED) + motif (Textarea)
+  * Remplacement des Cards statiques par les composants éditables dans les onglets Identité et Famille
+  * Ajout du bouton "Imprimer le dossier" dans le SheetHeader (en haut à droite, icône Printer)
+  * Ajout d'un encart "Dossier complet de l'élève (PDF synthèse)" en haut de l'onglet Documents avec bouton "Générer le dossier PDF complet"
+  * Messages toast.success / toast.error après chaque opération
+  * Spinners Loader2 pendant les sauvegardes
+
+- Vérification TypeScript : 0 erreur sur les nouveaux fichiers
+- Build Next.js : OK, la nouvelle route `/api/exports/student-dossier` est bien détectée
+- Toutes les routes /api/students/[id] (GET + PATCH) et /api/exports/student-dossier sont compilées
+
+Stage Summary:
+- 3 fichiers créés/modifiés :
+  * `/home/z/my-project/src/app/api/students/[id]/route.ts` (MODIFIÉ - ajout PATCH pour édition élève/parent/statut financier)
+  * `/home/z/my-project/src/app/api/exports/student-dossier/route.ts` (NOUVEAU - PDF synthèse 5 pages)
+  * `/home/z/my-project/src/modules/secretary/student-detail-drawer.tsx` (MODIFIÉ - 3 composants d'édition inline + bouton Imprimer + bouton dossier PDF)
+- Édition directe disponible sur : identité élève (prénom/nom/genre/naissance/statut/photo), informations parent (téléphone/email/profession/adresse/nom), statut financier (statut + motif)
+- Bouton "Imprimer le dossier" visible à 2 endroits : en-tête du drawer (toujours visible) + onglet Documents (encart dédié)
+- Sécurité RBAC respectée : PATCH réservé à DIRECTION/SECRETAIRE/ADMIN, PDF réservé au personnel autorisé
+- Audit trail : chaque modification est journalisée avec userId, entityId, description et metadata
