@@ -23,6 +23,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -51,6 +54,9 @@ import {
   Receipt as ReceiptIcon,
   Banknote,
   CalendarOff,
+  Pencil,
+  Save,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -398,7 +404,7 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
 
   const open = !!studentId
 
-  React.useEffect(() => {
+  const loadData = React.useCallback(async () => {
     if (!studentId) {
       setData(null)
       setError(null)
@@ -420,6 +426,21 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
+  }, [studentId])
+
+  React.useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Rechargement après édition (sans repasser par loading)
+  const reload = React.useCallback(async () => {
+    if (!studentId) return
+    fetch(`/api/students/${studentId}`, { cache: 'no-store' })
+      .then(async (r) => r.json())
+      .then((d) => {
+        if (d.ok) setData(d)
+      })
+      .catch(() => {})
   }, [studentId])
 
   return (
@@ -460,6 +481,17 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
                 </SheetDescription>
               </div>
             </div>
+            {data && (
+              <a
+                href={`/api/exports/student-dossier?studentId=${data.student.id}`}
+                target="_blank"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium shrink-0"
+                title="Générer un PDF complet du dossier (5 pages : identité, famille, finances, notes, présences)"
+              >
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline">Imprimer le dossier</span>
+              </a>
+            )}
           </div>
         </SheetHeader>
 
@@ -523,34 +555,10 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
               {/* ============================================== */}
               <TabsContent value="identity" className="mt-4 space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <User className="h-4 w-4" /> Informations personnelles
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      <Row label="Nom complet" value={data.student.fullName} />
-                      <Row label="Prénom" value={data.student.firstName} />
-                      <Row label="Nom" value={data.student.lastName} />
-                      <Row
-                        label="Genre"
-                        value={
-                          data.student.gender === 'M'
-                            ? 'Masculin'
-                            : data.student.gender === 'F'
-                            ? 'Féminin'
-                            : '—'
-                        }
-                      />
-                      <Row label="Date de naissance" value={fmtDate(data.student.birthDate)} />
-                      <Row
-                        label="Statut"
-                        value={getStatusBadge(data.student.status)}
-                      />
-                      <Row label="Inscrit le" value={fmtDate(data.student.createdAt)} />
-                    </CardContent>
-                  </Card>
+                  <EditableStudentIdentity
+                    student={data.student}
+                    onChanged={reload}
+                  />
 
                   <Card>
                     <CardHeader className="pb-3">
@@ -583,28 +591,14 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
                   </Card>
                 </div>
 
-                {data.financialStatus.reason && (
-                  <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="font-medium text-amber-800 dark:text-amber-200">
-                            Statut financier : {data.financialStatus.status}
-                          </p>
-                          <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                            Motif : {data.financialStatus.reason}
-                          </p>
-                          {data.financialStatus.updatedAt && (
-                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                              Mis à jour le {fmtDateTime(data.financialStatus.updatedAt)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* Statut financier éditable (toujours visible) */}
+                <EditableFinancialStatus
+                  studentId={data.student.id}
+                  currentStatus={data.financialStatus.status}
+                  currentReason={data.financialStatus.reason}
+                  currentUpdatedAt={data.financialStatus.updatedAt}
+                  onChanged={reload}
+                />
 
                 <Card>
                   <CardHeader className="pb-3">
@@ -644,7 +638,7 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
               <TabsContent value="family" className="mt-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium text-muted-foreground">
-                    Membres de la famille ({data.family.length})
+                    Membres de la famille ({data.family.length}) — cliquez sur ✏️ pour modifier
                   </h3>
                 </div>
 
@@ -658,69 +652,12 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     {data.family.map((link) => (
-                      <Card key={link.id} className={link.isPrimary ? 'border-primary/40' : ''}>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                {link.guardian.firstName[0]}{link.guardian.lastName[0]}
-                              </div>
-                              <span className="text-sm">{link.guardian.fullName}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Badge variant="outline" className="text-xs">
-                                {getRelLabel(link.relationship)}
-                              </Badge>
-                              {link.isPrimary && (
-                                <Badge className="bg-primary text-primary-foreground text-xs">
-                                  Principal
-                                </Badge>
-                              )}
-                            </div>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                          {link.guardian.phone && (
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <a
-                                href={`tel:${link.guardian.phone}`}
-                                className="text-blue-600 hover:underline"
-                              >
-                                {link.guardian.phone}
-                              </a>
-                            </div>
-                          )}
-                          {link.guardian.email && (
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <a
-                                href={`mailto:${link.guardian.email}`}
-                                className="text-blue-600 hover:underline truncate"
-                              >
-                                {link.guardian.email}
-                              </a>
-                            </div>
-                          )}
-                          {link.guardian.profession && (
-                            <div className="flex items-center gap-2">
-                              <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <span>{link.guardian.profession}</span>
-                            </div>
-                          )}
-                          {link.guardian.address && (
-                            <div className="flex items-start gap-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                              <span className="text-muted-foreground">{link.guardian.address}</span>
-                            </div>
-                          )}
-                          {!link.guardian.phone && !link.guardian.email && !link.guardian.profession && !link.guardian.address && (
-                            <p className="text-xs text-muted-foreground italic">
-                              Aucune information de contact renseignée
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
+                      <EditableGuardianCard
+                        key={link.id}
+                        link={link}
+                        studentId={data.student.id}
+                        onChanged={reload}
+                      />
                     ))}
                   </div>
                 )}
@@ -1430,11 +1367,38 @@ export function StudentDetailDrawer({ studentId, studentName, onClose }: Props) 
               {/* 7. DOCUMENTS ================================== */}
               {/* ============================================== */}
               <TabsContent value="documents" className="mt-4 space-y-4">
+                {/* Bouton principal : dossier complet PDF */}
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground shrink-0">
+                        <Printer className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-base">Dossier complet de l'élève (PDF synthèse)</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Génère un PDF de 4 à 6 pages contenant toutes les informations :
+                          identité, dossier familial, synthèse financière (Dû/Payé/Reste), notes et bulletins,
+                          présences avec IQA. Pied de page avec traçabilité d'audit.
+                        </p>
+                        <a
+                          href={`/api/exports/student-dossier?studentId=${data.student.id}`}
+                          target="_blank"
+                          className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
+                        >
+                          <Printer className="h-4 w-4" />
+                          Générer le dossier PDF complet
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                       <FileText className="h-4 w-4" />
-                      Génération de documents officiels
+                      Documents individuels
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1613,5 +1577,563 @@ function DocAction({
         </div>
       </div>
     </a>
+  )
+}
+
+// ============================================================
+// Sous-composant : Carte parent éditable
+// ============================================================
+function EditableGuardianCard({
+  link,
+  studentId,
+  onChanged,
+}: {
+  link: DetailData['family'][number]
+  studentId: string
+  onChanged?: () => void
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [form, setForm] = React.useState({
+    firstName: link.guardian.firstName,
+    lastName: link.guardian.lastName,
+    phone: link.guardian.phone || '',
+    email: link.guardian.email || '',
+    profession: link.guardian.profession || '',
+    address: link.guardian.address || '',
+  })
+
+  // Réinitialiser le form quand on entre en édition
+  React.useEffect(() => {
+    if (editing) {
+      setForm({
+        firstName: link.guardian.firstName,
+        lastName: link.guardian.lastName,
+        phone: link.guardian.phone || '',
+        email: link.guardian.email || '',
+        profession: link.guardian.profession || '',
+        address: link.guardian.address || '',
+      })
+    }
+  }, [editing, link])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/students/${studentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guardianId: link.guardian.id,
+          fields: form,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        toast.success(`Parent mis à jour avec succès`)
+        setEditing(false)
+        onChanged?.()
+      } else {
+        toast.error(data.error || 'Erreur lors de la mise à jour')
+      }
+    } catch (e) {
+      toast.error('Erreur réseau : ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className={link.isPrimary ? 'border-primary/40' : ''}>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+              {link.guardian.firstName[0]}{link.guardian.lastName[0]}
+            </div>
+            <span className="text-sm">
+              {editing ? (
+                <span className="flex items-center gap-1">
+                  <Input
+                    value={form.firstName}
+                    onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                    className="h-7 w-24 text-sm"
+                    placeholder="Prénom"
+                  />
+                  <Input
+                    value={form.lastName}
+                    onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                    className="h-7 w-28 text-sm"
+                    placeholder="Nom"
+                  />
+                </span>
+              ) : (
+                link.guardian.fullName
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge variant="outline" className="text-xs">
+              {getRelLabel(link.relationship)}
+            </Badge>
+            {link.isPrimary && (
+              <Badge className="bg-primary text-primary-foreground text-xs">
+                Principal
+              </Badge>
+            )}
+            {editing ? (
+              <div className="flex items-center gap-1 ml-1">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="p-1.5 rounded-md hover:bg-emerald-100 text-emerald-600 disabled:opacity-50"
+                  title="Enregistrer"
+                >
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+                  title="Annuler"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditing(true)}
+                className="p-1.5 rounded-md hover:bg-primary/10 text-primary ml-1"
+                title="Modifier les informations"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        {editing ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Téléphone</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="h-8 text-sm"
+                  placeholder="+243 ..."
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <Input
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="h-8 text-sm"
+                  placeholder="email@exemple.com"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Profession</Label>
+                <Input
+                  value={form.profession}
+                  onChange={(e) => setForm({ ...form, profession: e.target.value })}
+                  className="h-8 text-sm"
+                  placeholder="Profession"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Adresse</Label>
+                <Input
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="h-8 text-sm"
+                  placeholder="Adresse complète"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {link.guardian.phone && (
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                <a
+                  href={`tel:${link.guardian.phone}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {link.guardian.phone}
+                </a>
+              </div>
+            )}
+            {link.guardian.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <a
+                  href={`mailto:${link.guardian.email}`}
+                  className="text-blue-600 hover:underline truncate"
+                >
+                  {link.guardian.email}
+                </a>
+              </div>
+            )}
+            {link.guardian.profession && (
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span>{link.guardian.profession}</span>
+              </div>
+            )}
+            {link.guardian.address && (
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <span className="text-muted-foreground">{link.guardian.address}</span>
+              </div>
+            )}
+            {!link.guardian.phone && !link.guardian.email && !link.guardian.profession && !link.guardian.address && (
+              <p className="text-xs text-muted-foreground italic">
+                Aucune information de contact renseignée — cliquez sur ✏️ pour compléter
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================
+// Sous-composant : Identité élève éditable
+// ============================================================
+function EditableStudentIdentity({
+  student,
+  onChanged,
+}: {
+  student: DetailData['student']
+  onChanged?: () => void
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [form, setForm] = React.useState({
+    firstName: student.firstName,
+    lastName: student.lastName,
+    gender: student.gender || '',
+    birthDate: student.birthDate ? student.birthDate.slice(0, 10) : '',
+    status: student.status,
+    photoUrl: student.photoUrl || '',
+  })
+
+  React.useEffect(() => {
+    if (editing) {
+      setForm({
+        firstName: student.firstName,
+        lastName: student.lastName,
+        gender: student.gender || '',
+        birthDate: student.birthDate ? student.birthDate.slice(0, 10) : '',
+        status: student.status,
+        photoUrl: student.photoUrl || '',
+      })
+    }
+  }, [editing, student])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const body: any = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        status: form.status,
+      }
+      if (form.gender) body.gender = form.gender
+      if (form.birthDate) body.birthDate = form.birthDate
+      else body.birthDate = null
+      if (form.photoUrl) body.photoUrl = form.photoUrl
+      else body.photoUrl = null
+
+      const res = await fetch(`/api/students/${student.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        toast.success('Élève mis à jour avec succès')
+        setEditing(false)
+        onChanged?.()
+      } else {
+        toast.error(data.error || 'Erreur lors de la mise à jour')
+      }
+    } catch (e) {
+      toast.error('Erreur réseau : ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <User className="h-4 w-4" /> Informations personnelles
+          </span>
+          {editing ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="p-1.5 rounded-md hover:bg-emerald-100 text-emerald-600 disabled:opacity-50"
+                title="Enregistrer"
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                disabled={saving}
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+                title="Annuler"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditing(true)}
+              className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+              title="Modifier l'identité de l'élève"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        {editing ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Prénom</Label>
+                <Input
+                  value={form.firstName}
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Nom</Label>
+                <Input
+                  value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Genre</Label>
+                <select
+                  value={form.gender}
+                  onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                  className="w-full h-8 px-2 border rounded-md bg-background text-sm"
+                >
+                  <option value="">—</option>
+                  <option value="M">Masculin</option>
+                  <option value="F">Féminin</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Date de naissance</Label>
+                <Input
+                  type="date"
+                  value={form.birthDate}
+                  onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Statut</Label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="w-full h-8 px-2 border rounded-md bg-background text-sm"
+                >
+                  <option value="ACTIVE">Actif</option>
+                  <option value="ARCHIVED">Archivé</option>
+                  <option value="TRANSFERRED">Transféré</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">URL Photo</Label>
+                <Input
+                  value={form.photoUrl}
+                  onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
+                  className="h-8 text-sm"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <Row label="Nom complet" value={student.fullName} />
+            <Row label="Prénom" value={student.firstName} />
+            <Row label="Nom" value={student.lastName} />
+            <Row
+              label="Genre"
+              value={
+                student.gender === 'M'
+                  ? 'Masculin'
+                  : student.gender === 'F'
+                  ? 'Féminin'
+                  : '—'
+              }
+            />
+            <Row label="Date de naissance" value={fmtDate(student.birthDate)} />
+            <Row label="Statut" value={getStatusBadge(student.status)} />
+            <Row label="Inscrit le" value={fmtDate(student.createdAt)} />
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================
+// Sous-composant : Statut financier éditable
+// ============================================================
+function EditableFinancialStatus({
+  studentId,
+  currentStatus,
+  currentReason,
+  currentUpdatedAt,
+  onChanged,
+}: {
+  studentId: string
+  currentStatus: string
+  currentReason: string | null
+  currentUpdatedAt: string | null
+  onChanged?: () => void
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [form, setForm] = React.useState({
+    status: currentStatus,
+    reason: currentReason || '',
+  })
+
+  React.useEffect(() => {
+    if (editing) {
+      setForm({
+        status: currentStatus,
+        reason: currentReason || '',
+      })
+    }
+  }, [editing, currentStatus, currentReason])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/students/${studentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          financialStatus: {
+            status: form.status,
+            reason: form.reason || null,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        toast.success(`Statut financier mis à jour : ${form.status}`)
+        setEditing(false)
+        onChanged?.()
+      } else {
+        toast.error(data.error || 'Erreur')
+      }
+    } catch (e) {
+      toast.error('Erreur réseau : ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
+                Statut financier
+              </p>
+              {editing ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="p-1.5 rounded-md hover:bg-emerald-100 text-emerald-600 disabled:opacity-50"
+                    title="Enregistrer"
+                  >
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => setEditing(false)}
+                    disabled={saving}
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+                    title="Annuler"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                  title="Modifier le statut financier"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {editing ? (
+              <div className="space-y-2 mt-2">
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="w-full h-8 px-2 border rounded-md bg-background text-sm"
+                >
+                  <option value="REGULAR">✓ Régulier</option>
+                  <option value="LITIGATION">⚠ En litige</option>
+                  <option value="BLOCKED">✗ Bloqué</option>
+                </select>
+                <Textarea
+                  value={form.reason}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  placeholder="Motif (optionnel pour RÉGULIER, recommandé pour LITIGE/BLOQUÉ)..."
+                  className="text-sm"
+                  rows={2}
+                />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  {getFinStatusBadge(currentStatus)}
+                  {currentReason && (
+                    <span className="block mt-1 text-xs">
+                      Motif : {currentReason}
+                    </span>
+                  )}
+                </p>
+                {currentUpdatedAt && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    Mis à jour le {fmtDateTime(currentUpdatedAt)}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
