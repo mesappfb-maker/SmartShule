@@ -55,18 +55,20 @@ export async function POST(req: NextRequest) {
 
     // Transaction : User + Guardian + (lien élève si matricule fourni)
     const result = await db.$transaction(async (tx) => {
-      // 1. Créer l'utilisateur
+      // 1. Créer l'utilisateur avec statut CANDIDAT_PARENT (sécurité : pas d'accès au portail parent !)
       const user = await tx.user.create({
         data: {
           email,
           passwordHash,
           role: 'PARENT',
+          accountStatus: 'CANDIDAT_PARENT',
           displayName: `${firstName} ${lastName}`,
+          phone: phone || null,
           active: true,
         },
       })
 
-      // 2. Créer le Guardian
+      // 2. Créer le Guardian (sans lien élève — la liaison se fait par le secrétariat)
       const guardian = await tx.guardian.create({
         data: {
           schoolId: school.id,
@@ -78,29 +80,12 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      // 3. Si matricule élève fourni, créer le lien
-      let linkedStudent: { matricule: string; name: string } | null = null
-      if (studentMatricule) {
-        const student = await tx.student.findFirst({
-          where: { matricule: studentMatricule, schoolId: school.id },
-        })
-        if (student) {
-          await tx.guardianStudentLink.create({
-            data: {
-              guardianId: guardian.id,
-              studentId: student.id,
-              relationship: relationship || 'TUTEUR',
-              isPrimary: true,
-            },
-          })
-          linkedStudent = {
-            matricule: student.matricule,
-            name: `${student.firstName} ${student.lastName}`,
-          }
-        }
-      }
+      // 3. SÉCURITÉ : Ne JAMAIS lier automatiquement l'élève au parent
+      // Le matricule élève fourni sera utilisé pour créer une demande de rattachement
+      // qui devra être validée par le secrétariat.
+      // Voir /api/preinscription pour le flux complet.
 
-      return { user, guardian, linkedStudent }
+      return { user, guardian, linkedStudent: null }
     })
 
     // Audit

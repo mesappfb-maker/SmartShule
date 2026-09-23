@@ -99,7 +99,9 @@ export async function getUserFromSession(): Promise<{
   id: string
   email: string
   role: string
+  accountStatus: string
   displayName: string
+  phone?: string
 } | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
@@ -119,7 +121,9 @@ export async function getUserFromSession(): Promise<{
     id: session.user.id,
     email: session.user.email,
     role: session.user.role,
+    accountStatus: session.user.accountStatus || 'ACTIVE',
     displayName: session.user.displayName,
+    phone: session.user.phone || undefined,
   }
 }
 

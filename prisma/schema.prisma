@@ -18,10 +18,16 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
-  role         String   // PARENT | STUDENT | DIRECTION | ADMIN
+  role         String   // PARENT | STUDENT | TEACHER | SECRETARY | ACCOUNTANT | DIRECTION | ADMIN | SERVER
+  accountStatus String  @default("ACTIVE") // ACTIVE | CANDIDAT_PARENT | PARENT_VERIFIE | PARENT_SUSPENDU | SUSPENDED
   displayName  String
+  phone        String?  // Téléphone/WhatsApp vérifié
   active       Boolean  @default(true)
   lastLoginAt  DateTime?
+  loginAttempts Int     @default(0) // Anti force-brute
+  lockedUntil  DateTime? // Verrouillage temporaire
+  mfaEnabled   Boolean  @default(false) // Double authentification
+  mfaSecret    String?  // Secret TOTP
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -34,6 +40,8 @@ model User {
   syncDevices     SyncDevice[]
   syncOperations   SyncOperation[]
   idempotencyRecords IdempotencyRecord[]
+  preRegistrations PreRegistration[]
+  parentLinkRequests ParentLinkRequest[]
 }
 
 model Session {
@@ -137,6 +145,9 @@ model School {
   receptions      Reception[]
   // Étape 7 — Système de licences
   license         License?
+  // Étape 8 — Préinscription & rattachement
+  preRegistrations PreRegistration[]
+  parentLinkRequests ParentLinkRequest[]
 }
 
 model Branding {
@@ -312,6 +323,8 @@ model Student {
   // Étape 5 RDC : Module comptable
   studentDebts     StudentDebt[]
   receipts        Receipt[]
+  // Étape 8 : Demandes de rattachement
+  parentLinkRequests ParentLinkRequest[]
 }
 
 model Guardian {
@@ -2461,4 +2474,120 @@ model LicenseAudit {
 
   @@index([licenseId])
   @@index([action])
+}
+
+// ============================================================
+// ÉTAPE 8 — SÉCURITÉ PARENTS & PRÉINSCRIPTION
+// ============================================================
+//   - PreRegistration : dossier de préinscription d'un nouvel élève
+//   - ParentLinkRequest : demande de rattachement à un élève existant
+
+// N. PRÉINSCRIPTION — dossier d'admission d'un nouvel élève
+model PreRegistration {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Demandeur (parent qui crée le compte)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Numéro de dossier unique
+  referenceNumber String   @unique // Format: PRE-2026-000001
+  // Informations du parent
+  parentFirstName String
+  parentLastName  String
+  parentEmail     String
+  parentPhone     String
+  parentRelationship String @default("PERE") // PERE | MERE | TUTEUR | AUTRE
+  // Informations de l'enfant
+  childFirstName  String
+  childLastName   String
+  childBirthDate  DateTime?
+  childGender     String?  // M | F
+  // Souhaits
+  desiredClassroomId String? // Classe souhaitée
+  desiredLevel    String?  // Niveau souhaité
+  academicYearLabel String? // Année souhaitée
+  // Contacts d'urgence
+  emergencyContactName String?
+  emergencyContactPhone String?
+  address         String?
+  // Documents (URLs)
+  birthCertificateUrl String?
+  photoUrl        String?
+  reportCardUrl   String?
+  vaccinationUrl  String?
+  // Consentements
+  acceptedTerms   Boolean  @default(false)
+  acceptedPrivacy Boolean  @default(false)
+  // Moyen de contact préféré
+  preferredContact String  @default("WHATSAPP") // EMAIL | WHATSAPP | SMS | CALL
+  // Statut du dossier
+  status          String   @default("DRAFT") // DRAFT | SOUMIS | INCOMPLET | EN_ETUDE | ACCEPTE | REFUSE | TRANSFERE_DIRECTION
+  // Traitement
+  reviewedById    String?  // ID du secrétaire/directeur
+  reviewedByName  String?
+  reviewedAt      DateTime?
+  decisionReason  String?
+  // Élève créé après acceptation
+  studentId       String?  // Lien vers l'élève créé
+  // Audit
+  submittedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  history        PreRegistrationHistory[]
+
+  @@index([schoolId, status])
+  @@index([userId])
+  @@index([referenceNumber])
+}
+
+// Historique des actions sur un dossier de préinscription
+model PreRegistrationHistory {
+  id              String   @id @default(cuid())
+  preRegistrationId String
+  preRegistration PreRegistration @relation(fields: [preRegistrationId], references: [id], onDelete: Cascade)
+  action          String   // CREATED | SUBMITTED | MARKED_INCOMPLETE | REVIEWED | ACCEPTED | REFUSED | TRANSMITTED
+  performedById   String?
+  performedByName String?
+  notes           String?
+  previousStatus  String?
+  newStatus       String?
+  createdAt       DateTime @default(now())
+
+  @@index([preRegistrationId])
+}
+
+// O. DEMANDE DE RATTACHEMENT — parent demandant à être lié à un élève existant
+model ParentLinkRequest {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Demandeur
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Élève ciblé
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  // Informations fournies par le demandeur
+  parentFirstName String
+  parentLastName  String
+  parentPhone     String
+  relationship    String   // PERE | MERE | TUTEUR | AUTRE
+  // Vérification
+  childBirthDateProvided DateTime?
+  verificationCode String?  // Code remis par l'école (optionnel)
+  // Statut
+  status          String   @default("EN_ATTENTE") // EN_ATTENTE | ACCEPTE | REFUSE | COMPLEMENT_DEMANDE
+  reviewedById    String?
+  reviewedByName  String?
+  reviewedAt      DateTime?
+  decisionReason  String?
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([userId])
+  @@index([studentId])
 }

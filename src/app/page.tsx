@@ -65,10 +65,19 @@ export default async function Home() {
       tertiaryColor: school.tertiaryColor,
     }
 
-    // PARENT
+    // PARENT — vérifier le statut du compte
     if (user.role === 'PARENT') {
+      // CANDIDAT_PARENT : accès limité (pas de portail parent)
+      if (user.accountStatus === 'CANDIDAT_PARENT') {
+        return <CandidateParentScreen user={user} />
+      }
+      // PARENT_SUSPENDU : accès bloqué
+      if (user.accountStatus === 'PARENT_SUSPENDU') {
+        return <NoData user={user} error="Votre compte parent est suspendu. Contactez le secrétariat." />
+      }
+      // PARENT_VERIFIE : portail parent complet
       const data = await getParentDashboardData(user.id).catch(() => null)
-      if (!data) return <NoData user={user} />
+      if (!data) return <CandidateParentScreen user={user} />
       return <ParentDashboard user={user} school={schoolData} data={data} notifications={notifications} />
     }
 
@@ -156,6 +165,58 @@ function NoData({ user, error }: { user: { displayName: string; role: string; em
             Se déconnecter
           </button>
         </form>
+      </div>
+    </div>
+  )
+}
+
+function CandidateParentScreen({ user }: { user: { displayName: string; role: string; email: string; phone?: string } }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-teal-50 dark:from-slate-900 dark:to-slate-800">
+      <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 space-y-6">
+        <div className="text-center">
+          <div className="text-5xl mb-3">🔒</div>
+          <h1 className="text-2xl font-bold">Bienvenue, {user.displayName} !</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Votre compte ne possède actuellement aucun enfant inscrit et validé dans notre établissement.
+          </p>
+        </div>
+
+        <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Pour accéder au portail parent, vous devez soit demander le rattachement à un élève déjà inscrit,
+            soit soumettre une demande d'inscription pour votre enfant.
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Votre accès restera limité au suivi de vos demandes jusqu'à validation par le secrétariat ou la direction.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <a href="/preinscription" className="block p-5 bg-primary/5 hover:bg-primary/10 rounded-xl border border-primary/20 transition-colors text-center">
+            <div className="text-3xl mb-2">📝</div>
+            <h3 className="font-semibold text-primary">Inscrire un nouvel enfant</h3>
+            <p className="text-xs text-muted-foreground mt-1">Soumettez un dossier de préinscription</p>
+          </a>
+
+          <a href="/rattachement" className="block p-5 bg-teal-50 dark:bg-teal-950/30 hover:bg-teal-100 dark:hover:bg-teal-900/30 rounded-xl border border-teal-200 dark:border-teal-800 transition-colors text-center">
+            <div className="text-3xl mb-2">🔗</div>
+            <h3 className="font-semibold text-teal-700 dark:text-teal-300">Rattacher à un élève existant</h3>
+            <p className="text-xs text-muted-foreground mt-1">Votre enfant est déjà dans l'école ? Demandez le rattachement</p>
+          </a>
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t">
+          <p className="text-xs text-muted-foreground">
+            📧 {user.email}
+            {user.phone && ` · 📞 ${user.phone}`}
+          </p>
+          <form action="/api/auth/logout" method="POST">
+            <button type="submit" className="text-sm text-muted-foreground hover:text-foreground">
+              Se déconnecter
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
