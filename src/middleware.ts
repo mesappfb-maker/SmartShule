@@ -1,23 +1,13 @@
 // SmartShule — Middleware de protection Staging
 // ============================================================
-// Protège TOUTES les routes du site en mode staging.
-// L'utilisateur doit saisir un mot de passe pour accéder au site.
-//
-// Fonctionnement :
-//   1. Vérifie si le cookie `staging_auth` est présent et valide
-//   2. Si non → redirige vers /staging-login
-//   3. Si oui → laisse passer la requête
-//
-// Le mot de passe est configurable via STAGING_PASSWORD (env var)
-// En production (main), ce middleware ne fait rien (DEV/PROD bypass)
+// Ne s'active QUE si STAGING_MODE=true
+// En production (main), STAGING_MODE n'est pas défini → bypass total
 
 import { NextRequest, NextResponse } from 'next/server'
 
 const STAGING_COOKIE = 'staging_auth'
 const STAGING_LOGIN_PATH = '/staging-login'
-const STAGING_PASSWORD = process.env.STAGING_PASSWORD || 'SmartShule2026Staging'
 
-// Routes à ignorer (API + assets statiques)
 const PUBLIC_PATHS = [
   '/_next',
   '/favicon',
@@ -26,23 +16,21 @@ const PUBLIC_PATHS = [
   '/manifest',
   '/sw.js',
   '/robots.txt',
+  '/api/staging-auth',
+  '/staging-login',
 ]
 
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
-
-  // En production (pas de STAGING_PASSWORD ou STAGING_MODE != 'true'), on bypass
+  // CRITIQUE : Ne rien faire si STAGING_MODE n'est pas 'true'
+  // En production (main), cette variable n'existe pas → bypass
   if (process.env.STAGING_MODE !== 'true') {
     return NextResponse.next()
   }
 
-  // Ignorer les assets statiques
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next()
-  }
+  const { pathname } = req.nextUrl
 
-  // Ignorer la page de login staging elle-même
-  if (pathname === STAGING_LOGIN_PATH) {
+  // Ignorer les assets statiques + API staging-auth + page login
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next()
   }
 
@@ -59,6 +47,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Appliquer sur toutes les routes sauf les assets statiques
   matcher: ['/((?!_next/static|_next/image|favicon.ico|icon|logo|manifest|sw.js|robots.txt).*)'],
 }
