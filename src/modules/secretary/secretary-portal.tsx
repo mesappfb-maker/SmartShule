@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
 import { EnrollmentManager } from '@/modules/direction/enrollment-manager'
 import { StudentsList } from './students-list'
+import { ClassListsDynamic } from './class-lists-dynamic'
 
 type SecretaryData = NonNullable<Awaited<ReturnType<typeof import('@/lib/secretary-portal-queries').getSecretaryPortalData>>>
 
@@ -108,43 +109,7 @@ export function SecretaryPortal({
       )}
       {view === 'students' && <StudentsList />}
       {view === 'enrollment' && <EnrollmentManager schoolId="" />}
-      {view === 'classes' && (
-        <div className="space-y-6">
-          <PageHeader title="Listes de classes" breadcrumbs={[{ label: 'Secrétariat' }, { label: 'Classes' }]} />
-          <Card>
-            <CardContent className="p-0">
-              {data.classrooms.length === 0 ? <EmptyState icon={<Users className="h-5 w-5" />} title="Aucune classe" /> : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40 border-b">
-                      <tr>
-                        <th className="text-left p-2">Classe</th>
-                        <th className="text-left p-2">Direction</th>
-                        <th className="text-left p-2">Section</th>
-                        <th className="text-left p-2">Option</th>
-                        <th className="text-center p-2">Effectif</th>
-                        <th className="text-center p-2">Capacité</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.classrooms.map((c) => (
-                        <tr key={c.id} className="border-b hover:bg-muted/20">
-                          <td className="p-2 font-medium">{c.name}</td>
-                          <td className="p-2">{c.directorateName}</td>
-                          <td className="p-2">{c.sectionName || '—'}</td>
-                          <td className="p-2">{c.optionName || '—'}</td>
-                          <td className="p-2 text-center"><Badge variant="outline">{c.enrolledCount}</Badge></td>
-                          <td className="p-2 text-center text-muted-foreground">{c.capacity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {view === 'classes' && <ClassListsDynamic />}
       {view === 'recent' && (
         <div className="space-y-6">
           <PageHeader title="Inscriptions récentes" breadcrumbs={[{ label: 'Secrétariat' }, { label: 'Inscriptions récentes' }]} />
