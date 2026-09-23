@@ -41,8 +41,10 @@ export async function GET() {
       db.attendance.count({ where: { schoolId, status: 'ABSENT', date: { gte: today, lt: tomorrow } } }),
       db.attendance.count({ where: { schoolId, status: 'LATE', date: { gte: today, lt: tomorrow } } }),
       db.parentRequest.count({ where: { schoolId, status: 'OPEN' } }),
-      0, // documentsToProduce — à calculer dynamiquement
-      0, // transfersToProcess — à implémenter
+      // documentsToProduce : certificats en attente de validation + demandes de documents
+      db.certificate.count({ where: { schoolId, requiresValidation: true, validatedAt: null, archived: false } }),
+      // transfersToProcess : transferts en attente
+      db.transfer.count({ where: { schoolId, status: 'PENDING' } }),
       db.reception.count({ where: { schoolId, scheduledDate: { gte: today, lt: tomorrow }, status: 'SCHEDULED' } }),
       db.notification.count({ where: { read: false } }),
       db.adminTask.count({ where: { schoolId, status: { in: ['PENDING', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } } }),

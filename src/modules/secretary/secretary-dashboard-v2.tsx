@@ -116,6 +116,11 @@ export function SecretaryDashboardV2({ onNavigate }: { onNavigate: (view: string
         <Button size="sm" variant="outline" onClick={() => onNavigate('students')}><Users className="h-4 w-4 mr-1" /> Élèves</Button>
         <Button size="sm" variant="outline" onClick={() => onNavigate('enrollment')}><Plus className="h-4 w-4 mr-1" /> Nouvel élève</Button>
         <Button size="sm" variant="outline" onClick={() => onNavigate('classes')}><ListChecks className="h-4 w-4 mr-1" /> Classes</Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('absences')}><XCircle className="h-4 w-4 mr-1" /> Absences</Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('documents')}><FileText className="h-4 w-4 mr-1" /> Documents</Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('communications')}><Mail className="h-4 w-4 mr-1" /> Communications</Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('transfers')}><Send className="h-4 w-4 mr-1" /> Transferts</Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('reports')}><ListChecks className="h-4 w-4 mr-1" /> Rapports</Button>
       </div>
 
       {/* Indicateurs cliquables */}
@@ -127,11 +132,13 @@ export function SecretaryDashboardV2({ onNavigate }: { onNavigate: (view: string
           <KPI label="Doublons ⚠️" value={stats.admissionsDuplicate} icon={<AlertCircle className="h-4 w-4" />} color="red" onClick={() => onNavigate('admissions')} />
           <KPI label="Sans classe" value={stats.studentsWithoutClass} icon={<Users className="h-4 w-4" />} color="amber" onClick={() => onNavigate('students')} />
           <KPI label="Sans parent" value={stats.studentsWithoutGuardian} icon={<UserCheck className="h-4 w-4" />} color="red" onClick={() => onNavigate('students')} />
-          <KPI label="Absences aujourd'hui" value={stats.absencesToday} icon={<XCircle className="h-4 w-4" />} color="red" />
-          <KPI label="Retards aujourd'hui" value={stats.latesToday} icon={<Clock className="h-4 w-4" />} color="amber" />
-          <KPI label="Parents à contacter" value={stats.parentsToContact} icon={<Mail className="h-4 w-4" />} color="blue" />
-          <KPI label="RDV du jour" value={stats.appointmentsToday} icon={<CalendarClock className="h-4 w-4" />} color="teal" />
-          <KPI label="Messages non lus" value={stats.messagesUnread} icon={<Mail className="h-4 w-4" />} color="blue" />
+          <KPI label="Absences aujourd'hui" value={stats.absencesToday} icon={<XCircle className="h-4 w-4" />} color="red" onClick={() => onNavigate('absences')} />
+          <KPI label="Retards aujourd'hui" value={stats.latesToday} icon={<Clock className="h-4 w-4" />} color="amber" onClick={() => onNavigate('absences')} />
+          <KPI label="Parents à contacter" value={stats.parentsToContact} icon={<Mail className="h-4 w-4" />} color="blue" onClick={() => onNavigate('communications')} />
+          <KPI label="Doc. à produire" value={stats.documentsToProduce} icon={<FileText className="h-4 w-4" />} color="teal" onClick={() => onNavigate('documents')} />
+          <KPI label="Transferts à traiter" value={stats.transfersToProcess} icon={<Send className="h-4 w-4" />} color="orange" onClick={() => onNavigate('transfers')} />
+          <KPI label="RDV du jour" value={stats.appointmentsToday} icon={<CalendarClock className="h-4 w-4" />} color="teal" onClick={() => onNavigate('communications')} />
+          <KPI label="Messages non lus" value={stats.messagesUnread} icon={<Mail className="h-4 w-4" />} color="blue" onClick={() => onNavigate('communications')} />
           <KPI label="Tâches en retard" value={stats.tasksOverdue} icon={<AlertTriangle className="h-4 w-4" />} color="red" />
           <KPI label="Tâches en cours" value={stats.tasksPending} icon={<ListChecks className="h-4 w-4" />} color="blue" />
           <KPI label="Total élèves" value={stats.totalStudents} icon={<Users className="h-4 w-4" />} color="primary" onClick={() => onNavigate('students')} />

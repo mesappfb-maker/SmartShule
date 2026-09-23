@@ -38,6 +38,8 @@ model User {
   sessions        Session[]
   authoredMessages RequestMessage[]
   syncDevices     SyncDevice[]
+  // Étape 11 — Communications envoyées comme sender
+  sentCommunications Communication[]
   syncOperations   SyncOperation[]
   idempotencyRecords IdempotencyRecord[]
   preRegistrations PreRegistration[]
@@ -154,6 +156,17 @@ model School {
   admissionApplications AdmissionApplication[]
   // Étape 10 — File d'attente administrative
   adminTasks      AdminTask[]
+  // Étape 11 — Module secrétariat centralisé
+  studentDocuments StudentDocument[]
+  certificates    Certificate[]
+  certificateTemplates CertificateTemplate[]
+  transfers       Transfer[]
+  communications  Communication[]
+  callLogs        CallLog[]
+  visitorLogs     VisitorLog[]
+  appointments    Appointment[]
+  absenceJustifications AbsenceJustification[]
+  massOperations  MassOperation[]
 }
 
 model Branding {
@@ -333,6 +346,15 @@ model Student {
   parentLinkRequests ParentLinkRequest[]
   // Étape 10 : File d'attente
   adminTasks      AdminTask[]
+  // Étape 11 : Module secrétariat centralisé
+  studentDocuments StudentDocument[]
+  certificates    Certificate[]
+  transfers       Transfer[]
+  communications  Communication[]
+  callLogs        CallLog[]
+  visitorLogs     VisitorLog[]
+  appointments    Appointment[]
+  absenceJustifications AbsenceJustification[]
 }
 
 model Guardian {
@@ -2767,4 +2789,387 @@ model AdminTask {
   @@index([schoolId, category])
   @@index([studentId])
   @@index([dueDate])
+}
+
+// ============================================================
+// ÉTAPE 11 — MODULE SECRÉTARIAT CENTRALISÉ AVANCÉ
+// ============================================================
+//   - StudentDocument : documents numériques du dossier élève
+//   - Certificate : certificats/attestations générés (traçabilité)
+//   - Transfer : transferts entrants/sortants/réintégrations
+//   - Communication : messagerie secrétariat-parents
+//   - CallLog : registre des appels téléphoniques
+//   - VisitorLog : registre des visiteurs + badges
+//   - Appointment : rendez-vous + agenda partagé
+//   - AbsenceJustification : justificatifs d'absence côté secrétariat
+//   - MassOperation : journal des opérations de masse
+
+// U. DOCUMENTS NUMÉRIQUES DU DOSSIER ÉLÈVE
+model StudentDocument {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  // Type
+  documentType    String   // BIRTH_CERTIFICATE | PHOTO | REPORT_CARD | VACCINATION | ID_PROOF | PROOF_OF_ADDRESS | MEDICAL | TRANSFER_CERTIFICATE | SCHOOL_CERTIFICATE | ENROLLMENT_FORM | OTHER
+  label           String   // Libellé descriptif
+  // Fichier
+  fileName        String   // Nom original
+  systemFileName  String   // Nom généré par le système (stockage)
+  fileUrl         String   // URL de stockage sécurisé
+  fileSize        Int      // En bytes
+  mimeType        String   // application/pdf, image/jpeg, etc.
+  // Vérification
+  verified        Boolean  @default(false)
+  verifiedById    String?
+  verifiedByName  String?
+  verifiedAt      DateTime?
+  // Audit
+  uploadedById    String?
+  uploadedByName  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, studentId])
+  @@index([documentType])
+  @@index([verified])
+}
+
+// V. CERTIFICATS & ATTESTATIONS GÉNÉRÉS
+model Certificate {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  // Type de document
+  certificateType String   // SCHOOL_CERTIFICATE | ENROLLMENT_ATTESTATION | ATTENDANCE_ATTESTATION | STUDENT_CARD | PARENT_CONVOCATION | ABSENCE_LETTER | CLASS_LIST | TRANSFER_ATTESTATION | ENROLLMENT_FORM | LABEL_QR
+  // Référence unique (numérotation chronologique)
+  referenceNumber String   @unique // Format: CERT-2026-000001
+  // Contenu
+  title           String
+  templateId      String?  // Modèle utilisé (si template)
+  // Génération
+  generatedAt     DateTime @default(now())
+  generatedById   String?
+  generatedByName String?
+  // PDF
+  pdfUrl          String?  // URL du PDF généré
+  pdfFileName     String?
+  // Validation direction
+  requiresValidation Boolean @default(false)
+  validatedById   String?
+  validatedByName String?
+  validatedAt     DateTime?
+  // Remise
+  deliveredTo     String?  // Nom de la personne à qui remis
+  deliveredAt     DateTime?
+  deliveredById   String?
+  // Réimpression
+  reprintCount    Int      @default(0)
+  lastReprintAt   DateTime?
+  lastReprintById String?
+  // Motif
+  reason          String?
+  // Archivage
+  archived        Boolean  @default(false)
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, studentId])
+  @@index([certificateType])
+  @@index([referenceNumber])
+  @@index([generatedAt])
+}
+
+// W. CERTIFICATE TEMPLATE — modèles de documents de l'établissement
+model CertificateTemplate {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  name            String   // "Certificat de scolarité", "Attestation d'inscription"
+  certificateType String   // SCHOOL_CERTIFICATE | ENROLLMENT_ATTESTATION | etc.
+  content         String   // Contenu HTML/JSON du modèle
+  headerText      String?  // En-tête personnalisé
+  footerText      String?  // Pied de page personnalisé
+  requiresValidation Boolean @default(false)
+  isActive        Boolean  @default(true)
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, certificateType])
+}
+
+// X. TRANSFERS, SORTIES ET RÉINTÉGRATIONS
+model Transfer {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  // Type
+  transferType    String   // INCOMING | OUTGOING | VOLUNTARY_WITHDRAWAL | DEFINITIVE_EXIT | ADMINISTRATIVE_SUSPENSION | REINTEGRATION
+  // Origine / Destination
+  originSchool    String?  // École d'origine (transfert entrant ou sortant)
+  destinationSchool String? // École de destination (transfert sortant)
+  // Détails
+  reason          String
+  effectiveDate   DateTime // Date d'effet
+  // Workflow
+  status          String   @default("PENDING") // PENDING | APPROVED | EXECUTED | CANCELLED
+  requestedById   String?
+  requestedByName String?
+  approvedById    String?
+  approvedByName  String?
+  approvedAt      DateTime?
+  decisionReason  String?  // Motif de la décision (approbation/refus)
+  // Documents associés
+  transferCertificateUrl String?
+  transcriptUrl   String?
+  // Conservation du matricule
+  originalMatricule String?
+  // Classe concernée
+  classroomId     String?
+  academicYearId  String?
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, studentId])
+  @@index([transferType])
+  @@index([status])
+  @@index([effectiveDate])
+}
+
+// Y. COMMUNICATION MESSAGERIE SECRÉTARIAT-PARENTS
+model Communication {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Émetteur
+  senderId        String   // User ID (secrétaire)
+  sender          User     @relation(fields: [senderId], references: [id])
+  senderName      String
+  senderRole      String   // SECRETARY | DIRECTION | SYSTEM
+  // Destinataire
+  recipientId     String?  // User ID du parent (si connu)
+  recipientName   String
+  recipientPhone  String?  // Téléphone/WhatsApp
+  recipientEmail  String?  // Email
+  // Canaux
+  channel         String   @default("APP") // APP | EMAIL | SMS | WHATSAPP
+  // Contenu
+  subject         String?
+  body            String
+  templateId      String?  // Modèle utilisé
+  // Statut
+  status          String   @default("NEW") // NEW | IN_PROGRESS | WAITING | RESOLVED | CLOSED
+  // Attribution (boîte partagée)
+  assignedToId    String?  // User ID de la secrétaire assignée
+  assignedToName  String?
+  // Élève concerné
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  // Catégorie
+  category        String   @default("GENERAL") // GENERAL | ABSENCE | PAYMENT | ENROLLMENT | DOCUMENT | TRANSFER | URGENT
+  // Livraison
+  deliveredAt     DateTime?
+  deliveryStatus  String?  // SENT | DELIVERED | FAILED | BOUNCE
+  deliveryError   String?
+  // Réponse rapide
+  parentReply     String?
+  parentReplyAt   DateTime?
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([schoolId, category])
+  @@index([studentId])
+  @@index([senderId])
+  @@index([recipientId])
+}
+
+// Z. REGISTRE DES APPELS TÉLÉPHONIQUES
+model CallLog {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Appel
+  callerName      String   // Nom de l'appelant (ou "Appel sortant vers X")
+  callerPhone     String?
+  direction       String   @default("INCOMING") // INCOMING | OUTGOING
+  // Contacté
+  contactedName   String?
+  contactedPhone  String?
+  // Objet
+  subject         String?
+  notes           String?
+  // Durée
+  durationMinutes Int?
+  // Résultat
+  outcome         String?  // REACHED | VOICEMAIL | NO_ANSWER | BUSY | CALLBACK_REQUESTED
+  // Élève concerné
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  // Suivi
+  followUpRequired Boolean @default(false)
+  followUpDate    DateTime?
+  // Secrétaire
+  handledById     String?
+  handledByName   String?
+  // Audit
+  callDate        DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, callDate])
+  @@index([studentId])
+}
+
+// AA. REGISTRE DES VISITEURS
+model VisitorLog {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Visiteur
+  visitorName     String
+  visitorPhone    String?
+  visitorIdNumber String?  // Pièce d'identité
+  visitorType     String   @default("PARENT") // PARENT | OFFICIAL | DELIVERY | OTHER
+  // Objet de la visite
+  purpose         String
+  // Personne visitée
+  visitedName     String?
+  // Badge
+  badgeNumber     String?
+  badgeReturned   Boolean  @default(false)
+  // Horodatage
+  checkInAt       DateTime @default(now())
+  checkOutAt      DateTime?
+  // Élève concerné
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  // Secrétaire
+  handledById     String?
+  handledByName   String?
+
+  @@index([schoolId, checkInAt])
+  @@index([studentId])
+}
+
+// AB. RENDEZ-VOUS ET AGENDA
+model Appointment {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Titre
+  title           String
+  description     String?
+  // Date/heure
+  date            DateTime
+  durationMinutes Int      @default(30)
+  endTime         DateTime? // Calculé : date + durationMinutes
+  // Lieu
+  location        String?  // "Bureau secrétariat", "Salle 5"
+  // Participants
+  withName        String   // Nom du parent/visiteur
+  withPhone       String?
+  withEmail       String?
+  withUserId      String?  // User ID (si parent inscrit)
+  // Élève concerné
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  // Type
+  appointmentType String   @default("GENERAL") // GENERAL | ENROLLMENT | ADMISSION | PARENT_MEETING | DISCIPLINARY | FINANCIAL
+  // Statut
+  status          String   @default("SCHEDULED") // SCHEDULED | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
+  // Secrétaire
+  assignedToId    String?
+  assignedToName  String?
+  // Rappel
+  reminderSent    Boolean  @default(false)
+  reminderSentAt  DateTime?
+  // Audit
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, date])
+  @@index([status])
+  @@index([studentId])
+  @@index([assignedToId])
+}
+
+// AC. JUSTIFICATIFS D'ABSENCE (côté secrétariat)
+model AbsenceJustification {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  // Lien vers l'absence
+  attendanceId    String?  // Optionnel : lié à un enregistrement Attendance
+  // Justificatif
+  justificationType String // MEDICAL | FAMILY | ADMINISTRATIVE | OTHER
+  justificationDate DateTime // Date(s) couverte(s) par le justificatif
+  endDate         DateTime? // Si justificatif couvre plusieurs jours
+  // Document
+  documentUrl     String?  // Photo/scan du justificatif
+  documentFileName String?
+  // Description
+  description     String?
+  // Validation
+  status          String   @default("SUBMITTED") // SUBMITTED | VALIDATED | REJECTED
+  validatedById   String?
+  validatedByName String?
+  validatedAt     DateTime?
+  rejectionReason String?
+  // Parent qui a soumis
+  submittedById   String?
+  submittedByName String?
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, studentId])
+  @@index([status])
+  @@index([justificationDate])
+}
+
+// AD. JOURNAL DES OPÉRATIONS DE MASSE
+model MassOperation {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Opération
+  operationType   String   // REENROLL | ASSIGN_CLASS | CHANGE_CLASS | NOTIFY_PARENTS | GENERATE_DOCUMENTS | EXPORT | ARCHIVE | IMPORT
+  // Paramètres
+  parameters      String   // JSON des paramètres (classe source, cible, etc.)
+  // Exécution
+  affectedCount   Int      @default(0)  // Nombre de dossiers affectés
+  successCount    Int      @default(0)
+  failCount       Int      @default(0)
+  errors          String?  // JSON des erreurs détaillées
+  // Confirmation
+  confirmedById   String?
+  confirmedByName String?
+  confirmedAt     DateTime?
+  // Annulation
+  cancelled       Boolean  @default(false)
+  cancelledById   String?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  // Audit
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([schoolId, operationType])
+  @@index([createdAt])
 }
