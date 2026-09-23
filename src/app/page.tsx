@@ -19,6 +19,7 @@ import { getTeacherPortalData } from '@/lib/teacher-portal-queries'
 import { getAccountantPortalData } from '@/lib/accountant-portal-queries'
 import { getServerPortalData } from '@/lib/server-portal-queries'
 import { getProfileData } from '@/lib/profile-actions'
+import { getSecretaryPortalData } from '@/lib/secretary-portal-queries'
 import { LoginForm } from '@/modules/auth/login-form'
 import { ParentDashboard } from '@/modules/parent/parent-dashboard'
 import { StudentDashboard } from '@/modules/student/student-dashboard'
@@ -26,6 +27,7 @@ import { DirectionDashboard } from '@/modules/direction/direction-dashboard'
 import { TeacherPortal } from '@/modules/teacher/teacher-portal'
 import { AccountantPortal } from '@/modules/accountant/accountant-portal'
 import { ServerPortal } from '@/modules/server/server-portal'
+import { SecretaryPortal } from '@/modules/secretary/secretary-portal'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -106,6 +108,16 @@ export default async function Home() {
       ])
       if (!data) return <NoData user={user} />
       return <AccountantPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
+    }
+
+    // SECRETARY (Secrétariat)
+    if (user.role === 'SECRETARY') {
+      const [data, profileData] = await Promise.all([
+        getSecretaryPortalData(user.id, user.email || undefined).catch(() => null),
+        getProfileData(user.id).catch(() => null),
+      ])
+      if (!data) return <NoData user={user} />
+      return <SecretaryPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
     }
 
     // SERVER
