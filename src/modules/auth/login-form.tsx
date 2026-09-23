@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { useActionState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff, User, Users, Briefcase, Wallet, Server, BookOpen, Shield, Phone, Monitor } from 'lucide-react'
@@ -10,8 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { loginAction } from '@/lib/actions'
 import { ThemeToggle } from '@/components/ss/theme-toggle'
+import { toast } from 'sonner'
 
 // ✅ 7 comptes démo cliquables directement sur la page
 const DEMO_ACCOUNTS = [
@@ -27,17 +26,48 @@ const DEMO_ACCOUNTS = [
 const DEMO_PASSWORD = 'SmartShule2026!'
 
 export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; schoolSlogan?: string }) {
-  const [state, formAction, isPending] = useActionState(loginAction, null)
+  const [error, setError] = React.useState<string | null>(null)
+  const [isPending, setIsPending] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
   const [selectedAccount, setSelectedAccount] = React.useState<string>('')
   const router = useRouter()
 
-  // Rediriger vers /dashboard après connexion réussie
-  React.useEffect(() => {
-    if (state && state.ok) {
-      router.push('/dashboard')
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    setIsPending(true)
+
+    const formData = new FormData(e.currentTarget)
+    const email = String(formData.get('email') || '').trim().toLowerCase()
+    const password = String(formData.get('password') || '')
+
+    if (!email || !password) {
+      setError('Veuillez saisir votre email et votre mot de passe.')
+      setIsPending(false)
+      return
     }
-  }, [state, router])
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+
+      if (data.ok) {
+        // Rediriger vers le dashboard
+        router.push('/dashboard')
+        router.refresh()
+      } else {
+        setError(data.error || 'Erreur de connexion.')
+      }
+    } catch (err) {
+      setError('Erreur réseau : ' + (err as Error).message)
+    } finally {
+      setIsPending(false)
+    }
+  }
 
   function selectAccount(email: string) {
     setSelectedAccount(email)
@@ -133,10 +163,10 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <form action={formAction} className="space-y-4">
-                  {state && !state.ok && (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
                     <Alert variant="destructive">
-                      <AlertDescription>{state.error}</AlertDescription>
+                      <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
 
