@@ -1,25 +1,24 @@
-// SmartShule — Page d'accueil commerciale (landing page)
+// SmartShule — Page de connexion (page d'accueil par défaut)
 // ============================================================
 
 import { db } from '@/lib/db'
-import { LandingPage } from '@/modules/landing/landing-page'
+import { getUserFromSession } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { LoginForm } from '@/modules/auth/login-form'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Home() {
-  const school = await db.school.findFirst({
-    select: {
-      id: true,
-      name: true,
-      slogan: true,
-      primaryColor: true,
-      secondaryColor: true,
-      tertiaryColor: true,
-      address: true,
-      phone: true,
-      email: true,
-    },
-  })
+  // Si déjà connecté, rediriger vers le dashboard
+  const user = await getUserFromSession()
+  if (user) redirect('/dashboard')
 
-  return <LandingPage school={school} />
+  const school = await db.school.findFirst()
+
+  return (
+    <LoginForm
+      schoolName={school?.name || 'SmartShule'}
+      schoolSlogan={school?.slogan || undefined}
+    />
+  )
 }
