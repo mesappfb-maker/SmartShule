@@ -39,7 +39,9 @@ export default async function DashboardPage() {
   ])
 
   if (!school) {
-    redirect('/')
+    // Ne pas rediriger → afficher la page NoData directement
+    // pour éviter une boucle de redirection /
+    return <NoData user={user} />
   }
 
   const schoolData = {
