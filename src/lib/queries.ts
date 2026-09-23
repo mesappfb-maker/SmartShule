@@ -55,8 +55,19 @@ export async function getDirectionForUser(userId: string) {
   return direction
 }
 
-export async function getSchoolForUser(userId: string) {
-  // Trouver l'école via guardian/student/audit
+export async function getSchoolForUser(userId: string, userEmail?: string) {
+  // 1. Chercher par Employee.email (Direction, Comptable, Prof)
+  if (userEmail) {
+    const employee = await db.employee.findFirst({
+      where: { email: userEmail },
+      select: { schoolId: true },
+    })
+    if (employee?.schoolId) {
+      return db.school.findUnique({ where: { id: employee.schoolId } })
+    }
+  }
+
+  // 2. Chercher par Guardian.userId (Parent)
   const guardian = await db.guardian.findFirst({
     where: { userId },
     select: { schoolId: true },
@@ -65,6 +76,7 @@ export async function getSchoolForUser(userId: string) {
     return db.school.findUnique({ where: { id: guardian.schoolId } })
   }
 
+  // 3. Chercher par Student.userId (Élève)
   const student = await db.student.findFirst({
     where: { userId },
     select: { schoolId: true },
@@ -73,7 +85,7 @@ export async function getSchoolForUser(userId: string) {
     return db.school.findUnique({ where: { id: student.schoolId } })
   }
 
-  // Direction : prendre la première école (compte unique à l'école dans cette démo)
+  // 4. Chercher par AuditLog
   const audit = await db.auditLog.findFirst({
     where: { userId, schoolId: { not: null } },
     select: { schoolId: true },
@@ -82,7 +94,7 @@ export async function getSchoolForUser(userId: string) {
     return db.school.findUnique({ where: { id: audit.schoolId } })
   }
 
-  // Fallback : retourner la première école (pour la démo)
+  // 5. Fallback : première école
   return db.school.findFirst()
 }
 
@@ -262,8 +274,8 @@ export async function getStudentDashboardData(userId: string) {
   }
 }
 
-export async function getDirectionDashboardData(userId: string) {
-  const school = await getSchoolForUser(userId)
+export async function getDirectionDashboardData(userId: string, userEmail?: string) {
+  const school = await getSchoolForUser(userId, userEmail)
   if (!school) return null
 
   const [

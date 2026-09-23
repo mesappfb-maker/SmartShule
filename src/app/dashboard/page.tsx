@@ -3,13 +3,13 @@
 
 import { getUserFromSession } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { getSchoolIdForUser } from '@/lib/school-context'
 import { redirect } from 'next/navigation'
 import {
   getParentDashboardData,
   getStudentDashboardData,
   getDirectionDashboardData,
   getNotificationsForUser,
-  getSchoolForUser,
   getFinanceDashboardData,
 } from '@/lib/queries'
 import { getAcademicSupervisionData } from '@/lib/academic-supervision-queries'
@@ -23,7 +23,6 @@ import { DirectionDashboard } from '@/modules/direction/direction-dashboard'
 import { TeacherPortal } from '@/modules/teacher/teacher-portal'
 import { AccountantPortal } from '@/modules/accountant/accountant-portal'
 import { ServerPortal } from '@/modules/server/server-portal'
-import { LoginForm } from '@/modules/auth/login-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,14 +32,12 @@ export default async function DashboardPage() {
     redirect('/')
   }
 
-  const [school, notifications] = await Promise.all([
-    getSchoolForUser(user.id),
-    getNotificationsForUser(user.id),
-  ])
+  // Utiliser le helper robuste qui cherche par Employee.email, Guardian, Student, AuditLog, puis fallback
+  const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
+  const school = schoolId ? await db.school.findUnique({ where: { id: schoolId } }) : null
+  const notifications = await getNotificationsForUser(user.id)
 
   if (!school) {
-    // Ne pas rediriger → afficher la page NoData directement
-    // pour éviter une boucle de redirection /
     return <NoData user={user} />
   }
 
@@ -70,7 +67,7 @@ export default async function DashboardPage() {
   // DIRECTION
   if (user.role === 'DIRECTION' || user.role === 'ADMIN') {
     const [data, financeData, supervisionData] = await Promise.all([
-      getDirectionDashboardData(user.id),
+      getDirectionDashboardData(user.id, user.email || undefined),
       getFinanceDashboardData(schoolData.id),
       getAcademicSupervisionData(schoolData.id),
     ])

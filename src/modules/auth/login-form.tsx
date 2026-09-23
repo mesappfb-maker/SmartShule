@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useActionState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff, User, Users, Briefcase, Wallet, Server, BookOpen, Shield, Phone, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,14 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
   const [state, formAction, isPending] = useActionState(loginAction, null)
   const [showPassword, setShowPassword] = React.useState(false)
   const [selectedAccount, setSelectedAccount] = React.useState<string>('')
+  const router = useRouter()
+
+  // Rediriger vers /dashboard après connexion réussie
+  React.useEffect(() => {
+    if (state && state.ok) {
+      router.push('/dashboard')
+    }
+  }, [state, router])
 
   function selectAccount(email: string) {
     setSelectedAccount(email)
