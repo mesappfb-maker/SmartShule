@@ -28,6 +28,7 @@ import { EnrollmentManager } from '@/modules/direction/enrollment-manager'
 import { StudentsList } from './students-list'
 import { ClassListsDynamic } from './class-lists-dynamic'
 import { AdmissionsManager } from './admissions-manager'
+import { AdmissionsManagerV2 } from './admissions-manager-v2'
 
 type SecretaryData = NonNullable<Awaited<ReturnType<typeof import('@/lib/secretary-portal-queries').getSecretaryPortalData>>>
 
@@ -46,7 +47,7 @@ export function SecretaryPortal({
     id: 'main', label: 'Portail Secrétariat',
     items: [
       { key: 'dashboard', label: 'Tableau de bord', icon: <Home className="h-4 w-4" /> },
-      { key: 'admissions', label: 'Admissions', icon: <FileText className="h-4 w-4" /> },
+      { key: 'admissions', label: 'Admissions V2', icon: <FileText className="h-4 w-4" /> },
       { key: 'students', label: 'Liste des élèves', icon: <Users className="h-4 w-4" /> },
       { key: 'enrollment', label: 'Inscriptions', icon: <Plus className="h-4 w-4" /> },
       { key: 'classes', label: 'Listes de classes', icon: <ClipboardList className="h-4 w-4" /> },
@@ -109,7 +110,7 @@ export function SecretaryPortal({
           </div>
         </div>
       )}
-      {view === 'admissions' && <AdmissionsManager />}
+      {view === 'admissions' && <AdmissionsManagerV2 />}
       {view === 'students' && <StudentsList />}
       {view === 'enrollment' && <EnrollmentManager schoolId="" />}
       {view === 'classes' && <ClassListsDynamic />}

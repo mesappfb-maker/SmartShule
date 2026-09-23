@@ -193,7 +193,7 @@ function CandidateParentScreen({ user }: { user: { displayName: string; role: st
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          <a href="/preinscription" className="block p-5 bg-primary/5 hover:bg-primary/10 rounded-xl border border-primary/20 transition-colors text-center">
+          <a href="/preinscription/v2" className="block p-5 bg-primary/5 hover:bg-primary/10 rounded-xl border border-primary/20 transition-colors text-center">
             <div className="text-3xl mb-2">📝</div>
             <h3 className="font-semibold text-primary">Inscrire un nouvel enfant</h3>
             <p className="text-xs text-muted-foreground mt-1">Soumettez un dossier de préinscription</p>

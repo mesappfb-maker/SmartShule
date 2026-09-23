@@ -42,6 +42,8 @@ model User {
   idempotencyRecords IdempotencyRecord[]
   preRegistrations PreRegistration[]
   parentLinkRequests ParentLinkRequest[]
+  // Étape 9 — Admissions V2
+  admissionApplications AdmissionApplication[]
 }
 
 model Session {
@@ -148,6 +150,8 @@ model School {
   // Étape 8 — Préinscription & rattachement
   preRegistrations PreRegistration[]
   parentLinkRequests ParentLinkRequest[]
+  // Étape 9 — Admissions V2
+  admissionApplications AdmissionApplication[]
 }
 
 model Branding {
@@ -2590,4 +2594,140 @@ model ParentLinkRequest {
   @@index([schoolId, status])
   @@index([userId])
   @@index([studentId])
+}
+
+// ============================================================
+// ÉTAPE 9 — MODULE ADMISSIONS V2 (multi-enfants + anti-doublon)
+// ============================================================
+// Architecture :
+//   AdmissionApplication : demande globale d'un parent (peut contenir N enfants)
+//   ChildApplication : sous-dossier par enfant dans la demande
+//   AdmissionDocument : documents uploadés par enfant
+
+// P. DEMANDE D'ADMISSION GLOBALE (1 parent → N enfants)
+model AdmissionApplication {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Demandeur
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Référence unique
+  referenceNumber String   @unique // Format: ADM-2026-000001
+  // Type
+  applicationType String   @default("NEW_ADMISSION") // NEW_ADMISSION | LINK_EXISTING
+  // Statut global
+  status          String   @default("DRAFT") // DRAFT | SUBMITTED | INCOMPLETE | TO_VERIFY | DUPLICATE_SUSPECTED | TRANSMITTED | ACCEPTED | REFUSED | ARCHIVED | CANCELLED
+  // Informations parent (dénormalisé pour recherche rapide)
+  parentFirstName String
+  parentLastName  String
+  parentEmail     String
+  parentPhone     String
+  parentRelationship String @default("PERE")
+  // Vérifications
+  emailVerified   Boolean  @default(false)
+  phoneVerified   Boolean  @default(false)
+  // Traitement
+  reviewedById    String?
+  reviewedByName  String?
+  reviewedAt      DateTime?
+  decisionReason  String?
+  // Audit
+  submittedAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  children        ChildApplication[]
+  documents       AdmissionDocument[]
+  history         AdmissionHistory[]
+
+  @@index([schoolId, status])
+  @@index([userId])
+  @@index([referenceNumber])
+  @@index([parentEmail])
+  @@index([parentPhone])
+}
+
+// Q. SOUS-DOSSIER PAR ENFANT (dans une demande globale)
+model ChildApplication {
+  id              String   @id @default(cuid())
+  applicationId   String
+  application     AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  // Infos enfant
+  childFirstName  String
+  childLastName   String
+  childBirthDate  DateTime?
+  childGender     String?  // M | F
+  childBirthPlace String?
+  previousSchool  String?
+  // Souhaits
+  desiredLevel    String?
+  desiredClassroomId String? // Doit venir des classes existantes
+  // Statut individuel (peut différer du statut global)
+  status          String   @default("PENDING") // PENDING | INCOMPLETE | ACCEPTED | REFUSED | DUPLICATE
+  // Doublon détecté
+  duplicateStatus String?  // null | SUSPECTED | CONFIRMED | DISTINCT
+  duplicateStudentId String? // Si doublon confirmé → lien vers l'élève existant
+  // Élève créé après acceptation
+  studentId       String?
+  matricule       String?
+  // Traitement
+  reviewedAt      DateTime?
+  decisionReason  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  documents       AdmissionDocument[]
+  history         AdmissionHistory[]
+
+  @@index([applicationId])
+  @@index([status])
+  @@index([studentId])
+}
+
+// R. DOCUMENTS D'ADMISSION (par enfant ou global)
+model AdmissionDocument {
+  id              String   @id @default(cuid())
+  applicationId   String
+  application     AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  childApplicationId String? // Null = document global du parent, non-null = spécifique à un enfant
+  childApplication ChildApplication? @relation(fields: [childApplicationId], references: [id], onDelete: Cascade)
+  // Type
+  documentType    String   // BIRTH_CERTIFICATE | PHOTO | REPORT_CARD | VACCINATION | ID_PROOF | PROOF_OF_ADDRESS | OTHER
+  // Fichier
+  fileName        String
+  fileUrl         String   // URL de stockage (Supabase Storage ou local)
+  fileSize        Int      // En bytes
+  mimeType        String   // application/pdf, image/jpeg, etc.
+  // Vérification
+  verified        Boolean  @default(false)
+  verifiedById    String?
+  verifiedAt      DateTime?
+  // Audit
+  createdAt       DateTime @default(now())
+
+  @@index([applicationId])
+  @@index([childApplicationId])
+  @@index([documentType])
+}
+
+// S. HISTORIQUE DES DÉCISIONS D'ADMISSION
+model AdmissionHistory {
+  id              String   @id @default(cuid())
+  applicationId   String
+  application     AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  childApplicationId String?
+  childApplication ChildApplication? @relation(fields: [childApplicationId], references: [id], onDelete: Cascade)
+  // Action
+  action          String   // CREATED | SUBMITTED | MARKED_INCOMPLETE | DUPLICATE_DETECTED | TRANSMITTED | ACCEPTED | REFUSED | ARCHIVED | CANCELLED | DOCUMENT_UPLOADED | DOCUMENT_VERIFIED
+  performedById   String?
+  performedByName String?
+  notes           String?
+  previousStatus  String?
+  newStatus       String?
+  createdAt       DateTime @default(now())
+
+  @@index([applicationId])
+  @@index([childApplicationId])
+  @@index([action])
 }
