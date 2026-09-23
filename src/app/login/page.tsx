@@ -1,6 +1,6 @@
-// SmartShule — Page de connexion (application sécurisée)
+// SmartShule — Page de connexion alternative (/login)
 // ============================================================
-// Accessible via /login — redirige vers le portail après authentification
+// Affiche le formulaire de connexion sans redirection
 
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
@@ -10,7 +10,6 @@ import { LoginForm } from '@/modules/auth/login-form'
 export const dynamic = 'force-dynamic'
 
 export default async function LoginPage() {
-  // Si déjà connecté, rediriger vers le dashboard
   const user = await getUserFromSession()
   if (user) redirect('/dashboard')
 

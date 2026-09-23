@@ -54,7 +54,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  icon: public/icon.svg
+  icon: public/icon.ico
   compression: maximum
 
 nsis:
@@ -62,6 +62,9 @@ nsis:
   perMachine: false
   allowElevation: true
   allowToChangeInstallationDirectory: true
+  installerIcon: public/icon.ico
+  uninstallerIcon: public/icon.ico
+  installerHeaderIcon: public/icon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: SmartShule
@@ -74,7 +77,7 @@ mac:
   target:
     - target: dmg
       arch: [x64, arm64]
-  icon: public/icon.svg
+  icon: public/icon.icns
   category: public.app-category.education
   hardenedRuntime: true
   gatekeeperAssess: false
