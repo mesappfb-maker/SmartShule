@@ -19,9 +19,10 @@ import { PageHeader } from '@/components/ss/page-header'
 import {
   Loader2, Search, Eye, FileText, CreditCard, Users,
   CheckCircle2, AlertTriangle, XCircle, ChevronLeft, ChevronRight,
-  Download, UserCheck,
+  Download, UserCheck, FolderOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { StudentDetailDrawer } from './student-detail-drawer'
 
 type Student = {
   id: string
@@ -78,6 +79,9 @@ export function StudentsList() {
 
   // Élève sélectionné (profil)
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null)
+  // Élève dont on veut voir le dossier complet (drawer)
+  const [detailStudentId, setDetailStudentId] = React.useState<string | null>(null)
+  const [detailStudentName, setDetailStudentName] = React.useState<string | undefined>(undefined)
 
   const loadData = React.useCallback(async () => {
     setLoading(true)
@@ -250,7 +254,16 @@ export function StudentsList() {
                             {s.firstName[0]}{s.lastName[0]}
                           </div>
                           <div>
-                            <p className="font-medium">{s.fullName}</p>
+                            <button
+                              onClick={() => {
+                                setDetailStudentId(s.id)
+                                setDetailStudentName(s.fullName)
+                              }}
+                              className="font-medium text-left hover:text-primary hover:underline cursor-pointer"
+                              title="Cliquer pour ouvrir le dossier complet"
+                            >
+                              {s.fullName}
+                            </button>
                             {s.guardianName && <p className="text-xs text-muted-foreground">Parent: {s.guardianName}</p>}
                           </div>
                         </div>
@@ -265,11 +278,14 @@ export function StudentsList() {
                       <td className="p-2">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => setSelectedStudent(s)}
+                            onClick={() => {
+                              setDetailStudentId(s.id)
+                              setDetailStudentName(s.fullName)
+                            }}
                             className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
-                            title="Voir le profil"
+                            title="Voir le dossier complet"
                           >
-                            <Eye className="h-4 w-4" />
+                            <FolderOpen className="h-4 w-4" />
                           </button>
                           <a
                             href={`/api/exports/attestation?studentId=${s.id}`}
@@ -311,7 +327,7 @@ export function StudentsList() {
         </div>
       )}
 
-      {/* Modal profil élève */}
+      {/* Modal profil élève (aperçu rapide) */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur p-4" onClick={() => setSelectedStudent(null)}>
           <Card className="max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -342,6 +358,16 @@ export function StudentsList() {
               </div>
 
               <div className="flex flex-wrap gap-2 pt-2 border-t">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setDetailStudentId(selectedStudent.id)
+                    setDetailStudentName(selectedStudent.fullName)
+                    setSelectedStudent(null)
+                  }}
+                >
+                  <FolderOpen className="h-4 w-4 mr-1" /> Dossier complet
+                </Button>
                 <a href={`/api/exports/attestation?studentId=${selectedStudent.id}`} target="_blank">
                   <Button variant="outline" size="sm"><FileText className="h-4 w-4 mr-1" /> Attestation</Button>
                 </a>
@@ -356,6 +382,16 @@ export function StudentsList() {
           </Card>
         </div>
       )}
+
+      {/* Drawer dossier élève complet */}
+      <StudentDetailDrawer
+        studentId={detailStudentId}
+        studentName={detailStudentName}
+        onClose={() => {
+          setDetailStudentId(null)
+          setDetailStudentName(undefined)
+        }}
+      />
     </div>
   )
 }
