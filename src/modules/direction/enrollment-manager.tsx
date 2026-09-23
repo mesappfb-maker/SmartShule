@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, UserPlus, GraduationCap, CheckCircle2 } from 'lucide-react'
+import { Loader2, UserPlus, GraduationCap, CheckCircle2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function EnrollmentManager({ schoolId }: { schoolId: string }) {
@@ -71,6 +71,32 @@ function EnrollStudentForm({ schoolId }: { schoolId: string }) {
       if (data.ok) setClassrooms(data.classrooms || [])
     } catch (err) {
       console.error('Erreur chargement classes:', err)
+    }
+  }
+
+  // Générer automatiquement un matricule
+  async function generateMatricule() {
+    try {
+      const selectedClassroom = classrooms.find((c) => c.id === classroomId)
+      const directorateCode = selectedClassroom?.directorateName?.substring(0, 3).toUpperCase() || 'GEN'
+      const res = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate-matricule',
+          directorateCode,
+          year: new Date().getFullYear(),
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setMatricule(data.matricule)
+        toast.success(`Matricule généré : ${data.matricule}`)
+      } else {
+        toast.error(data.error || 'Erreur génération matricule')
+      }
+    } catch (err) {
+      toast.error('Erreur : ' + (err as Error).message)
     }
   }
 
@@ -141,7 +167,12 @@ function EnrollStudentForm({ schoolId }: { schoolId: string }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Matricule *</Label>
-            <Input value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="ELV-002" />
+            <div className="flex gap-2">
+              <Input value={matricule} onChange={(e) => setMatricule(e.target.value.toUpperCase())} placeholder="ELV-002 ou cliquez générer" />
+              <Button type="button" variant="outline" size="sm" onClick={generateMatricule} title="Générer automatiquement">
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <div>
             <Label>Sexe</Label>

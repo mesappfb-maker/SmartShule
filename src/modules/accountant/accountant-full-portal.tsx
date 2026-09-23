@@ -463,9 +463,7 @@ function CollectView() {
   const mobileProviders = [
     { code: 'MPESA', name: '📱 M-Pesa (Vodacom)' },
     { code: 'ORANGE', name: '🟠 Orange Money' },
-    { code: 'MTN', name: '💛 MTN Mobile Money' },
     { code: 'AIRTEL', name: '🔴 Airtel Money' },
-    { code: 'WAVE', name: '🌊 Wave' },
   ]
 
   return (
