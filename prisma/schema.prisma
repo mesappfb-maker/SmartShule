@@ -152,6 +152,8 @@ model School {
   parentLinkRequests ParentLinkRequest[]
   // Étape 9 — Admissions V2
   admissionApplications AdmissionApplication[]
+  // Étape 10 — File d'attente administrative
+  adminTasks      AdminTask[]
 }
 
 model Branding {
@@ -329,6 +331,8 @@ model Student {
   receipts        Receipt[]
   // Étape 8 : Demandes de rattachement
   parentLinkRequests ParentLinkRequest[]
+  // Étape 10 : File d'attente
+  adminTasks      AdminTask[]
 }
 
 model Guardian {
@@ -2730,4 +2734,37 @@ model AdmissionHistory {
   @@index([applicationId])
   @@index([childApplicationId])
   @@index([action])
+}
+
+// T. FILE D'ATTENTE ADMINISTRATIVE (Secrétariat)
+model AdminTask {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Relations (optionnelles)
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  admissionApplicationId String?
+  // Détails
+  title           String
+  description     String?
+  category        String   // ADMISSION | ENROLLMENT | ABSENCE | DOCUMENT | COMMUNICATION | TRANSFER | OTHER
+  priority        String   @default("NORMAL") // CRITICAL | URGENT | NORMAL | LOW
+  status          String   @default("PENDING") // PENDING | IN_PROGRESS | WAITING_PARENT | WAITING_DIRECTION | WAITING_SERVICE | DONE | CANCELLED
+  // Échéance
+  dueDate         DateTime?
+  // Assignation
+  assignedToId    String?  // User ID de la secrétaire assignée
+  assignedToName  String?
+  // Création
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  @@index([schoolId, status, priority])
+  @@index([schoolId, category])
+  @@index([studentId])
+  @@index([dueDate])
 }
