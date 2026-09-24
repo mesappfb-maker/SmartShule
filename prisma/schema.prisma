@@ -167,6 +167,13 @@ model School {
   appointments    Appointment[]
   absenceJustifications AbsenceJustification[]
   massOperations  MassOperation[]
+  // Étape 12 — Notifications + Import + Document Versions
+  notificationTemplates NotificationTemplate[]
+  notificationLogs NotificationLog[]
+  notificationConsents NotificationConsent[]
+  notificationProviderConfigs NotificationProviderConfig[]
+  importJobs     ImportJob[]
+  documentVersions DocumentVersion[]
 }
 
 model Branding {
@@ -355,6 +362,8 @@ model Student {
   visitorLogs     VisitorLog[]
   appointments    Appointment[]
   absenceJustifications AbsenceJustification[]
+  // Étape 12 — Notifications
+  notificationLogs NotificationLog[]
 }
 
 model Guardian {
@@ -3172,4 +3181,295 @@ model MassOperation {
 
   @@index([schoolId, operationType])
   @@index([createdAt])
+}
+
+// ============================================================
+// AE. NOTIFICATIONS MULTICANAUX (SMS / WhatsApp / Email / App)
+// Architecture file async + retry + consentement explicite + sandbox
+// ============================================================
+
+// AE.1 Modèles de messages versionnés
+model NotificationTemplate {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Identification
+  code            String   // ADMISSION_SUBMITTED, DOSSIER_INCOMPLET, ABSENCE_ALERT, etc.
+  name            String   // Libellé humain
+  category        String   // ADMISSION | ATTENDANCE | PAYMENT | DOCUMENT | TRANSFER | SECURITY | URGENT | GENERAL
+  // Canaux supportés
+  channels        String   // JSON array: ["SMS","WHATSAPP","EMAIL","APP"]
+  // Contenu par canal (JSON avec variables {{studentName}}, {{className}}, etc.)
+  templateSms     String?  // Corps SMS (max 160 caractères, neutre)
+  templateWhatsapp String? // Template WhatsApp approved (variables Twilio format)
+  templateEmail   String?  // HTML email
+  templateApp     String?  // Texte court app notification
+  templateEmailSubject String?
+  // Variables documentées
+  variablesDoc    String?  // JSON: liste des variables utilisables
+  // Versionnement
+  version         Int      @default(1)
+  isActive        Boolean  @default(true)
+  // RBAC : rôles autorisés à déclencher ce modèle
+  allowedRoles    String   // JSON array: ["SECRETARY","DIRECTION"]
+  // Consentement requis
+  requiresConsent Boolean  @default(true)
+  // Audit création
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, code, version])
+  @@index([schoolId, category])
+  @@index([schoolId, code, isActive])
+}
+
+// AE.2 File d'envoi asynchrone
+model NotificationLog {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Modèle utilisé
+  templateId      String?
+  templateCode    String   // Code dénormalisé pour recherches
+  templateVersion Int?
+  // Émetteur
+  senderId        String?  // User ID
+  senderName      String?
+  senderRole       String? // SECRETARY | DIRECTION | TEACHER | ACCOUNTANT | SYSTEM
+  // Destinataire
+  recipientId     String?  // User ID (parent) si connu
+  recipientName   String
+  recipientPhone  String?
+  recipientEmail  String?
+  // Canal
+  channel          String  // SMS | WHATSAPP | EMAIL | APP
+  // Priorité
+  priority        String   @default("NORMAL") // CRITICAL | URGENT | NORMAL | LOW
+  // Contenu rendu (variables remplacées)
+  renderedSubject String?
+  renderedBody    String   // Corps rendu envoyé
+  // Élève / objet lié
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  relatedType     String?  // ADMISSION | PAYMENT | APPOINTMENT | ABSENCE | CERTIFICATE | TRANSFER
+  relatedId       String?
+  // Consentement vérifié au moment de l'envoi
+  consentChecked  Boolean  @default(false)
+  consentId       String?  // Lien vers le consentement
+  // Provider (Twilio, etc.)
+  providerName    String?  // TWILIO | EMAIL_SMTP | INTERNAL
+  providerMessageId String? // ID renvoyé par le provider
+  // Statut
+  status          String   @default("PENDING") // PENDING | QUEUED | SENT | DELIVERED | FAILED | REJECTED | CANCELLED
+  attempts        Int      @default(0)
+  maxAttempts     Int      @default(3)
+  lastAttemptAt   DateTime?
+  nextAttemptAt   DateTime?
+  // Erreurs
+  errorCode       String?
+  errorMessage    String?
+  // Réception par le destinataire
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  // Sandbox / mode test
+  isSandbox       Boolean  @default(false)
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([schoolId, channel, createdAt])
+  @@index([recipientId, createdAt])
+  @@index([studentId])
+  @@index([templateCode])
+  @@index([nextAttemptAt])
+}
+
+// AE.3 Consentement parent multi-canal
+model NotificationConsent {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Destinataire
+  guardianId      String?  // Lien vers Guardian si connu
+  recipientName   String
+  recipientPhone  String?  // Normalisé E.164
+  recipientEmail  String?
+  // Canaux consentis
+  consentSms      Boolean  @default(false)
+  consentWhatsapp Boolean  @default(false)
+  consentEmail    Boolean  @default(false)
+  consentApp      Boolean  @default(true)
+  // Canal préféré
+  preferredChannel String  @default("APP") // SMS | WHATSAPP | EMAIL | APP
+  // Preuve du consentement
+  consentProof    String?  // Description: "Formulaire papier signé le YYYY-MM-DD" | "Acceptation en ligne"
+  consentDate     DateTime @default(now())
+  consentIp       String?
+  consentUserAgent String?
+  // Retrait
+  revokedAt       DateTime?
+  revokedReason   String?
+  revokedById     String?
+  // Audit
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, guardianId])
+  @@index([schoolId, recipientPhone])
+  @@index([schoolId, recipientEmail])
+}
+
+// AE.4 Configuration Twilio / Provider (sécurisée, jamais exposée au client)
+model NotificationProviderConfig {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Provider
+  providerName    String   @default("TWILIO") // TWILIO | SMTP
+  // Credentials chiffrés (jamais en clair)
+  accountSidEnc   String?
+  authTokenEnc    String?  // Chiffré
+  fromSmsNumber   String?  // Numéro SMS Twilio (E.164)
+  fromWhatsappNumber String? // Numéro WhatsApp Twilio (whatsapp:+243...)
+  fromEmail       String?  // Expéditeur email
+  // Sandbox
+  sandboxMode     Boolean  @default(true)
+  sandboxWhitelist String? // JSON: numéros autorisés en sandbox
+  // Limites
+  rateLimitPerMin Int      @default(10)
+  rateLimitPerDay Int      @default(500)
+  // Statut
+  isActive        Boolean  @default(true)
+  // Audit
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, providerName, isActive])
+}
+
+// ============================================================
+// AF. IMPORT MASSIF CSV / XLSX
+// 8 étapes : type → modèle → upload → mapping → validation → correction → exécution → résultat
+// ============================================================
+
+model ImportJob {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Identification
+  importReference String  @unique // IMP-2026-000001
+  importType     String   // STUDENTS | REENROLLMENTS | PARENTS | PARENT_STUDENT_LINKS | CLASS_ASSIGNMENTS | ADMIN_UPDATE | HISTORY
+  // Fichier source
+  originalFileName String
+  systemFileName  String
+  fileUrl         String  // Stockage sécurisé temporaire
+  fileSize        Int
+  mimeType        String
+  // Mapping colonnes → champs
+  columnMapping   String  // JSON: { source_col: target_field }
+  mappingProfileName String? // Profil réutilisable
+  // Validation
+  totalRows       Int      @default(0)
+  validRows       Int      @default(0)
+  warningRows     Int      @default(0)
+  errorRows       Int      @default(0)
+  duplicateRows   Int      @default(0)
+  ignoredRows     Int      @default(0)
+  // Exécution
+  createdCount    Int      @default(0)
+  updatedCount    Int      @default(0)
+  rejectedCount   Int      @default(0)
+  errors          String?  // JSON des erreurs par ligne
+  // Workflow
+  status          String   @default("UPLOADED") // UPLOADED | MAPPED | VALIDATED | CONFIRMED | RUNNING | COMPLETED | FAILED | CANCELLED
+  progressPct     Int      @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  // RBAC
+  createdById     String
+  createdByName   String
+  confirmedById   String?
+  confirmedByName String?
+  confirmedAt     DateTime?
+  // Rollback
+  isRollbackable  Boolean  @default(true)
+  rolledBackAt    DateTime?
+  rolledBackById  String?
+  rolledBackByName String?
+  rollbackReason  String?
+  // Lignes d'import (relation)
+  rows            ImportRow[]
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, importType])
+  @@index([schoolId, status])
+  @@index([createdById])
+}
+
+// AF.1 Lignes d'import (validation + exécution)
+model ImportRow {
+  id              String   @id @default(cuid())
+  importJobId     String
+  importJob       ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  // Position dans le fichier source
+  rowNumber       Int
+  // Données brutes (JSON)
+  rawData         String
+  // Données normalisées (post-mapping)
+  mappedData      String?  // JSON
+  // Validation
+  status          String   @default("PENDING") // PENDING | VALID | WARNING | ERROR | DUPLICATE | IMPORTED | REJECTED | IGNORED
+  errors          String?  // JSON array of {field, message, severity}
+  // Lien créé / mis à jour
+  createdEntityId String?
+  updatedEntityId String?
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([importJobId, status])
+  @@index([importJobId, rowNumber])
+}
+
+// ============================================================
+// AG. VERSIONS DE DOCUMENTS (historique immuable + duplicata)
+// ============================================================
+
+model DocumentVersion {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  // Lien vers le certificat / document
+  certificateId   String?
+  // Version
+  versionNumber   Int      @default(1)
+  isOriginal      Boolean  @default(false)
+  isDuplicata     Boolean  @default(false)
+  // PDF
+  pdfUrl          String
+  pdfFileName     String
+  pdfHash         String   // SHA-256 pour intégrité
+  // QR code de vérification
+  qrCodeUrl      String?
+  verificationCode String  @unique
+  // Métadonnées de génération
+  generatedById   String?
+  generatedByName String?
+  generatedAt     DateTime @default(now())
+  // Données figées (snapshot au moment de la génération)
+  snapshotData    String   // JSON: toutes les variables utilisées
+  // Audit
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, certificateId])
+  @@index([verificationCode])
 }
