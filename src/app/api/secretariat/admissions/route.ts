@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
 
@@ -14,7 +15,7 @@ export async function GET() {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (user.role !== 'SECRETARY' && user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['SECRETARY', 'DIRECTION', 'ADMIN', 'DIRECTOR', 'SCHOOL_ADMIN', 'SYSTEM_ADMIN', 'ADMISSIONS_OFFICER'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (user.role !== 'SECRETARY' && user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['SECRETARY', 'DIRECTION', 'ADMIN', 'DIRECTOR', 'SCHOOL_ADMIN', 'SYSTEM_ADMIN', 'ADMISSIONS_OFFICER'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 

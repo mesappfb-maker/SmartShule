@@ -27,6 +27,7 @@ import { getUserFromSession } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
       // 1. GÉNÉRER LES DETTES pour une classe + période
       // ============================================================
       case 'generate-debts': {
-        if (user.role !== 'SECRETARY' && user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+        if (user.role !== 'SECRETARY' && !hasRole(user, ['DIRECTION', 'ADMIN'])) {
           return NextResponse.json({ ok: false, error: 'Réservé au Secrétariat/Direction.' }, { status: 403 })
         }
         const { classroomId, academicYearId, directorateId } = body
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest) {
       // 2. ENCAISSER UN PAIEMENT + ÉMETTRE REÇU SÉCURISÉ
       // ============================================================
       case 'collect-payment': {
-        if (user.role !== 'ACCOUNTANT' && user.role !== 'ADMIN') {
+        if (!hasRole(user, ['ACCOUNTANT', 'ADMIN'])) {
           return NextResponse.json({ ok: false, error: 'Réservé au Comptable.' }, { status: 403 })
         }
         const {
@@ -325,7 +326,7 @@ export async function POST(req: NextRequest) {
       // 3. ANNULER UN REÇU (via avoir)
       // ============================================================
       case 'cancel-receipt': {
-        if (user.role !== 'ACCOUNTANT' && user.role !== 'ADMIN') {
+        if (!hasRole(user, ['ACCOUNTANT', 'ADMIN'])) {
           return NextResponse.json({ ok: false, error: 'Réservé au Comptable.' }, { status: 403 })
         }
         const { receiptId, cancellationReason } = body
@@ -429,7 +430,7 @@ export async function POST(req: NextRequest) {
       // 4. CRÉER UNE BOURSE
       // ============================================================
       case 'create-scholarship': {
-        if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+        if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
           return NextResponse.json({ ok: false, error: 'Réservé à la Direction.' }, { status: 403 })
         }
         const { name, code, description, reductionPercent, appliesToDirectorate, appliesToCategory } = body
@@ -463,7 +464,7 @@ export async function POST(req: NextRequest) {
       // 5. APPLIQUER UNE BOURSE À UN ÉLÈVE
       // ============================================================
       case 'apply-scholarship': {
-        if (user.role !== 'DIRECTION' && user.role !== 'ACCOUNTANT' && user.role !== 'ADMIN') {
+        if (user.role !== 'DIRECTION' && !hasRole(user, ['ACCOUNTANT', 'ADMIN'])) {
           return NextResponse.json({ ok: false, error: 'Réservé à la Direction/Comptable.' }, { status: 403 })
         }
         const { studentDebtId, scholarshipId } = body
@@ -496,7 +497,7 @@ export async function POST(req: NextRequest) {
       // 6. CRÉER UNE DÉPENSE
       // ============================================================
       case 'create-expense': {
-        if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+        if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
           return NextResponse.json({ ok: false, error: 'Réservé à la Direction.' }, { status: 403 })
         }
         const { category, description, amountCents, currency, paymentMethod, supplierName, supplierInvoice, directorateId, expenseDate } = body
@@ -605,7 +606,7 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
     }
-    if (user.role !== 'ACCOUNTANT' && user.role !== 'DIRECTION' && user.role !== 'ADMIN' && user.role !== 'SECRETARY') {
+    if (!hasRole(user, ['ACCOUNTANT', 'DIRECTION', 'ADMIN', 'SECRETARY'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 

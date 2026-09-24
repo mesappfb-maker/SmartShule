@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
     }
-    if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès réservé à la Direction.' }, { status: 403 })
     }
 

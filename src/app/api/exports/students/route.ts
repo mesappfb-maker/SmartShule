@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   }
-  if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+  if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
     return NextResponse.json({ error: 'Action réservée à la direction' }, { status: 403 })
   }
 

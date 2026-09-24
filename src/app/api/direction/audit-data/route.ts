@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { getUserFromSession } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import {
   getDirectionLessonLogs,
   getDirectionLiveClasses,
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
   }
-  if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+  if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
     return NextResponse.json({ ok: false, error: 'Accès réservé à la Direction.' }, { status: 403 })
   }
 

@@ -8,6 +8,7 @@ import { getUserFromSession } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès réservé à la Direction.' }, { status: 403 })
     }
     const body = await req.json()
@@ -92,7 +93,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès réservé à la Direction.' }, { status: 403 })
     }
     const url = new URL(req.url)
