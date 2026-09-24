@@ -261,42 +261,37 @@ async function createDemoAccounts(schoolId: string) {
 // ============================================================
 
 async function createEmployees(schoolId: string, accounts: Record<string, string>) {
-  console.log('\n👔 Étape 5 : 27 employés démo...')
+  console.log('\n👔 Étape 5 : 27 employés démo (liés aux comptes)...')
 
+  // Mapping rôle démo → employé correspondant
   const employees = [
-    // 2 Direction
-    { firstName: 'Jean-Pierre', lastName: 'Kabongo', function: 'DIRECTION', globalRole: 'DIRECTION' },
-    { firstName: 'Marie-Claire', lastName: 'Mukendi', function: 'DIRECTION', globalRole: 'DIRECTION' },
-    // 3 Secrétariat
-    { firstName: 'Sarah', lastName: 'Tshibangu', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF' },
-    { firstName: 'Esther', lastName: 'Kasongo', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF' },
-    { firstName: 'Grace', lastName: 'Mwamba', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF' },
-    // 2 Comptabilité/Caisse
-    { firstName: 'Daniel', lastName: 'Ilunga', function: 'COMPTABLE', globalRole: 'ADMINISTRATIF' },
-    { firstName: 'Samuel', lastName: 'Kalonji', function: 'COMPTABLE', globalRole: 'ADMINISTRATIF' },
-    // 2 RH/Paie
-    { firstName: 'Anne', lastName: 'Mbuyi', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF' },
-    { firstName: 'Lucie', lastName: 'Banza', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF' },
-    // 12 Enseignants
-    { firstName: 'Pierre', lastName: 'Mukeba', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Paul', lastName: 'Lukusa', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Marc', lastName: 'Kabwasa', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Luc', lastName: 'Tshisekedi', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'David', lastName: 'Mobutu', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Joseph', lastName: 'Lumumba', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Moïse', lastName: 'Kabila', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Éric', lastName: 'Bemba', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Patrick', lastName: 'Katumbi', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Olivier', lastName: 'Fayulu', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Christian', lastName: 'Madidi', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    { firstName: 'Bernard', lastName: 'Kayembe', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT' },
-    // 6 Personnel soutien
-    { firstName: 'André', lastName: 'Kasongo', function: 'ENSEIGNANT', globalRole: 'OUVRIER' },
-    { firstName: 'François', lastName: 'Mwamba', function: 'ENSEIGNANT', globalRole: 'OUVRIER' },
-    { firstName: 'Michel', lastName: 'Ilunga', function: 'ENSEIGNANT', globalRole: 'OUVRIER' },
-    { firstName: 'Jacques', lastName: 'Kalonji', function: 'ENSEIGNANT', globalRole: 'OUVRIER' },
-    { firstName: 'Thomas', lastName: 'Mbuyi', function: 'ENSEIGNANT', globalRole: 'OUVRIER' },
-    { firstName: 'Philippe', lastName: 'Banza', function: 'ENSEIGNANT', globalRole: 'OUVRIER' },
+    { firstName: 'Jean-Pierre', lastName: 'Kabongo', function: 'DIRECTION', globalRole: 'DIRECTION', demoEmail: 'director@demo.smartshule.com' },
+    { firstName: 'Marie-Claire', lastName: 'Mukendi', function: 'DIRECTION', globalRole: 'DIRECTION', demoEmail: null },
+    { firstName: 'Sarah', lastName: 'Tshibangu', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF', demoEmail: 'secretary@demo.smartshule.com' },
+    { firstName: 'Esther', lastName: 'Kasongo', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF', demoEmail: null },
+    { firstName: 'Grace', lastName: 'Mwamba', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF', demoEmail: 'admissions@demo.smartshule.com' },
+    { firstName: 'Daniel', lastName: 'Ilunga', function: 'COMPTABLE', globalRole: 'ADMINISTRATIF', demoEmail: 'accountant@demo.smartshule.com' },
+    { firstName: 'Samuel', lastName: 'Kalonji', function: 'COMPTABLE', globalRole: 'ADMINISTRATIF', demoEmail: 'cashier@demo.smartshule.com' },
+    { firstName: 'Anne', lastName: 'Mbuyi', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF', demoEmail: 'hrmanager@demo.smartshule.com' },
+    { firstName: 'Lucie', lastName: 'Banza', function: 'SECRETAIRE', globalRole: 'ADMINISTRATIF', demoEmail: 'payroll@demo.smartshule.com' },
+    { firstName: 'Pierre', lastName: 'Mukeba', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: 'teacher@demo.smartshule.com' },
+    { firstName: 'Paul', lastName: 'Lukusa', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Marc', lastName: 'Kabwasa', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Luc', lastName: 'Tshisekedi', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'David', lastName: 'Mobutu', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Joseph', lastName: 'Lumumba', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Moïse', lastName: 'Kabila', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Éric', lastName: 'Bemba', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Patrick', lastName: 'Katumbi', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Olivier', lastName: 'Fayulu', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Christian', lastName: 'Madidi', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'Bernard', lastName: 'Kayembe', function: 'ENSEIGNANT', globalRole: 'ENSEIGNANT', demoEmail: null },
+    { firstName: 'André', lastName: 'Kasongo', function: 'ENSEIGNANT', globalRole: 'OUVRIER', demoEmail: null },
+    { firstName: 'François', lastName: 'Mwamba', function: 'ENSEIGNANT', globalRole: 'OUVRIER', demoEmail: null },
+    { firstName: 'Michel', lastName: 'Ilunga', function: 'ENSEIGNANT', globalRole: 'OUVRIER', demoEmail: null },
+    { firstName: 'Jacques', lastName: 'Kalonji', function: 'ENSEIGNANT', globalRole: 'OUVRIER', demoEmail: null },
+    { firstName: 'Thomas', lastName: 'Mbuyi', function: 'ENSEIGNANT', globalRole: 'OUVRIER', demoEmail: null },
+    { firstName: 'Philippe', lastName: 'Banza', function: 'ENSEIGNANT', globalRole: 'OUVRIER', demoEmail: null },
   ]
 
   let created = 0
@@ -310,6 +305,7 @@ async function createEmployees(schoolId: string, accounts: Record<string, string
           schoolId,
           firstName: emp.firstName,
           lastName: emp.lastName,
+          email: emp.demoEmail,
           function: emp.function,
           globalRole: emp.globalRole,
           hireDate: randomDate(new Date('2020-01-01'), new Date('2026-08-01')),
@@ -318,6 +314,12 @@ async function createEmployees(schoolId: string, accounts: Record<string, string
         },
       })
       created++
+    } else if (emp.demoEmail && existing.email !== emp.demoEmail) {
+      // Mettre à jour l'email si manquant
+      await db.employee.update({
+        where: { id: existing.id },
+        data: { email: emp.demoEmail },
+      })
     }
   }
 
@@ -782,6 +784,71 @@ async function resetDemoData() {
 }
 
 // ============================================================
+// Étape 12 : Lier les comptes démo aux données (parent/élève + audits)
+// ============================================================
+
+async function linkDemoAccountsToData(schoolId: string, accounts: Record<string, string>) {
+  console.log('\n🔗 Étape 12 : Liaison comptes démo → données...')
+
+  // Lier PARENT démo à un Guardian
+  const parentUserId = accounts['PARENT']
+  if (parentUserId) {
+    const guardian = await db.guardian.findFirst({ where: { schoolId } })
+    if (guardian) {
+      await db.guardian.update({
+        where: { id: guardian.id },
+        data: {
+          userId: parentUserId,
+          email: 'parent@demo.smartshule.com',
+        },
+      })
+      console.log(`   ✓ Parent démo → Guardian ${guardian.firstName} ${guardian.lastName}`)
+    }
+  }
+
+  // Lier STUDENT démo à un Student actif
+  const studentUserId = accounts['STUDENT']
+  if (studentUserId) {
+    const student = await db.student.findFirst({
+      where: { schoolId, status: 'ACTIVE' },
+    })
+    if (student) {
+      await db.student.update({
+        where: { id: student.id },
+        data: { userId: studentUserId },
+      })
+      console.log(`   ✓ Élève démo → Student ${student.firstName} ${student.lastName} (${student.matricule})`)
+    }
+  }
+
+  // Créer des audit logs pour SCHOOL_ADMIN, SYSTEM_ADMIN, PROMOTER, AUDITOR
+  // (ces rôles n'ont pas d'employé/guardian/student lié)
+  for (const role of ['SCHOOL_ADMIN', 'SYSTEM_ADMIN', 'PROMOTER', 'AUDITOR']) {
+    const userId = accounts[role]
+    if (!userId) continue
+
+    const existingAudit = await db.auditLog.findFirst({
+      where: { userId, schoolId },
+    })
+    if (!existingAudit) {
+      await db.auditLog.create({
+        data: {
+          schoolId,
+          userId,
+          userName: `${role} Démo`,
+          userRole: role,
+          action: 'LOGIN',
+          entityType: 'SESSION',
+          description: 'Connexion démo initiale',
+          metadata: JSON.stringify({ demo: true }),
+        },
+      })
+      console.log(`   ✓ Audit créé pour ${role}`)
+    }
+  }
+}
+
+// ============================================================
 // Script principal
 // ============================================================
 
@@ -811,6 +878,9 @@ async function main() {
   await createAttendance(school.id, students, accounts)
   await createDemoNotifications(school.id, accounts)
   await createAuditLogs(school.id, accounts)
+
+  // Étape 12 : Lier les comptes démo aux données (parent/élève)
+  await linkDemoAccountsToData(school.id, accounts)
 
   console.log('\n' + '═'.repeat(60))
   console.log('✅ SEED DÉMO TERMINÉ AVEC SUCCÈS')

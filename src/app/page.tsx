@@ -88,8 +88,30 @@ export default async function Home() {
       return <StudentDashboard user={user} school={schoolData} data={data} notifications={notifications} />
     }
 
-    // DIRECTION
-    if (user.role === 'DIRECTION' || user.role === 'ADMIN') {
+    // DIRECTION (nouveau rôle DIRECTOR = ancien DIRECTION)
+    if (user.role === 'DIRECTION' || user.role === 'DIRECTOR' || user.role === 'ADMIN' || user.role === 'SCHOOL_ADMIN' || user.role === 'SYSTEM_ADMIN') {
+      const [data, financeData, supervisionData] = await Promise.all([
+        getDirectionDashboardData(user.id, user.email || undefined).catch(() => null),
+        getFinanceDashboardData(schoolData.id).catch(() => null),
+        getAcademicSupervisionData(schoolData.id).catch(() => null),
+      ])
+      if (!data || !financeData || !supervisionData) return <NoData user={user} />
+      return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} supervisionData={supervisionData} />
+    }
+
+    // PROMOTER (vue lecture seule stratégique — utilise dashboard direction)
+    if (user.role === 'PROMOTER') {
+      const [data, financeData, supervisionData] = await Promise.all([
+        getDirectionDashboardData(user.id, user.email || undefined).catch(() => null),
+        getFinanceDashboardData(schoolData.id).catch(() => null),
+        getAcademicSupervisionData(schoolData.id).catch(() => null),
+      ])
+      if (!data || !financeData || !supervisionData) return <NoData user={user} />
+      return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} supervisionData={supervisionData} />
+    }
+
+    // AUDITOR (lecture seule — utilise dashboard direction en lecture)
+    if (user.role === 'AUDITOR') {
       const [data, financeData, supervisionData] = await Promise.all([
         getDirectionDashboardData(user.id, user.email || undefined).catch(() => null),
         getFinanceDashboardData(schoolData.id).catch(() => null),
@@ -109,8 +131,8 @@ export default async function Home() {
       return <TeacherPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
     }
 
-    // ACCOUNTANT
-    if (user.role === 'ACCOUNTANT') {
+    // ACCOUNTANT (nouveau rôle CASHIER = ancien ACCOUNTANT aussi)
+    if (user.role === 'ACCOUNTANT' || user.role === 'CASHIER') {
       const [data, profileData] = await Promise.all([
         getAccountantPortalData(user.id).catch(() => null),
         getProfileData(user.id).catch(() => null),
@@ -119,8 +141,18 @@ export default async function Home() {
       return <AccountantPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
     }
 
-    // SECRETARY (Secrétariat)
-    if (user.role === 'SECRETARY') {
+    // HR_MANAGER et PAYROLL_OFFICER (utilisent dashboard accountant en attendant module RH dédié)
+    if (user.role === 'HR_MANAGER' || user.role === 'PAYROLL_OFFICER') {
+      const [data, profileData] = await Promise.all([
+        getAccountantPortalData(user.id).catch(() => null),
+        getProfileData(user.id).catch(() => null),
+      ])
+      if (!data) return <NoData user={user} />
+      return <AccountantPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
+    }
+
+    // SECRETARY (Secrétariat) — nouveau rôle ADMISSIONS_OFFICER aussi
+    if (user.role === 'SECRETARY' || user.role === 'ADMISSIONS_OFFICER') {
       const [data, profileData] = await Promise.all([
         getSecretaryPortalData(user.id, user.email || undefined).catch(() => null),
         getProfileData(user.id).catch(() => null),
