@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     if (!invoice || invoice.studentId !== student?.id) {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
-  } else if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+  } else if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
     return NextResponse.json({ error: 'Rôle non autorisé' }, { status: 403 })
   }
 

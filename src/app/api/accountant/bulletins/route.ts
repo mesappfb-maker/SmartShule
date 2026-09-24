@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
 
-    if (user.role !== 'ACCOUNTANT' && user.role !== 'DIRECTION' && user.role !== 'ADMIN' && user.role !== 'SECRETARY') {
+    if (!hasRole(user, ['ACCOUNTANT', 'DIRECTION', 'ADMIN', 'SECRETARY'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 

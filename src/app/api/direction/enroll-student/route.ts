@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
+import { hasRole } from '@/lib/rbac'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
     }
-    if (user.role !== 'DIRECTION' && user.role !== 'SECRETARY' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['DIRECTION', 'SECRETARY', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès réservé à la Direction ou au Secrétariat.' }, { status: 403 })
     }
 

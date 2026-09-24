@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     if (!payment || !guardian?.studentLinks.some((l) => l.studentId === payment.invoice.studentId)) {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
-  } else if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+  } else if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
     return NextResponse.json({ error: 'Rôle non autorisé' }, { status: 403 })
   }
 

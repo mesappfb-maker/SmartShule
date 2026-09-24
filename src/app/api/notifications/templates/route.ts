@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
 import { seedDefaultTemplates } from '@/lib/notifications'
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
     // Seuls DIRECTION et ADMIN peuvent modifier les modèles
-    if (user.role !== 'DIRECTION' && user.role !== 'ADMIN') {
+    if (!hasRole(user, ['DIRECTION', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Seul le Directeur ou l\'Admin peut modifier les modèles.' }, { status: 403 })
     }
     const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
