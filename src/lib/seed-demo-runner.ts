@@ -667,9 +667,19 @@ async function createAuditLogs(schoolId: string, accounts: Record<string, string
 }
 
 async function linkDemoAccountsToData(schoolId: string, accounts: Record<string, string>) {
+  // Lier PARENT démo à un Guardian
+  // userId est @unique sur Guardian → on doit d'abord délier l'ancien guardian lié
   const parentUserId = accounts['PARENT']
   if (parentUserId) {
-    const guardian = await db.guardian.findFirst({ where: { schoolId } })
+    // 1. Retirer userId de l'ancien guardian lié à ce compte parent
+    await db.guardian.updateMany({
+      where: { userId: parentUserId },
+      data: { userId: null },
+    })
+    // 2. Trouver un guardian sans userId
+    const guardian = await db.guardian.findFirst({
+      where: { schoolId, userId: null },
+    })
     if (guardian) {
       await db.guardian.update({
         where: { id: guardian.id },
@@ -678,11 +688,23 @@ async function linkDemoAccountsToData(schoolId: string, accounts: Record<string,
     }
   }
 
+  // Lier STUDENT démo à un Student actif (userId est @unique sur Student aussi)
   const studentUserId = accounts['STUDENT']
   if (studentUserId) {
-    const student = await db.student.findFirst({ where: { schoolId, status: 'ACTIVE' } })
+    // 1. Retirer userId de l'ancien student lié
+    await db.student.updateMany({
+      where: { userId: studentUserId },
+      data: { userId: null },
+    })
+    // 2. Trouver un student sans userId
+    const student = await db.student.findFirst({
+      where: { schoolId, status: 'ACTIVE', userId: null },
+    })
     if (student) {
-      await db.student.update({ where: { id: student.id }, data: { userId: studentUserId } })
+      await db.student.update({
+        where: { id: student.id },
+        data: { userId: studentUserId },
+      })
     }
   }
 
