@@ -67,7 +67,7 @@ export interface SendResult {
 
 const ENC_KEY = process.env.CREDENTIALS_ENC_KEY || 'smartshule-default-enc-key-change-in-production-32bytes'
 
-function encryptCredential(plain: string): string {
+export function encryptCredential(plain: string): string {
   const key = crypto.scryptSync(ENC_KEY, 'salt', 32)
   const iv = crypto.randomBytes(12)
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)

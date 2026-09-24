@@ -27,6 +27,7 @@
 //   - Mention "Document généré le ... par ... (rôle)"
 
 import PDFDocument from 'pdfkit'
+import type { PDFDocument as PDFKitDocument } from 'pdfkit'
 import QRCode from 'qrcode'
 import crypto from 'crypto'
 import path from 'path'
@@ -178,7 +179,7 @@ async function getStudentData(studentId: string, schoolId: string): Promise<Stud
 // Helper : en-tête commun
 // ============================================================
 
-function drawHeader(doc: PDFKit.PDFDocument, branding: SchoolBranding) {
+function drawHeader(doc: PDFKitDocument, branding: SchoolBranding) {
   // Logo si disponible
   if (branding.logoUrl) {
     try {
@@ -210,7 +211,7 @@ function drawHeader(doc: PDFKit.PDFDocument, branding: SchoolBranding) {
 // ============================================================
 
 function drawFooter(
-  doc: PDFKit.PDFDocument,
+  doc: PDFKitDocument,
   branding: SchoolBranding,
   referenceNumber: string,
   verificationCode: string,
@@ -247,7 +248,7 @@ function drawFooter(
 // Helper : QR code sur le PDF
 // ============================================================
 
-async function drawQrCode(doc: PDFKit.PDFDocument, payload: string, x: number, y: number, size = 80): Promise<string> {
+async function drawQrCode(doc: PDFKitDocument, payload: string, x: number, y: number, size = 80): Promise<string> {
   const { buffer } = await generateQrCode(payload)
   doc.image(buffer, x, y, { width: size })
   return payload
@@ -315,6 +316,7 @@ async function recordCertificate(params: {
   pdfUrl: string
   pdfFileName: string
   isDuplicata: boolean
+  certificateId?: string
 }): Promise<string> {
   if (params.isDuplicata && params.certificateId) {
     // Update existing certificate with reprint info
@@ -373,9 +375,13 @@ export async function generateDocument(
       getStudentData(ctx.studentId, ctx.schoolId),
     ])
 
-    const referenceNumber = ctx.certificateId
-      ? await db.certificate.findUnique({ where: { id: ctx.certificateId } }).then((c) => c?.referenceNumber || await generateReferenceNumber(ctx.schoolId))
-      : await generateReferenceNumber(ctx.schoolId)
+    let referenceNumber: string
+    if (ctx.certificateId) {
+      const existing = await db.certificate.findUnique({ where: { id: ctx.certificateId } })
+      referenceNumber = existing?.referenceNumber || await generateReferenceNumber(ctx.schoolId)
+    } else {
+      referenceNumber = await generateReferenceNumber(ctx.schoolId)
+    }
 
     const verificationCode = crypto.randomBytes(12).toString('hex').toUpperCase()
     const qrPayload = JSON.stringify({
@@ -424,6 +430,7 @@ export async function generateDocument(
       schoolId: ctx.schoolId, studentId: ctx.studentId, certificateType: type,
       referenceNumber, title, reason: ctx.reason, generatedBy: ctx.generatedBy,
       pdfUrl: saved.url, pdfFileName: saved.fileName, isDuplicata: !!ctx.isDuplicata,
+      certificateId: ctx.certificateId,
     })
 
     // Créer DocumentVersion (snapshot immuable)
@@ -556,7 +563,7 @@ function getDocumentTitle(type: DocumentType): string {
 // Implémentations par type de document
 // ============================================================
 
-function drawStudentInfo(doc: PDFKit.PDFDocument, student: StudentFullData) {
+function drawStudentInfo(doc: PDFKitDocument, student: StudentFullData) {
   doc.fontSize(11).font('Helvetica-Bold').text('ÉLÈVE', { underline: true })
   doc.moveDown(0.3)
   doc.font('Helvetica').fontSize(10)
@@ -577,7 +584,7 @@ function drawStudentInfo(doc: PDFKit.PDFDocument, student: StudentFullData) {
   doc.moveDown(0.5)
 }
 
-function drawGuardianInfo(doc: PDFKit.PDFDocument, student: StudentFullData) {
+function drawGuardianInfo(doc: PDFKitDocument, student: StudentFullData) {
   if (student.guardianLinks.length === 0) return
   doc.fontSize(11).font('Helvetica-Bold').text('PARENT / TUTEUR', { underline: true })
   doc.moveDown(0.3)
@@ -591,7 +598,7 @@ function drawGuardianInfo(doc: PDFKit.PDFDocument, student: StudentFullData) {
   doc.moveDown(0.5)
 }
 
-function drawSchoolCertificate(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawSchoolCertificate(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   doc.fontSize(12).font('Helvetica').fillColor('#000')
   const enr = student.enrollments[0]
   doc.text(
@@ -617,7 +624,7 @@ function drawSchoolCertificate(doc: PDFKit.PDFDocument, branding: SchoolBranding
   doc.moveDown(2)
 }
 
-function drawEnrollmentAttestation(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawEnrollmentAttestation(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica')
   doc.text(
@@ -625,11 +632,11 @@ function drawEnrollmentAttestation(doc: PDFKit.PDFDocument, branding: SchoolBran
     { align: 'justify' }
   )
   doc.moveDown(1)
-  doc.text('Cette attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit.', { align: 'justify' })
+  doc.text("Cette attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit.", { align: 'justify' })
   doc.moveDown(2)
 }
 
-function drawAttendanceAttestation(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawAttendanceAttestation(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica')
   doc.text(
@@ -641,7 +648,7 @@ function drawAttendanceAttestation(doc: PDFKit.PDFDocument, branding: SchoolBran
   doc.moveDown(2)
 }
 
-function drawEnrollmentForm(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawEnrollmentForm(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   drawStudentInfo(doc, student)
   drawGuardianInfo(doc, student)
   doc.fontSize(11).font('Helvetica-Bold').text('INFORMATIONS COMPLÉMENTAIRES', { underline: true })
@@ -655,7 +662,7 @@ function drawEnrollmentForm(doc: PDFKit.PDFDocument, branding: SchoolBranding, s
   doc.text('Cachet de l\'école :', 350, doc.y + 30)
 }
 
-function drawStudentCard(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawStudentCard(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   const enr = student.enrollments[0]
   doc.fontSize(10).font('Helvetica-Bold').fillColor(branding.primaryColor)
   doc.text('CARTE D\'ÉLÈVE', { align: 'center' })
@@ -670,7 +677,7 @@ function drawStudentCard(doc: PDFKit.PDFDocument, branding: SchoolBranding, stud
   if (student.birthDate) doc.text(`Né(e) le : ${formatDate(student.birthDate)}`, { align: 'center' })
 }
 
-function drawAdminReceipt(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
+function drawAdminReceipt(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica-Bold').text('MOTIF', { underline: true })
   doc.moveDown(0.3)
@@ -681,7 +688,7 @@ function drawAdminReceipt(doc: PDFKit.PDFDocument, branding: SchoolBranding, stu
   doc.text('Signature et cachet :', 350, doc.y)
 }
 
-function drawParentConvocation(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
+function drawParentConvocation(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
   drawStudentInfo(doc, student)
   drawGuardianInfo(doc, student)
   doc.fontSize(11).font('Helvetica-Bold').text('OBJET DE LA CONVOCATION', { underline: true })
@@ -694,7 +701,7 @@ function drawParentConvocation(doc: PDFKit.PDFDocument, branding: SchoolBranding
   doc.font('Helvetica-Bold').text('Le Directeur', 350, doc.y, { align: 'right' })
 }
 
-function drawIncompleteFileLetter(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
+function drawIncompleteFileLetter(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica')
   doc.text(
@@ -711,7 +718,7 @@ function drawIncompleteFileLetter(doc: PDFKit.PDFDocument, branding: SchoolBrand
   doc.font('Helvetica-Bold').text('Le Secrétariat', 350, doc.y, { align: 'right' })
 }
 
-function drawAbsenceLetter(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
+function drawAbsenceLetter(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica')
   doc.text(
@@ -726,7 +733,7 @@ function drawAbsenceLetter(doc: PDFKit.PDFDocument, branding: SchoolBranding, st
   doc.font('Helvetica-Bold').text('Le Directeur', 350, doc.y, { align: 'right' })
 }
 
-async function drawClassList(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+async function drawClassList(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   const enr = student.enrollments[0]
   if (!enr) {
     doc.text('Aucune inscription active.', { align: 'center' })
@@ -769,13 +776,13 @@ async function drawClassList(doc: PDFKit.PDFDocument, branding: SchoolBranding, 
   })
 }
 
-async function drawAttendanceList(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+async function drawAttendanceList(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   // Similaire à la liste de classe mais avec colonne présence
   await drawClassList(doc, branding, student, snapshot)
   // Note: une vraie liste de présence aurait des colonnes vides pour chaque jour
 }
 
-function drawTransferAttestation(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawTransferAttestation(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica')
   doc.text(
@@ -791,7 +798,7 @@ function drawTransferAttestation(doc: PDFKit.PDFDocument, branding: SchoolBrandi
   doc.font('Helvetica-Bold').text('Le Directeur', 350, doc.y, { align: 'right' })
 }
 
-function drawExitForm(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
+function drawExitForm(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any, ctx: DocumentContext) {
   drawStudentInfo(doc, student)
   doc.fontSize(11).font('Helvetica-Bold').text('MOTIF DE SORTIE', { underline: true })
   doc.moveDown(0.3)
@@ -804,7 +811,7 @@ function drawExitForm(doc: PDFKit.PDFDocument, branding: SchoolBranding, student
   doc.text('Cachet et signature :', 350, doc.y + 30)
 }
 
-async function drawStudentAdminReport(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+async function drawStudentAdminReport(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   drawStudentInfo(doc, student)
   drawGuardianInfo(doc, student)
 
@@ -844,7 +851,7 @@ async function drawStudentAdminReport(doc: PDFKit.PDFDocument, branding: SchoolB
   }
 }
 
-function drawAdmissionReport(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
+function drawAdmissionReport(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, snapshot: any) {
   drawStudentInfo(doc, student)
   drawGuardianInfo(doc, student)
   doc.fontSize(11).font('Helvetica-Bold').text('RAPPORT D\'ADMISSION', { underline: true })
@@ -854,7 +861,7 @@ function drawAdmissionReport(doc: PDFKit.PDFDocument, branding: SchoolBranding, 
   doc.text(`Date d\'admission : ${formatDate(new Date())}`)
 }
 
-async function drawLabelQr(doc: PDFKit.PDFDocument, branding: SchoolBranding, student: StudentFullData, qrPayload: string, verificationCode: string) {
+async function drawLabelQr(doc: PDFKitDocument, branding: SchoolBranding, student: StudentFullData, qrPayload: string, verificationCode: string) {
   // Étiquette avec QR code centré
   doc.fontSize(10).font('Helvetica-Bold').fillColor(branding.primaryColor)
   doc.text(branding.name, { align: 'center' })
