@@ -9,7 +9,7 @@ import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
-import { seedDefaultTemplates } from '@/lib/notifications'
+import { seedDefaultTemplates, encryptCredential } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -70,8 +70,6 @@ export async function POST(req: NextRequest) {
       }
 
       // Chiffrement des credentials
-      const { encryptCredential } = await import('@/lib/notifications')
-
       const existing = await db.notificationProviderConfig.findFirst({
         where: { schoolId, providerName: 'TWILIO' },
       })

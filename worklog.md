@@ -135,3 +135,116 @@ Stage Summary:
 - Enhanced secretary portal with 3 nav sections and 10 views
 - All existing functionality preserved (non-regression)
 - No breaking changes to existing API routes or UI components
+
+---
+Task ID: cycle-12-notifications-imports-documents
+Agent: main (Super Z)
+Task: Finalisation outils bureau : génération PDF, notifications SMS/WhatsApp via Twilio, import massif CSV/XLSX, RBAC strict, matrice d'impact multi-rôles, tests non-régression.
+
+Work Log:
+- Lecture du schéma Prisma existant (112 modèles) et des modules secretary existants
+- Étape A — Schéma Prisma : ajout de 6 nouveaux modèles (NotificationTemplate, NotificationLog, NotificationConsent, NotificationProviderConfig, ImportJob, ImportRow, DocumentVersion) avec relations sur School et Student
+- Migration `npx prisma db push` + `npx prisma generate` réussies
+- Installation du SDK Twilio (`npm install twilio`)
+- Étape B — Service notifications (`src/lib/notifications.ts`) :
+  * Provider Twilio (SMS + WhatsApp) avec credentials chiffrés AES-256-GCM
+  * File d'envoi asynchrone avec retry (backoff exponentiel, max 3 tentatives)
+  * Rate limiting par école (par minute + par jour)
+  * Vérification du consentement explicite avant chaque envoi
+  * Sandbox mode (whitelist de numéros)
+  * 12 modèles par défaut seedés (ADMISSION_SUBMITTED, DOSSIER_INCOMPLET, ADMISSION_ACCEPTED, ABSENCE_ALERT, CERTIFICATE_READY, APPOINTMENT_REMINDER, PAYMENT_CONFIRMED, etc.)
+  * RBAC : chaque modèle a `allowedRoles` vérifié côté serveur
+  * Normalisation téléphone E.164 (RDC +243)
+- Étape B2 — API notifications (6 endpoints) :
+  * `/api/notifications/config` (GET/POST) — config Twilio, sandbox, whitelist
+  * `/api/notifications/templates` (GET/POST) — modèles versionnés, RBAC
+  * `/api/notifications/send` (POST) — envoi avec consentement + rate limit
+  * `/api/notifications/log` (GET/POST) — journal + cancel/retry
+  * `/api/notifications/consent` (GET/POST) — consentements RGPD
+  * `/api/notifications/process` (POST) — cron endpoint pour retry queue
+- Étape C — Service génération PDF (`src/lib/document-generation.ts`) :
+  * 16 types officiels (SCHOOL_CERTIFICATE, ENROLLMENT_ATTESTATION, ATTENDANCE_ATTESTATION, ENROLLMENT_FORM, STUDENT_CARD, ADMIN_RECEIPT, PARENT_CONVOCATION, INCOMPLETE_FILE_LETTER, ABSENCE_LETTER, CLASS_LIST, ATTENDANCE_LIST, TRANSFER_ATTESTATION, EXIT_FORM, STUDENT_ADMIN_REPORT, ADMISSION_REPORT, LABEL_QR)
+  * Référence chronologique unique (CERT-2026-NNNNNN)
+  * QR code de vérification (SHA-256 + verificationCode)
+  * Snapshot immuable des données (DocumentVersion)
+  * Duplicata avec mention
+  * Audit log systématique
+  * Téléchargement sécurisé par schoolId + year + filename
+- Étape C2 — API documents (4 endpoints) :
+  * `/api/documents/types` (GET) — types filtrés par RBAC
+  * `/api/documents/generate` (POST) — génération avec vérifications
+  * `/api/documents/versions` (GET) — historique des versions
+  * `/api/documents/download/[schoolId]/[year]/[filename]` (GET) — PDF sécurisé
+- Étape D — Moteur d'import CSV/XLSX (`src/lib/import-engine.ts`) :
+  * 7 types d'import (STUDENTS, REENROLLMENTS, PARENTS, PARENT_STUDENT_LINKS, CLASS_ASSIGNMENTS, ADMIN_UPDATE, HISTORY)
+  * Sécurité anti-injection CSV : neutralisation cellules `=`, `+`, `-`, `@`, formules
+  * Parser CSV et XLSX sécurisés
+  * Génération de modèles téléchargeables (XLSX avec feuille d'instructions)
+  * Mapping colonnes → champs
+  * Validation par ligne (formats email/téléphone/date, champs obligatoires)
+  * Détection doublons (internes fichier + base existante)
+  * Exécution asynchrone avec progression
+  * Rapport d'erreurs téléchargeable
+  * Rollback contrôlé (suppression entités créées)
+  * Référence unique d'import (IMP-2026-NNNNNN)
+- Étape D2 — API imports (6 endpoints) :
+  * `/api/imports/template` (GET) — liste types + download modèles
+  * `/api/imports/upload` (POST multipart) — upload + parsing
+  * `/api/imports/validate` (GET/POST) — validation + mapping
+  * `/api/imports/execute` (GET/POST) — exécution + historique
+  * `/api/imports/rollback` (POST) — annulation contrôlée
+  * `/api/imports/report` (GET) — rapport erreurs XLSX/CSV
+- Étape E — Composant DataGrid premium (`src/components/ss/data-grid.tsx`) :
+  * Style DataGridView / DevExpress
+  * Recherche globale + par colonne
+  * Tri multi-colonnes, filtres combinables
+  * Colonnes figées (matricule, référence)
+  * Sélection multiple + actions de masse sécurisées
+  * Pagination serveur
+  * Export PDF/XLSX/CSV (RBAC)
+  * Configuration colonnes (localStorage)
+  * États: chargement, vide, erreur
+  * Double-clic pour détail
+- Étape E2 — UI Notifications Center (`src/modules/secretary/notifications-center.tsx`) :
+  * 5 onglets : Journal, Envoyer, Modèles, Consentements, Configuration
+  * DataGrid avec filtres statut/canal, stats (pending/sent/failed/rejected)
+  * Cancel/retry notifications
+  * Formulaire d'envoi avec sélection modèle + variables
+  * Gestion modèles versionnés (create/update/restore)
+  * Gestion consentements RGPD
+  * Configuration Twilio (credentials chiffrés, sandbox, whitelist, rate limits)
+- Étape E3 — UI Imports Center (`src/modules/secretary/imports-center.tsx`) :
+  * 8 étapes : Type → Modèle → Upload → Mapping → Validation → Correction → Exécution → Résultat
+  * Stepper navigation
+  * Upload drag & drop
+  * Mapping colonnes interactif
+  * Validation avec stats (valides/warnings/erreurs/doublons)
+  * Progression bar pendant exécution
+  * Rollback avec motif obligatoire
+  * Historique des jobs avec DataGrid
+- Étape F — Registre des exigences (`REGISTRE_EXIGENCES_ET_FINALISATION.md`) :
+  * 11 sections (A.1 à A.11)
+  * Matrices RBAC par fonctionnalité (Notifications, Documents, Imports, Communications)
+  * 4 catégories de tests (RBAC, Intégrité, Non-régression, Performance)
+  * 10 TODO identifiés
+- Étape G — Tests automatisés (`scripts/run-tests.ts`) :
+  * 23 tests (6 RBAC + 6 Intégrité + 8 Non-régression + 3 Performance)
+  * 23/23 PASS ✅
+  * Vérifications: sanitizeCell, normalizePhoneE164, parseCsv, canGenerateDocument, IMPORT_CONFIGS, services disponibles (auth, db, audit, exports, IQA, idempotency, format)
+  * Vérification performance: pagination < 1000ms, recherche < 500ms, count < 500ms
+
+Stage Summary:
+- 6 nouveaux modèles Prisma ajoutés sans casser l'existant (non-régression absolue)
+- 3 nouveaux services complets (notifications, document-generation, import-engine)
+- 16 endpoints API créés (6 notifications + 4 documents + 6 imports)
+- 2 nouveaux modules UI complets (notifications-center, imports-center)
+- 1 composant DataGrid réutilisable premium
+- 1 registre des exigences exhaustif
+- 23 tests automatisés tous au vert
+- 0 erreur TypeScript sur les nouveaux fichiers
+- Twilio SDK installé et intégré (avec chiffrement AES-256-GCM des credentials)
+- Sécurité anti-injection CSV/XLSX (neutralisation formules =, +, -, @)
+- Consentement explicite RGPD implémenté
+- Sandbox mode pour tests sans facturation Twilio
+- Versions de documents immuables avec QR code de vérification
+- Rollback contrôlé des imports
