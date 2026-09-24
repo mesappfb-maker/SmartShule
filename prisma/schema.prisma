@@ -1018,6 +1018,9 @@ model SyncDevice {
   outboxItems     SyncOutbox[]
   conflicts       SyncConflict[]
   inboxItems      SyncInbox[]
+  checkpoints     SyncCheckpoint[]
+  syncRuns        SyncRun[]
+  syncErrors      SyncError[]
 
   @@index([userId])
   @@index([schoolId])
@@ -1126,6 +1129,83 @@ model SyncConflict {
   @@index([status, assignedToId])
   @@index([aggregateType, aggregateId])
   @@index([createdAtUtc])
+}
+
+// SyncCheckpoint — curseur de progression par appareil
+model SyncCheckpoint {
+  id              String   @id @default(cuid())
+  deviceId        String   @unique
+  device          SyncDevice @relation(fields: [deviceId], references: [id])
+  // Dernier numéro de séquence serveur traité
+  lastServerSequence Int   @default(0)
+  // Dernière opération outbox traitée
+  lastOutboxOperationId String?
+  // Statut
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?  // SUCCESS | PARTIAL | FAILED | NEVER
+  lastSyncDurationMs Int?
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// SyncRun — journal des exécutions de synchronisation
+model SyncRun {
+  id              String   @id @default(cuid())
+  deviceId        String?
+  device          SyncDevice? @relation(fields: [deviceId], references: [id])
+  schoolId        String?
+  // Type de run
+  runType         String   // FULL | INCREMENTAL | FORCED | RECOVERY
+  // Statistiques
+  outboxSent      Int      @default(0)
+  outboxAccepted  Int      @default(0)
+  outboxRejected  Int      @default(0)
+  outboxConflicts Int      @default(0)
+  inboxReceived   Int      @default(0)
+  inboxApplied    Int      @default(0)
+  inboxSkipped    Int      @default(0)
+  // Durée
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  // Résultat
+  status          String   @default("RUNNING") // RUNNING | SUCCESS | PARTIAL | FAILED | CANCELLED
+  errorMessage    String?
+  // Audit
+  triggeredById   String?
+  triggeredByName String?
+
+  @@index([deviceId, startedAt])
+  @@index([schoolId, startedAt])
+  @@index([status])
+}
+
+// SyncError — journal des erreurs de synchronisation
+model SyncError {
+  id              String   @id @default(cuid())
+  deviceId        String?
+  device          SyncDevice? @relation(fields: [deviceId], references: [id])
+  schoolId        String?
+  // Erreur
+  errorCode       String   // NETWORK_ERROR | LICENSE_INVALID | PERMISSION_REVOKED | PAYLOAD_INVALID | CONFLICT_BLOCKING | SERVER_ERROR | TIMEOUT
+  errorMessage    String
+  errorStack      String?
+  // Contexte
+  operationId     String?
+  aggregateType   String?
+  aggregateId     String?
+  // Récupération
+  retryable       Boolean  @default(true)
+  retryCount      Int      @default(0)
+  lastRetryAt     DateTime?
+  resolvedAt      DateTime?
+  // Audit
+  createdAt       DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+  @@index([schoolId, createdAt])
+  @@index([errorCode, resolvedAt])
 }
 
 model IdempotencyRecord {
