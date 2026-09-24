@@ -18,11 +18,12 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
-  role         String   // PARENT | STUDENT | TEACHER | SECRETARY | ACCOUNTANT | DIRECTION | ADMIN | SERVER
+  role         String   // SYSTEM_ADMIN | SCHOOL_ADMIN | DIRECTOR | PROMOTER | SECRETARY | ADMISSIONS_OFFICER | ACCOUNTANT | CASHIER | HR_MANAGER | PAYROLL_OFFICER | TEACHER | PARENT | STUDENT | AUDITOR | SERVER
   accountStatus String  @default("ACTIVE") // ACTIVE | CANDIDAT_PARENT | PARENT_VERIFIE | PARENT_SUSPENDU | SUSPENDED
   displayName  String
   phone        String?  // Téléphone/WhatsApp vérifié
   active       Boolean  @default(true)
+  isDemoAccount Boolean  @default(false) // Compte démo — jamais en production
   lastLoginAt  DateTime?
   loginAttempts Int     @default(0) // Anti force-brute
   lockedUntil  DateTime? // Verrouillage temporaire
