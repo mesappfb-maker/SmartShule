@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
     // Tous les rôles peuvent voir les modèles (pour sélection) ; l'édition est restreinte
-    if (!['SECRETARY', 'DIRECTION', 'ADMIN', 'TEACHER', 'ACCOUNTANT'].includes(user.role)) {
+    if (!hasRole(user, ['SECRETARY', 'DIRECTION', 'ADMIN', 'TEACHER', 'ACCOUNTANT'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
     const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)

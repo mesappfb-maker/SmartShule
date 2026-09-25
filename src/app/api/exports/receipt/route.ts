@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { generatePaymentReceiptPDF, logExportAction } from '@/lib/exports'
 import { getUserFromSession as getSession } from '@/lib/auth'
+import { hasRole } from '@/lib/rbac'
 
 export async function GET(req: NextRequest) {
   const user = await getSession()

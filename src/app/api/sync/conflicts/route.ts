@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import { resolveConflict, CONFLICT_STRATEGIES } from '@/lib/offline'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (!['SECRETARY', 'DIRECTION', 'ACCOUNTANT', 'ADMIN'].includes(user.role)) {
+    if (!hasRole(user, ['SECRETARY', 'DIRECTION', 'ACCOUNTANT', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (!['SECRETARY', 'DIRECTION', 'ACCOUNTANT', 'ADMIN'].includes(user.role)) {
+    if (!hasRole(user, ['SECRETARY', 'DIRECTION', 'ACCOUNTANT', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 

@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import PDFDocument from 'pdfkit'
 

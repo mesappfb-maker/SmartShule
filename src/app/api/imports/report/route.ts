@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserFromSession } from '@/lib/auth'
 import { getSchoolIdForUser } from '@/lib/school-context'
+import { hasRole } from '@/lib/rbac'
 import { generateImportErrorReport } from '@/lib/import-engine'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (!['SECRETARY', 'ADMIN'].includes(user.role)) {
+    if (!hasRole(user, ['SECRETARY', 'ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
     }
 

@@ -11,6 +11,7 @@ import {
   type ExportFormat,
 } from '@/lib/exports'
 import { getUserFromSession as getSession } from '@/lib/auth'
+import { hasRole } from '@/lib/rbac'
 
 export async function GET(req: NextRequest) {
   const user = await getSession()
