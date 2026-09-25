@@ -161,7 +161,7 @@ export async function generatePaymentReceiptPDF(
         .font('Helvetica-Bold')
         .text('Élève : ', { continued: true })
         .font('Helvetica')
-        .text(`${payment.invoice.student.firstName} ${payment.invoice.student.lastName}`)
+        .text(`${payment.invoice?.student.firstName} ${payment.invoice?.student.lastName}`)
 
       // Méthode
       doc
@@ -311,8 +311,8 @@ export async function generateInvoicePDF(
 
       // Client
       doc.font('Helvetica-Bold').text('Facturé à :', { underline: true })
-      doc.font('Helvetica').text(`${invoice.student.firstName} ${invoice.student.lastName}`)
-      doc.text(`Matricule : ${invoice.student.matricule}`)
+      doc.font('Helvetica').text(`${invoice?.student.firstName} ${invoice?.student.lastName}`)
+      doc.text(`Matricule : ${invoice?.student.matricule}`)
       doc.moveDown()
 
       // Tableau des lignes

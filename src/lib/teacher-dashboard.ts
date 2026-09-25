@@ -124,10 +124,10 @@ export async function getTeacherDashboard(
     },
     assignments: assignments.map((a) => ({
       classroomId: a.classroomId,
-      classroomName: a.classroom.name,
-      directorateName: a.classroom.directorate.name,
-      sectionName: a.classroom.section?.name,
-      optionName: a.classroom.option?.name,
+      classroomName: a?.classroom.name,
+      directorateName: a?.classroom.directorate.name,
+      sectionName: a?.classroom.section?.name,
+      optionName: a?.classroom.option?.name,
       subjectName: a.subject.name,
       courseId: a.subjectId, // Approximation — courseId serait sur l'affectation
     })),

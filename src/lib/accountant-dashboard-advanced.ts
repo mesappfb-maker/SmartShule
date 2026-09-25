@@ -198,9 +198,9 @@ export async function globalSearch(schoolId: string, query: string, role: string
       where: {
         schoolId,
         OR: [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
-          { matricule: { contains: query, mode: 'insensitive' } },
+          { firstName: { contains: query,  } },
+          { lastName: { contains: query,  } },
+          { matricule: { contains: query,  } },
         ],
       },
       take: 10,
@@ -227,8 +227,8 @@ export async function globalSearch(schoolId: string, query: string, role: string
       where: {
         schoolId,
         OR: [
-          { receiptNumber: { contains: query, mode: 'insensitive' } },
-          { payerName: { contains: query, mode: 'insensitive' } },
+          { receiptNumber: { contains: query,  } },
+          { payerName: { contains: query,  } },
         ],
       },
       take: 10,
@@ -250,8 +250,8 @@ export async function globalSearch(schoolId: string, query: string, role: string
       where: {
         schoolId,
         OR: [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
+          { firstName: { contains: query,  } },
+          { lastName: { contains: query,  } },
         ],
       },
       take: 5,

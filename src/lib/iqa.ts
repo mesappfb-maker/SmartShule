@@ -6,19 +6,12 @@
 
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
+import { computeIqa, getIqaLevel, getIqaColor, formatIqaTooltip } from '@/lib/iqa-pure'
+import type { IqaLevel, IqaResult } from '@/lib/iqa-pure'
 
 // Réexport des fonctions pures (compatibilité descendante)
-export {
-  computeIqa,
-  getIqaLevel,
-  getIqaColor,
-  formatIqaTooltip,
-  type IqaLevel,
-  type IqaInput,
-  type IqaResult,
-} from '@/lib/iqa-pure'
-
-import type { IqaLevel, IqaResult } from '@/lib/iqa-pure'
+export { computeIqa, getIqaLevel, getIqaColor, formatIqaTooltip }
+export type { IqaLevel, IqaResult } from '@/lib/iqa-pure'
 
 // ============================================================
 // Helpers DB : IQA Global pour un élève

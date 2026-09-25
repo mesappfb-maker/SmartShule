@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 import { getUserFromSession } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
+import { hasRole } from '@/lib/rbac'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'

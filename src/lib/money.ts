@@ -103,7 +103,7 @@ export function multiplyCents(
   qtyCents: QuantityCents,
   priceCents: Cents
 ): Cents {
-  const result = (BigInt(qtyCents) * BigInt(priceCents)) / 100n
+  const result = (BigInt(qtyCents) * BigInt(priceCents)) / 100
   return Number(result)
 }
 
@@ -116,7 +116,7 @@ export function multiplyCents(
  * (car rateCents = pourcentage × 100, et on divise par 100 pour appliquer le %).
  */
 export function percentOfCents(amountCents: Cents, rateCents: RateCents): Cents {
-  const result = (BigInt(amountCents) * BigInt(rateCents)) / 10000n
+  const result = (BigInt(amountCents) * BigInt(rateCents)) / 10000
   return Number(result)
 }
 
@@ -179,7 +179,7 @@ export function isValidRateCents(value: unknown): value is RateCents {
  * Utilise BigInt pour éviter les overflows sur de grandes sommes.
  */
 export function sumCents(amounts: Cents[]): Cents {
-  return Number(amounts.reduce((acc, c) => acc + BigInt(c), 0n))
+  return Number(amounts.reduce((acc, c) => acc + BigInt(c), 0))
 }
 
 /**

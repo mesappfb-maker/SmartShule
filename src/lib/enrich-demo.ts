@@ -239,12 +239,12 @@ async function createCourses(schoolId: string): Promise<number> {
   let count = 0
 
   for (const assignment of assignments) {
-    if (!assignment.classroomId) continue
+    if (!assignment?.classroomId) continue
 
     const existing = await db.course.findFirst({
       where: {
         schoolId,
-        classroomId: assignment.classroomId,
+        classroomId: assignment?.classroomId,
         subjectId: assignment.subjectId,
       },
     })
@@ -253,10 +253,10 @@ async function createCourses(schoolId: string): Promise<number> {
       await db.course.create({
         data: {
           schoolId,
-          classroomId: assignment.classroomId,
+          classroomId: assignment?.classroomId,
           subjectId: assignment.subjectId,
           teacherId: assignment.employeeId,
-          title: `${assignment.subject.name} - ${assignment.classroom.name}`,
+          title: `${assignment.subject.name} - ${assignment?.classroom.name}`,
           status: 'PUBLISHED',
           publishedAt: new Date(),
         },

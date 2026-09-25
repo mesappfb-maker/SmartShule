@@ -16,14 +16,14 @@ export async function GET(req: NextRequest) {
     const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
     if (!schoolId) return NextResponse.json({ ok: false, error: 'École introuvable.' }, { status: 404 })
 
-    const [syncStatus, licenseStatus] = await Promise.all([
+    const [syncStatus, licStatus] = await Promise.all([
       getSyncStatus(),
       getLicenseStatus(schoolId),
     ])
 
     // Déterminer l'état de connexion
     let connectionState: string
-    if (licenseStatus.isReadOnly) {
+    if (licStatus?.isReadOnly) {
       connectionState = 'LICENSE_LIMITED'
     } else if (syncStatus.conflictCount > 0) {
       connectionState = 'CONFLICT'
@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
       ok: true,
       connectionState,
       sync: syncStatus,
-      license: licenseStatus,
-      banner: getBannerMessage(connectionState, syncStatus, licenseStatus),
+      license: licStatus,
+      banner: getBannerMessage(connectionState, syncStatus, licStatus),
     })
   } catch (err) {
     console.error('[api/sync/status] Error:', err)
@@ -61,9 +61,9 @@ function getBannerMessage(state: string, sync: any, license: any): string {
     case 'CONFLICT':
       return `${sync.conflictCount} conflit(s) à résoudre`
     case 'LICENSE_LIMITED':
-      return licenseStatus.isExpired
-        ? `Licence expirée — mode lecture seule. ${licenseStatus.daysGraceRemaining} jours de grâce restants.`
-        : `Limite atteinte : ${licenseStatus.currentStudents}/${licenseStatus.maxStudents} élèves`
+      return licStatus?.isExpired
+        ? `Licence expirée — mode lecture seule. ${licStatus?.daysGraceRemaining} jours de grâce restants.`
+        : `Limite atteinte : ${licStatus?.currentStudents}/${licStatus?.maxStudents} élèves`
     default:
       return state
   }

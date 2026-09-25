@@ -218,7 +218,7 @@ function DirectionHomeView({ data, onNavigate }: { data: DirectionData; onNaviga
           {data.payments.slice(0, 5).map((p) => (
             <div key={p.id} className="flex items-center justify-between text-sm">
               <div>
-                <p className="font-medium">{p.receiptNumber} · {p.invoice.student.firstName} {p.invoice.student.lastName}</p>
+                <p className="font-medium">{p.receiptNumber} · {p?.invoice?.student.firstName} {p?.invoice?.student.lastName}</p>
                 <p className="text-xs text-muted-foreground">{PAYMENT_METHODS[p.method]} · {formatDate(p.paidAt)}</p>
               </div>
               <p className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount, 'CDF')}</p>

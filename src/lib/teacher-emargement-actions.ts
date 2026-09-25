@@ -16,7 +16,7 @@ import { getUserFromSession } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { computeIqaForStudent, persistIqaSnapshot } from '@/lib/iqa'
+import { computeIqaForStudent, persistIqaSnapshot, computeIqa } from '@/lib/iqa'
 import { checkIdempotencyKey, recordIdempotencyResult } from '@/lib/idempotency'
 
 // ============================================================

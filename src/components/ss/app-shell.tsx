@@ -1,7 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { Sidebar, NavSection } from './sidebar'
+import { Sidebar } from './sidebar'
+import type { NavSection } from './sidebar'
+export type { NavSection }
 import { TopBar } from './topbar'
 
 export interface AppShellProps {

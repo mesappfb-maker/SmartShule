@@ -262,7 +262,7 @@ export function AcademicSupervision({ data }: { data: SupervisionData }) {
                         <h2 className="text-xl font-semibold">{t.teacher.name}</h2>
                         <p className="text-sm text-muted-foreground">{t.teacher.function}{t.teacher.globalRole && ` · ${t.teacher.globalRole}`}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          {t.teacher.isMultiDirectorate && <Badge variant="info">🔄 Multi-directions</Badge>}
+                          {t.teacher.isMultiDirectorate && <Badge variant="secondary">🔄 Multi-directions</Badge>}
                           <Badge variant="outline">{t.assignments.length} affectation(s)</Badge>
                           <Badge variant="outline">{t.schedule.length} créneau(x)</Badge>
                         </div>
