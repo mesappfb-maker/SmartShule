@@ -176,26 +176,93 @@ async function resetDemoData() {
   if (!demoSchool) return
 
   const schoolId = demoSchool.id
-  await db.auditLog.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.notificationLog.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.notificationConsent.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.notificationTemplate.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.notificationProviderConfig.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.attendance.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.receipt.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.invoiceLine.deleteMany({ where: { invoice: { schoolId } } }).catch(() => {})
-  await db.invoice.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.enrollment.deleteMany({ where: { student: { schoolId } } }).catch(() => {})
-  await db.guardianStudentLink.deleteMany({ where: { guardian: { schoolId } } }).catch(() => {})
-  await db.student.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.guardian.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.employee.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.classroom.deleteMany({ where: { directorate: { schoolId } } }).catch(() => {})
-  await db.directorate.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.academicYear.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.feeDefinition.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.invoiceLineConfig.deleteMany({ where: { schoolId } }).catch(() => {})
-  await db.branding.deleteMany({ where: { schoolId } }).catch(() => {})
+
+  // Supprimer dans l'ordre strict des dépendances (sans catch pour voir les erreurs)
+  // D'abord les enfants qui référencent d'autres tables
+  await db.auditLog.deleteMany({ where: { schoolId } })
+  await db.notificationLog.deleteMany({ where: { schoolId } })
+  await db.notificationConsent.deleteMany({ where: { schoolId } })
+  await db.notificationTemplate.deleteMany({ where: { schoolId } })
+  await db.notificationProviderConfig.deleteMany({ where: { schoolId } })
+
+  // Attendance (lien vers Course)
+  await db.attendance.deleteMany({ where: { schoolId } })
+
+  // Receipts (lien vers Student + Employee)
+  await db.receipt.deleteMany({ where: { schoolId } })
+
+  // InvoiceLines (lien vers Invoice)
+  await db.invoiceLine.deleteMany({ where: { invoice: { schoolId } } })
+
+  // Invoices (lien vers Student)
+  await db.invoice.deleteMany({ where: { schoolId } })
+
+  // GuardianStudentLink (lien vers Guardian + Student) — supprimer EN PREMIER
+  await db.guardianStudentLink.deleteMany({
+    where: { OR: [{ guardian: { schoolId } }, { student: { schoolId } }] },
+  })
+
+  // Enrollments (lien vers Student + Classroom)
+  await db.enrollment.deleteMany({ where: { student: { schoolId } } })
+
+  // Tables académiques liées à Student
+  await db.grade.deleteMany({ where: { student: { schoolId } } })
+  await db.reportCard.deleteMany({ where: { student: { schoolId } } })
+  await db.submission.deleteMany({ where: { student: { schoolId } } }).catch(() => {})
+  await db.parentRequest.deleteMany({ where: { student: { schoolId } } }).catch(() => {})
+  await db.studentDocument.deleteMany({ where: { schoolId } }).catch(() => {})
+  await db.certificate.deleteMany({ where: { schoolId } }).catch(() => {})
+  await db.transfer.deleteMany({ where: { schoolId } }).catch(() => {})
+  await db.absenceJustification.deleteMany({ where: { schoolId } }).catch(() => {})
+  await db.studentFinancialStatus.deleteMany({ where: { schoolId } }).catch(() => {})
+  await db.studentAttendanceCall.deleteMany({}).catch(() => {})
+  await db.iqaSnapshot.deleteMany({}).catch(() => {})
+  await db.canteenReservation.deleteMany({ where: { student: { schoolId } } }).catch(() => {})
+  await db.periscolarEnrollment.deleteMany({ where: { student: { schoolId } } }).catch(() => {})
+  await db.encashment.deleteMany({ where: { schoolId } }).catch(() => {})
+
+  // Students
+  await db.student.deleteMany({ where: { schoolId } })
+
+  // Guardians
+  await db.guardian.deleteMany({ where: { schoolId } })
+
+  // Employees — supprimer d'abord les tables qui référencent Employee
+  await db.teacherAssignment.deleteMany({}).catch(() => {})
+  await db.course.deleteMany({ where: { schoolId } }).catch(() => {})
+  await db.employeeSchedule.deleteMany({}).catch(() => {})
+  await db.employeeAttendance.deleteMany({}).catch(() => {})
+  await db.teacherAgenda.deleteMany({}).catch(() => {})
+  await db.teacherEmargement.deleteMany({}).catch(() => {})
+  await db.lessonLog.deleteMany({}).catch(() => {})
+  await db.classIncident.deleteMany({}).catch(() => {})
+  await db.employee.deleteMany({ where: { schoolId } })
+
+  // Expenses
+  await db.expense.deleteMany({ where: { schoolId } })
+
+  // Classrooms + Directorates
+  await db.classroom.deleteMany({ where: { directorate: { schoolId } } })
+  await db.directorate.deleteMany({ where: { schoolId } })
+
+  // AcademicYear
+  await db.academicYear.deleteMany({ where: { schoolId } })
+
+  // Fee definitions
+  await db.feeDefinition.deleteMany({ where: { schoolId } })
+  await db.invoiceLineConfig.deleteMany({ where: { schoolId } })
+
+  // Branding
+  await db.branding.deleteMany({ where: { schoolId } })
+
+  // Demo accounts (isDemoAccount = true) — supprimer les sessions d'abord
+  // Puis les auditLogs liés (déjà supprimés ci-dessus)
+  // Les users démo peuvent avoir des sessions — on delete cascade via Session.userId
+  // Mais Session n'a pas de schoolId, donc on doit supprimer par userId
+  const demoUsers = await db.user.findMany({ where: { isDemoAccount: true }, select: { id: true } })
+  for (const u of demoUsers) {
+    await db.session.deleteMany({ where: { userId: u.id } }).catch(() => {})
+  }
   await db.user.deleteMany({ where: { isDemoAccount: true } }).catch(() => {})
 }
 
@@ -493,10 +560,11 @@ async function createFinancialData(schoolId: string, yearId: string, students: a
 
     let totalCents = 200000
     let paidCents = 0
+    let dueDateOffset = 30 // 30 jours dans le futur par défaut
 
     if (i < 45) paidCents = totalCents
     else if (i < 60) paidCents = Math.floor(totalCents * 0.5)
-    else if (i < 70) paidCents = 0
+    else if (i < 70) { paidCents = 0; dueDateOffset = -15 } // Échues il y a 15 jours
     else if (i < 75) { totalCents = Math.floor(totalCents * 0.8); paidCents = totalCents }
     else paidCents = totalCents
 
@@ -507,6 +575,7 @@ async function createFinancialData(schoolId: string, yearId: string, students: a
         academicYearId: yearId,
         invoiceNumber,
         issueDate: new Date(),
+        dueDate: new Date(Date.now() + dueDateOffset * 24 * 60 * 60 * 1000),
         totalAmount: totalCents / 100,
         paidAmount: paidCents / 100,
         totalAmountCents: totalCents,
