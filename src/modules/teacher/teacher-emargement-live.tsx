@@ -31,7 +31,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/format'
-import { startAttendanceAction } from '@/lib/teacher-emargement-actions'
 import { AttendanceGrid, LessonLogForm, IncidentReportButton } from './attendance-grid'
 
 type Assignment = {
@@ -119,7 +118,10 @@ export function TeacherEmargementLiveView({
       formData.append('endDateTime', new Date(endDateTime).toISOString())
       formData.append('room', room)
 
-      const result = await startAttendanceAction(undefined, formData)
+      const result = await fetch('/api/teacher/attendance', {
+        method: 'POST',
+        body: formData,
+      }).then(r => r.json())
       if (result.ok) {
         setEmargementId(result.emargementId)
         toast.success(`Séance démarrée — ${result.studentsCount} élèves attendus. Direction notifiée.`)
