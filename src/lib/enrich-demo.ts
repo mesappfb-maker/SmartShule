@@ -125,6 +125,21 @@ export async function enrichDemoData(): Promise<EnrichDemoResult> {
   // 11. Tâches admin
   created.adminTasks = await createAdminTasks(schoolId)
 
+  // 12. Absences et retards du JOUR (pour dashboard)
+  await createTodayAttendance(schoolId)
+
+  // 13. Transferts entrants/sortants
+  await createTransfers(schoolId)
+
+  // 14. Demandes parents (parentsToContact)
+  await createParentRequests(schoolId)
+
+  // 15. Certificats en attente de validation (documentsToProduce)
+  await createCertificatesPending(schoolId)
+
+  // 16. Rendez-vous via Reception (appointmentsToday)
+  await createReceptions(schoolId)
+
   return { ok: true, message: 'Enrichissement terminé', created }
 }
 
@@ -646,4 +661,222 @@ async function createAdminTasks(schoolId: string): Promise<number> {
   }
 
   return count
+}
+
+// ============================================================
+// 12. Absences et retards du JOUR (pour dashboard secretary)
+// ============================================================
+
+async function createTodayAttendance(schoolId: string): Promise<void> {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const students = await db.student.findMany({
+    where: { schoolId, status: 'ACTIVE' },
+    take: 20,
+  })
+
+  const teacherUser = await db.user.findUnique({ where: { email: 'teacher@demo.smartshule.com' } })
+
+  // Récupérer un cours existant pour lier l'attendance
+  const course = await db.course.findFirst({ where: { schoolId } })
+
+  // 8 absences non justifiées
+  for (let i = 0; i < 8 && i < students.length; i++) {
+    if (!course) break
+    const existing = await db.attendance.findFirst({
+      where: { schoolId, studentId: students[i].id, date: today },
+    })
+    if (existing) continue
+
+    await db.attendance.create({
+      data: {
+        schoolId,
+        studentId: students[i].id,
+        courseId: course.id,
+        date: today,
+        status: 'ABSENT',
+        recordedById: teacherUser?.id,
+      },
+    })
+  }
+
+  // 6 retards
+  for (let i = 8; i < 14 && i < students.length; i++) {
+    if (!course) break
+    const existing = await db.attendance.findFirst({
+      where: { schoolId, studentId: students[i].id, date: today },
+    })
+    if (existing) continue
+
+    await db.attendance.create({
+      data: {
+        schoolId,
+        studentId: students[i].id,
+        courseId: course.id,
+        date: today,
+        status: 'LATE',
+        recordedById: teacherUser?.id,
+      },
+    })
+  }
+}
+
+// ============================================================
+// 13. Transferts entrants/sortants
+// ============================================================
+
+async function createTransfers(schoolId: string): Promise<void> {
+  const students = await db.student.findMany({
+    where: { schoolId, status: 'ACTIVE' },
+    take: 4,
+  })
+
+  const transfers = [
+    { type: 'INCOMING', origin: 'École Saint-Joseph', studentIdx: 0, status: 'PENDING' },
+    { type: 'INCOMING', origin: 'Complexe Scolaire Béréa', studentIdx: 1, status: 'PENDING' },
+    { type: 'OUTGOING', destination: 'Lycée Mwanga', studentIdx: 2, status: 'PENDING' },
+    { type: 'OUTGOING', destination: 'Institut Maaji', studentIdx: 3, status: 'PENDING' },
+  ]
+
+  for (let i = 0; i < transfers.length; i++) {
+    const t = transfers[i]
+    const student = students[t.studentIdx]
+    if (!student) continue
+
+    const existing = await db.transfer.findFirst({
+      where: { schoolId, studentId: student.id, transferType: t.type },
+    })
+    if (existing) continue
+
+    await db.transfer.create({
+      data: {
+        schoolId,
+        studentId: student.id,
+        transferType: t.type,
+        originSchool: t.origin || null,
+        destinationSchool: t.destination || null,
+        reason: t.type === 'INCOMING' ? 'Transfert entrant - déménagement familial' : 'Transfert sortant - déménagement familial',
+        effectiveDate: new Date(),
+        status: t.status,
+      },
+    })
+  }
+}
+
+// ============================================================
+// 14. Demandes parents (parentsToContact)
+// ============================================================
+
+async function createParentRequests(schoolId: string): Promise<void> {
+  const guardians = await db.guardian.findMany({ where: { schoolId }, take: 10 })
+  const students = await db.student.findMany({ where: { schoolId, status: 'ACTIVE' }, take: 10 })
+
+  const categories = ['INSCRIPTION', 'FRAIS', 'ABSENCE', 'DOCUMENT', 'TRANSPORT', 'DISCIPLINE']
+  const priorities = ['NORMAL', 'HIGH', 'URGENT']
+
+  for (let i = 0; i < 10; i++) {
+    const guardian = guardians[i % guardians.length]
+    const student = students[i % students.length]
+    if (!guardian || !student) continue
+
+    const reqNum = `REQ-2026-${String(i + 1).padStart(6, '0')}`
+    const existing = await db.parentRequest.findUnique({ where: { requestNumber: reqNum } })
+    if (existing) continue
+
+    await db.parentRequest.create({
+      data: {
+        schoolId,
+        requestNumber: reqNum,
+        guardianId: guardian.id,
+        studentId: student.id,
+        category: categories[i % categories.length],
+        priority: priorities[i % priorities.length],
+        subject: `Demande ${categories[i % categories.length].toLowerCase()} - ${student.firstName}`,
+        status: 'NEW',
+      },
+    })
+  }
+}
+
+// ============================================================
+// 15. Certificats en attente de validation (documentsToProduce)
+// ============================================================
+
+async function createCertificatesPending(schoolId: string): Promise<void> {
+  const students = await db.student.findMany({ where: { schoolId, status: 'ACTIVE' }, take: 7 })
+  const secretaryUser = await db.user.findUnique({ where: { email: 'secretary@demo.smartshule.com' } })
+
+  const certTypes = [
+    { type: 'SCHOOL_CERTIFICATE', title: 'Certificat de scolarité' },
+    { type: 'ENROLLMENT_ATTESTATION', title: 'Attestation d\'inscription' },
+    { type: 'STUDENT_CARD', title: 'Carte élève' },
+    { type: 'TRANSFER_ATTESTATION', title: 'Attestation de transfert' },
+    { type: 'PARENT_CONVOCATION', title: 'Convocation parent' },
+    { type: 'SCHOOL_CERTIFICATE', title: 'Certificat de scolarité (duplicate)' },
+    { type: 'ATTENDANCE_ATTESTATION', title: 'Attestation de fréquentation' },
+  ]
+
+  for (let i = 0; i < certTypes.length && i < students.length; i++) {
+    const student = students[i]
+    const cert = certTypes[i]
+
+    const year = new Date().getFullYear()
+    const referenceNumber = `CERT-${year}-${String(i + 100).padStart(6, '0')}`
+
+    const existing = await db.certificate.findUnique({ where: { referenceNumber } })
+    if (existing) continue
+
+    await db.certificate.create({
+      data: {
+        schoolId,
+        studentId: student.id,
+        certificateType: cert.type,
+        referenceNumber,
+        title: cert.title,
+        generatedById: secretaryUser?.id,
+        generatedByName: secretaryUser?.displayName,
+        requiresValidation: true,
+      },
+    })
+  }
+}
+
+// ============================================================
+// 16. Réceptions/Rendez-vous du jour (appointmentsToday)
+// ============================================================
+
+async function createReceptions(schoolId: string): Promise<void> {
+  const today = new Date()
+  today.setHours(10, 0, 0, 0)
+
+  const receptions = [
+    { visitorName: 'Pierre Kabongo', purpose: 'Inscription enfant', visitedName: 'Secrétariat', hour: 9 },
+    { visitorName: 'Marie Lukusa', purpose: 'Justificatif absence', visitedName: 'Direction', hour: 10 },
+    { visitorName: 'Jean Mwamba', purpose: 'Paiement facture', visitedName: 'Comptabilité', hour: 11 },
+    { visitorName: 'Sarah Ilunga', purpose: 'Retrait certificat', visitedName: 'Secrétariat', hour: 14 },
+  ]
+
+  for (let i = 0; i < receptions.length; i++) {
+    const r = receptions[i]
+    const scheduledDate = new Date(today)
+    scheduledDate.setHours(r.hour, 0, 0, 0)
+
+    const existing = await db.reception.findFirst({
+      where: { schoolId, visitorName: r.visitorName, scheduledDate },
+    })
+    if (existing) continue
+
+    await db.reception.create({
+      data: {
+        schoolId,
+        visitorName: r.visitorName,
+        visitorPhone: `+24381${String(3000000 + i).slice(-7)}`,
+        purpose: r.purpose,
+        targetPersonName: r.visitedName,
+        scheduledDate,
+        status: 'SCHEDULED',
+      },
+    })
+  }
 }
