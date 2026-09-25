@@ -33,6 +33,7 @@ type StudentWithIqa = {
   name: string
   matricule: string
   financialStatus: string
+  studentStatus: string // ACTIVE | TRANSFERRED | ARCHIVED
   called: boolean
   callStatus: string | null
   lateMinutes: number
@@ -212,9 +213,9 @@ export function AttendanceGrid({
               <tr>
                 <th className="text-left p-2 font-medium sticky left-0 bg-muted/40">#</th>
                 <th className="text-left p-2 font-medium">Élève</th>
-                <th className="text-left p-2 font-medium">Matricule</th>
-                <th className="text-center p-2 font-medium">IQA</th>
                 <th className="text-left p-2 font-medium">Statut</th>
+                <th className="text-center p-2 font-medium">IQA</th>
+                <th className="text-left p-2 font-medium">Appel</th>
                 <th className="text-center p-2 font-medium">Présent</th>
                 <th className="text-center p-2 font-medium">Retard</th>
                 <th className="text-center p-2 font-medium">Absent</th>
@@ -238,7 +239,7 @@ export function AttendanceGrid({
                           <div>
                             <p className="font-medium flex items-center gap-1">
                               {s.name}
-                              {s.financialStatus !== 'REGULAR' && (
+                              {s.financialStatus !== 'REGULAR' && s.financialStatus !== undefined && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -251,7 +252,17 @@ export function AttendanceGrid({
                                 </TooltipProvider>
                               )}
                             </p>
-                            <p className="text-xs text-muted-foreground">{s.financialStatus !== 'REGULAR' ? 'Litige financier' : 'Régulier'}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs text-muted-foreground font-mono">{s.matricule}</span>
+                              {s.studentStatus && s.studentStatus !== 'ACTIVE' && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 py-0">
+                                  {s.studentStatus === 'TRANSFERRED' ? 'Transféré' : s.studentStatus === 'ARCHIVED' ? 'Archivé' : s.studentStatus}
+                                </Badge>
+                              )}
+                              {s.financialStatus && s.financialStatus !== 'REGULAR' && s.financialStatus !== undefined && (
+                                <Badge className="text-[10px] h-4 px-1.5 py-0 bg-amber-100 text-amber-700">Litige financier</Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -286,11 +297,18 @@ export function AttendanceGrid({
                         </TooltipProvider>
                       </td>
                       <td className="p-2">
-                        {!s.called ? (
-                          <Badge variant="outline" className="text-xs">Non appelé</Badge>
-                        ) : (
-                          <StatusBadge status={s.callStatus!} lateMinutes={s.lateMinutes} justified={s.justified} />
-                        )}
+                        <div className="flex flex-col gap-0.5">
+                          {!s.called ? (
+                            <Badge variant="outline" className="text-xs w-fit">Non appelé</Badge>
+                          ) : (
+                            <StatusBadge status={s.callStatus!} lateMinutes={s.lateMinutes} justified={s.justified} />
+                          )}
+                          {s.studentStatus && s.studentStatus !== 'ACTIVE' && (
+                            <Badge variant="outline" className="text-[10px] w-fit mt-0.5">
+                              {s.studentStatus === 'TRANSFERRED' ? 'Transféré' : s.studentStatus === 'ARCHIVED' ? 'Archivé' : s.studentStatus}
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="p-2 text-center">
                         <Button

@@ -62,6 +62,7 @@ type EmargementDetails = {
     name: string
     matricule: string
     financialStatus: string
+    studentStatus: string
     called: boolean
     callStatus: string | null
     lateMinutes: number

@@ -224,6 +224,7 @@ export async function getEmargementDetails(emargementId: string) {
           firstName: true,
           lastName: true,
           matricule: true,
+          status: true,
           financialStatus: true,
         },
       },
@@ -264,6 +265,7 @@ export async function getEmargementDetails(emargementId: string) {
         name: `${e.student.firstName} ${e.student.lastName}`,
         matricule: e.student.matricule,
         financialStatus: e.student.financialStatus?.[0]?.status || 'REGULAR',
+        studentStatus: e.student.status || 'ACTIVE',
         // Appel déjà enregistré ?
         called: !!call,
         callStatus: call?.status || null,
