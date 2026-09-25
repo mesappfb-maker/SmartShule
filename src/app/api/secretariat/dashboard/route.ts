@@ -41,7 +41,7 @@ export async function GET() {
       db.student.count({ where: { schoolId, status: 'ACTIVE', guardianLinks: { none: {} } } }),
       db.attendance.count({ where: { schoolId, status: 'ABSENT', date: { gte: today, lt: tomorrow } } }),
       db.attendance.count({ where: { schoolId, status: 'LATE', date: { gte: today, lt: tomorrow } } }),
-      db.parentRequest.count({ where: { schoolId, status: 'OPEN' } }),
+      db.parentRequest.count({ where: { schoolId, status: { in: ['NEW', 'OPEN', 'IN_PROGRESS', 'WAITING'] } } }),
       // documentsToProduce : certificats en attente de validation + demandes de documents
       db.certificate.count({ where: { schoolId, requiresValidation: true, validatedAt: null, archived: false } }),
       // transfersToProcess : transferts en attente
