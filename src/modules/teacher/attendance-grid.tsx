@@ -5,12 +5,12 @@
 //
 // Pour chaque élève :
 //   - Avatar + nom complet + matricule + classe
-//   - Pastille IQA (vert/orange/rouge) + tooltip [X Abs | Y Ret | Z Exc]
-//   - Alerte financière discrète (⚠️)
+//   - Pastille IQA (vert/orange/rouge) + tooltip
 //   - 4 boutons : Présent / Retard / Absent / Excusé
+//   - Fenêtre retard/excusé s'ouvre INLINE sous la ligne de l'élève
 //
 // Lorsqu'on clique sur un bouton :
-//   - Appel de `recordStudentCallAction`
+//   - Appel API /api/teacher/attendance (fetch)
 //   - Mise à jour immédiate du state
 //   - Toast de confirmation + IQA recalculé affiché
 
@@ -23,10 +23,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertTriangle, Check, Clock, X, FileText, Loader2 } from 'lucide-react'
+import { AlertTriangle, Check, Clock, X, FileText, Loader2, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { initials, formatDate } from '@/lib/format'
-import { recordStudentCallAction, saveLessonLogAction } from '@/lib/teacher-emargement-actions'
 import { getIqaColor, formatIqaTooltip } from '@/lib/iqa-pure'
 
 type StudentWithIqa = {
@@ -60,9 +59,11 @@ export function AttendanceGrid({
 }) {
   const [rows, setRows] = React.useState<StudentWithIqa[]>(students)
   const [pending, setPending] = React.useState<Record<string, AttendanceStatus | null>>({})
-  const [lateDialog, setLateDialog] = React.useState<{ studentId: string; minutes: number } | null>(null)
-  const [justificationDialog, setJustificationDialog] = React.useState<{
+  // Fenêtre inline — s'ouvre DIRECTEMENT sous la ligne de l'élève
+  const [inlineDialog, setInlineDialog] = React.useState<{
     studentId: string
+    type: 'LATE' | 'EXCUSED'
+    minutes: number
     justification: string
   } | null>(null)
   const [search, setSearch] = React.useState('')
@@ -103,7 +104,12 @@ export function AttendanceGrid({
       formData.append('justified', extra?.justification ? 'true' : 'false')
       formData.append('justification', extra?.justification || '')
 
-      const result = await recordStudentCallAction(undefined, formData)
+      const response = await fetch('/api/teacher/attendance', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await response.json()
+
       if (result.ok) {
         // Mise à jour locale
         setRows((prev) =>
@@ -137,12 +143,24 @@ export function AttendanceGrid({
 
   function onClickStatus(studentId: string, status: AttendanceStatus) {
     if (status === 'LATE') {
-      setLateDialog({ studentId, minutes: 5 })
+      // Ouvrir la fenêtre INLINE sous cet élève
+      setInlineDialog({ studentId, type: 'LATE', minutes: 5, justification: '' })
     } else if (status === 'EXCUSED') {
-      setJustificationDialog({ studentId, justification: '' })
+      // Ouvrir la fenêtre INLINE sous cet élève
+      setInlineDialog({ studentId, type: 'EXCUSED', minutes: 0, justification: '' })
     } else {
       handleCall(studentId, status)
     }
+  }
+
+  function confirmInline() {
+    if (!inlineDialog) return
+    if (inlineDialog.type === 'LATE') {
+      handleCall(inlineDialog.studentId, 'LATE', { lateMinutes: inlineDialog.minutes })
+    } else {
+      handleCall(inlineDialog.studentId, 'EXCUSED', { justification: inlineDialog.justification })
+    }
+    setInlineDialog(null)
   }
 
   return (
@@ -172,12 +190,15 @@ export function AttendanceGrid({
 
       {/* Recherche */}
       <div className="flex items-center gap-2">
-        <Input
-          placeholder="🔍 Rechercher par nom ou matricule..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par nom ou matricule..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
         <span className="text-xs text-muted-foreground">
           Période : <strong>{periodLabel}</strong>
         </span>
@@ -204,120 +225,191 @@ export function AttendanceGrid({
               {filteredRows.map((s, i) => {
                 const iqaColor = getIqaColor(s.iqaLevel)
                 const isPending = pending[s.studentId]
+                const isDialogOpen = inlineDialog?.studentId === s.studentId
                 return (
-                  <tr key={s.studentId} className="border-b border-border hover:bg-muted/20">
-                    <td className="p-2 text-muted-foreground text-xs sticky left-0 bg-background">{i + 1}</td>
-                    <td className="p-2">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="text-[10px]">{initials(s.name)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium flex items-center gap-1">
-                            {s.name}
-                            {s.financialStatus !== 'REGULAR' && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertTriangle className="h-3 w-3 text-amber-500 inline" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Élève en litige financier : {s.financialStatus}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{s.financialStatus !== 'REGULAR' ? '⚠️ Litige financier' : 'Régulier'}</p>
+                  <React.Fragment key={s.studentId}>
+                    <tr className="border-b border-border hover:bg-muted/20">
+                      <td className="p-2 text-muted-foreground text-xs sticky left-0 bg-background">{i + 1}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="text-[10px]">{initials(s.name)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium flex items-center gap-1">
+                              {s.name}
+                              {s.financialStatus !== 'REGULAR' && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertTriangle className="h-3 w-3 text-amber-500 inline" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Élève en litige financier : {s.financialStatus}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{s.financialStatus !== 'REGULAR' ? 'Litige financier' : 'Régulier'}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="p-2 text-xs text-muted-foreground font-mono">{s.matricule}</td>
-                    <td className="p-2 text-center">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${iqaColor.bg} ${iqaColor.text} ${iqaColor.border} border cursor-help`}>
-                              <span className={`h-2 w-2 rounded-full ${iqaColor.dot}`} />
-                              {s.iqa.toFixed(1)}%
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-medium">{iqaColor.label} — IQA {s.iqa.toFixed(2)}%</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatIqaTooltip({
-                                iqa: s.iqa,
-                                level: s.iqaLevel,
-                                totalSessions: s.totalSessions,
-                                absencesUnexcused: s.absencesUnexcused,
-                                absencesExcused: s.absencesExcused,
-                                lateCount: s.lateCount,
-                                formula: '',
-                              })}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {s.totalSessions} séances au total
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </td>
-                    <td className="p-2">
-                      {!s.called ? (
-                        <Badge variant="outline" className="text-xs">— Non appelé —</Badge>
-                      ) : (
-                        <StatusBadge status={s.callStatus!} lateMinutes={s.lateMinutes} justified={s.justified} />
-                      )}
-                    </td>
-                    <td className="p-2 text-center">
-                      <Button
-                        size="sm"
-                        variant={s.callStatus === 'PRESENT' ? 'default' : 'outline'}
-                        className="h-8 w-8 p-0 disabled:opacity-50"
-                        onClick={() => onClickStatus(s.studentId, 'PRESENT')}
-                        disabled={isPending !== undefined && isPending !== null}
-                        title="Présent"
-                      >
-                        {isPending === 'PRESENT' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      </Button>
-                    </td>
-                    <td className="p-2 text-center">
-                      <Button
-                        size="sm"
-                        variant={s.callStatus === 'LATE' ? 'default' : 'outline'}
-                        className="h-8 w-8 p-0 disabled:opacity-50"
-                        onClick={() => onClickStatus(s.studentId, 'LATE')}
-                        disabled={isPending !== undefined && isPending !== null}
-                        title="Retard"
-                      >
-                        {isPending === 'LATE' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
-                      </Button>
-                    </td>
-                    <td className="p-2 text-center">
-                      <Button
-                        size="sm"
-                        variant={s.callStatus === 'ABSENT' ? 'destructive' : 'outline'}
-                        className="h-8 w-8 p-0 disabled:opacity-50"
-                        onClick={() => onClickStatus(s.studentId, 'ABSENT')}
-                        disabled={isPending !== undefined && isPending !== null}
-                        title="Absent"
-                      >
-                        {isPending === 'ABSENT' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                      </Button>
-                    </td>
-                    <td className="p-2 text-center">
-                      <Button
-                        size="sm"
-                        variant={s.callStatus === 'EXCUSED' ? 'secondary' : 'outline'}
-                        className="h-8 w-8 p-0 disabled:opacity-50"
-                        onClick={() => onClickStatus(s.studentId, 'EXCUSED')}
-                        disabled={isPending !== undefined && isPending !== null}
-                        title="Excusé"
-                      >
-                        {isPending === 'EXCUSED' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                      </Button>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="p-2 text-xs text-muted-foreground font-mono">{s.matricule}</td>
+                      <td className="p-2 text-center">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${iqaColor.bg} ${iqaColor.text} ${iqaColor.border} border cursor-help`}>
+                                <span className={`h-2 w-2 rounded-full ${iqaColor.dot}`} />
+                                {s.iqa.toFixed(1)}%
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="font-medium">{iqaColor.label} — IQA {s.iqa.toFixed(2)}%</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {formatIqaTooltip({
+                                  iqa: s.iqa,
+                                  level: s.iqaLevel,
+                                  totalSessions: s.totalSessions,
+                                  absencesUnexcused: s.absencesUnexcused,
+                                  absencesExcused: s.absencesExcused,
+                                  lateCount: s.lateCount,
+                                  formula: '',
+                                })}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {s.totalSessions} séances au total
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </td>
+                      <td className="p-2">
+                        {!s.called ? (
+                          <Badge variant="outline" className="text-xs">Non appelé</Badge>
+                        ) : (
+                          <StatusBadge status={s.callStatus!} lateMinutes={s.lateMinutes} justified={s.justified} />
+                        )}
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          size="sm"
+                          variant={s.callStatus === 'PRESENT' ? 'default' : 'outline'}
+                          className="h-8 w-8 p-0 disabled:opacity-50"
+                          onClick={() => onClickStatus(s.studentId, 'PRESENT')}
+                          disabled={isPending !== undefined && isPending !== null}
+                          title="Présent"
+                        >
+                          {isPending === 'PRESENT' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </Button>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          size="sm"
+                          variant={s.callStatus === 'LATE' ? 'default' : 'outline'}
+                          className="h-8 w-8 p-0 disabled:opacity-50"
+                          onClick={() => onClickStatus(s.studentId, 'LATE')}
+                          disabled={isPending !== undefined && isPending !== null}
+                          title="Retard"
+                        >
+                          {isPending === 'LATE' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
+                        </Button>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          size="sm"
+                          variant={s.callStatus === 'ABSENT' ? 'destructive' : 'outline'}
+                          className="h-8 w-8 p-0 disabled:opacity-50"
+                          onClick={() => onClickStatus(s.studentId, 'ABSENT')}
+                          disabled={isPending !== undefined && isPending !== null}
+                          title="Absent"
+                        >
+                          {isPending === 'ABSENT' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                        </Button>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          size="sm"
+                          variant={s.callStatus === 'EXCUSED' ? 'secondary' : 'outline'}
+                          className="h-8 w-8 p-0 disabled:opacity-50"
+                          onClick={() => onClickStatus(s.studentId, 'EXCUSED')}
+                          disabled={isPending !== undefined && isPending !== null}
+                          title="Excusé"
+                        >
+                          {isPending === 'EXCUSED' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                        </Button>
+                      </td>
+                    </tr>
+                    {/* Fenêtre INLINE — s'ouvre directement sous la ligne de l'élève */}
+                    {isDialogOpen && (
+                      <tr>
+                        <td colSpan={9} className="p-0">
+                          {inlineDialog!.type === 'LATE' ? (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Clock className="h-4 w-4 text-amber-600" />
+                                <h3 className="text-sm font-semibold">
+                                  Marquer en retard : <span className="text-amber-700">{s.name}</span>
+                                </h3>
+                                <span className="text-xs text-muted-foreground ml-2">{s.matricule}</span>
+                              </div>
+                              <div className="flex items-end gap-3">
+                                <div className="flex-1 max-w-xs">
+                                  <Label htmlFor="late-min" className="text-xs">Minutes de retard</Label>
+                                  <Input
+                                    id="late-min"
+                                    type="number"
+                                    min={1}
+                                    max={120}
+                                    value={inlineDialog!.minutes}
+                                    onChange={(e) => setInlineDialog({ ...inlineDialog!, minutes: parseInt(e.target.value || '5', 10) })}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <Button size="sm" onClick={confirmInline}>
+                                  Confirmer retard
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setInlineDialog(null)}>Annuler</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border-b border-blue-200 dark:border-blue-900">
+                              <div className="flex items-center gap-2 mb-3">
+                                <FileText className="h-4 w-4 text-blue-600" />
+                                <h3 className="text-sm font-semibold">
+                                  Marquer excusé : <span className="text-blue-700">{s.name}</span>
+                                </h3>
+                                <span className="text-xs text-muted-foreground ml-2">{s.matricule}</span>
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  Statut actuel : {s.called ? s.callStatus : 'Non appelé'}
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                <div>
+                                  <Label htmlFor="justif" className="text-xs">Motif de l'excuse</Label>
+                                  <Textarea
+                                    id="justif"
+                                    placeholder="Maladie, convocation, voyage familial..."
+                                    value={inlineDialog!.justification}
+                                    onChange={(e) => setInlineDialog({ ...inlineDialog!, justification: e.target.value })}
+                                    rows={2}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={confirmInline}>
+                                    Confirmer l'excuse
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setInlineDialog(null)}>Annuler</Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 )
               })}
               {filteredRows.length === 0 && (
@@ -331,68 +423,6 @@ export function AttendanceGrid({
           </table>
         </div>
       </div>
-
-      {/* Modal retard */}
-      {lateDialog && (
-        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-600" />
-              <h3 className="text-sm font-semibold">Marquer en retard</h3>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="late-min">Minutes de retard</Label>
-              <Input
-                id="late-min"
-                type="number"
-                min={1}
-                max={120}
-                value={lateDialog.minutes}
-                onChange={(e) => setLateDialog({ ...lateDialog, minutes: parseInt(e.target.value || '5', 10) })}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => { handleCall(lateDialog.studentId, 'LATE', { lateMinutes: lateDialog.minutes }); setLateDialog(null) }}>
-                Confirmer retard
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setLateDialog(null)}>Annuler</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Modal justification */}
-      {justificationDialog && (
-        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-semibold">Marquer excusé</h3>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="justif">Motif d&apos;excuse</Label>
-              <Textarea
-                id="justif"
-                placeholder="Maladie, convocation, voyage familial..."
-                value={justificationDialog.justification}
-                onChange={(e) => setJustificationDialog({ ...justificationDialog, justification: e.target.value })}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  handleCall(justificationDialog.studentId, 'EXCUSED', { justification: justificationDialog.justification })
-                  setJustificationDialog(null)
-                }}
-              >
-                Confirmer excuse
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setJustificationDialog(null)}>Annuler</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
@@ -415,15 +445,15 @@ function StatBox({ label, value, tone }: { label: string; value: number; tone: s
 }
 
 function StatusBadge({ status, lateMinutes, justified }: { status: string; lateMinutes: number; justified: boolean }) {
-  if (status === 'PRESENT') return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">✓ Présent</Badge>
-  if (status === 'LATE') return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">⏰ Retard {lateMinutes}min</Badge>
-  if (status === 'ABSENT') return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">✗ Absent {justified ? '(excusé)' : '(non excusé)'}</Badge>
-  if (status === 'EXCUSED') return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">📄 Excusé</Badge>
+  if (status === 'PRESENT') return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Present</Badge>
+  if (status === 'LATE') return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">Retard {lateMinutes}min</Badge>
+  if (status === 'ABSENT') return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Absent {justified ? '(excuse)' : '(non excuse)'}</Badge>
+  if (status === 'EXCUSED') return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Excuse</Badge>
   return <Badge variant="outline">{status}</Badge>
 }
 
 // ============================================================
-// Cahier de textes — Formulaire de saisie
+// Cahier de textes — Formulaire de saisie (API route, pas server action)
 // ============================================================
 
 export function LessonLogForm({
@@ -453,7 +483,7 @@ export function LessonLogForm({
 
   async function save(publish: boolean) {
     if (!lessonTitle.trim() || !summary.trim()) {
-      toast.error('Titre de la leçon et résumé obligatoires.')
+      toast.error('Titre de la lecon et resume obligatoires.')
       return
     }
     setPending(publish ? 'publish' : 'draft')
@@ -466,9 +496,14 @@ export function LessonLogForm({
       formData.append('resourcesUrl', resources)
       formData.append('publish', publish ? 'true' : 'false')
 
-      const result = await saveLessonLogAction(undefined, formData)
+      const response = await fetch('/api/teacher/lesson-log', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await response.json()
+
       if (result.ok) {
-        toast.success(publish ? 'Cahier de textes publié' : 'Brouillon sauvegardé')
+        toast.success(publish ? 'Cahier de textes publie' : 'Brouillon sauvegarde')
       } else {
         toast.error(result.error)
       }
@@ -486,33 +521,33 @@ export function LessonLogForm({
           <FileText className="h-4 w-4" />
           Cahier de textes — {classroomName} · {subjectName}
         </CardTitle>
-        <p className="text-xs text-muted-foreground">Séance du {formatDate(sessionDate)}</p>
+        <p className="text-xs text-muted-foreground">Seance du {formatDate(sessionDate)}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <Label htmlFor="lessonTitle">Titre de la leçon</Label>
+          <Label htmlFor="lessonTitle">Titre de la lecon</Label>
           <Input
             id="lessonTitle"
-            placeholder="Ex : Chapitre 3 - Les équations du second degré"
+            placeholder="Ex : Chapitre 3 - Les equations du second degre"
             value={lessonTitle}
             onChange={(e) => setLessonTitle(e.target.value)}
           />
         </div>
         <div>
-          <Label htmlFor="summary">Résumé du cours dispensé</Label>
+          <Label htmlFor="summary">Resume du cours dispense</Label>
           <Textarea
             id="summary"
-            placeholder="Décrivez le contenu pédagogique de la séance : concepts abordés, exemples traités, exercices en classe..."
+            placeholder="Decrivez le contenu pedagogique de la seance : concepts abordes, exemples traites, exercices en classe..."
             rows={5}
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
           />
         </div>
         <div>
-          <Label htmlFor="homework">Devoirs publiés</Label>
+          <Label htmlFor="homework">Devoirs publies</Label>
           <Textarea
             id="homework"
-            placeholder="Ex : Exercices 1 à 5 page 42, à rendre pour le..."
+            placeholder="Ex : Exercices 1 a 5 page 42, a rendre pour le..."
             rows={2}
             value={homework}
             onChange={(e) => setHomework(e.target.value)}
@@ -527,7 +562,7 @@ export function LessonLogForm({
             onChange={(e) => setResources(e.target.value)}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Séparez plusieurs liens par des virgules. La Direction pourra consulter ce cahier en lecture seule.
+            Separez plusieurs liens par des virgules. La Direction pourra consulter ce cahier en lecture seule.
           </p>
         </div>
         <div className="flex gap-2 pt-2">
@@ -551,37 +586,45 @@ export function LessonLogForm({
 }
 
 // ============================================================
-// Bouton incident rapide
+// Bouton incident avec autocomplete eleves
 // ============================================================
 
 export function IncidentReportButton({
   teacherId,
   classroomId,
   agendaId,
+  classroomStudents,
 }: {
   teacherId: string
   classroomId: string
   agendaId?: string
+  classroomStudents?: Array<{ id: string; name: string; matricule: string }>
 }) {
   const [open, setOpen] = React.useState(false)
   const [severity, setSeverity] = React.useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM')
   const [category, setCategory] = React.useState('DISCIPLINE')
   const [description, setDescription] = React.useState('')
-  const [studentId, setStudentId] = React.useState('')
+  const [studentSearch, setStudentSearch] = React.useState('')
+  const [selectedStudentId, setSelectedStudentId] = React.useState('')
+  const [selectedStudentName, setSelectedStudentName] = React.useState('')
+  const [showSuggestions, setShowSuggestions] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
-  // Génère un UUID offline unique pour cette action
-  // (sera sauvegardé en localStorage si réseau KO)
-  const clientUUID = React.useMemo(() => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID()
-    }
-    return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0
-      const v = c === 'x' ? r : (r & 0x3) | 0x8
-      return v.toString(16)
-    })
-  }, [open]) // régénère à chaque ouverture
+  // Filtrer les suggestions d'élèves
+  const suggestions = React.useMemo(() => {
+    if (!classroomStudents || !studentSearch.trim()) return []
+    const q = studentSearch.toLowerCase()
+    return classroomStudents
+      .filter((s) => s.name.toLowerCase().includes(q) || s.matricule.toLowerCase().includes(q))
+      .slice(0, 5)
+  }, [classroomStudents, studentSearch])
+
+  function selectStudent(student: { id: string; name: string }) {
+    setSelectedStudentId(student.id)
+    setSelectedStudentName(student.name)
+    setStudentSearch(student.name)
+    setShowSuggestions(false)
+  }
 
   async function submit() {
     if (!description.trim()) {
@@ -591,10 +634,9 @@ export function IncidentReportButton({
     setPending(true)
     try {
       const formData = new FormData()
-      formData.append('clientUUID', clientUUID)
       formData.append('teacherId', teacherId)
       formData.append('classroomId', classroomId)
-      formData.append('studentId', studentId)
+      formData.append('studentId', selectedStudentId || studentSearch)
       formData.append('severity', severity)
       formData.append('category', category)
       formData.append('description', description)
@@ -607,38 +649,38 @@ export function IncidentReportButton({
       const result = await response.json()
 
       if (result.ok) {
-        toast.success(`Incident signalé (${severity}) — Direction notifiée`)
+        toast.success(`Incident signale (${severity}) — Direction notifiee`)
         setOpen(false)
         setDescription('')
-        setStudentId('')
+        setStudentSearch('')
+        setSelectedStudentId('')
+        setSelectedStudentName('')
       } else {
-        // Tentative de stockage offline
+        // Stockage offline
         storeIncidentOffline({
-          clientUUID,
           teacherId,
           classroomId,
-          studentId,
+          studentId: selectedStudentId || studentSearch,
           severity,
           category,
           description,
           agendaId,
         })
-        toast.warning('Réseau indisponible — incident sauvegardé localement. Sera synchronisé au retour réseau.')
+        toast.warning('Incident sauvegarde hors-ligne. Sera synchronise au retour reseau.')
         setOpen(false)
       }
     } catch (err) {
-      // Stockage offline si réseau KO
+      // Stockage offline
       storeIncidentOffline({
-        clientUUID,
         teacherId,
         classroomId,
-        studentId,
+        studentId: selectedStudentId || studentSearch,
         severity,
         category,
         description,
         agendaId,
       })
-      toast.warning('Incident sauvegardé hors-ligne. Sera synchronisé au retour réseau.')
+      toast.warning('Incident sauvegarde hors-ligne. Sera synchronise au retour reseau.')
       setOpen(false)
     } finally {
       setPending(false)
@@ -664,7 +706,7 @@ export function IncidentReportButton({
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <Label>Gravité</Label>
+          <Label>Gravite</Label>
           <div className="grid grid-cols-4 gap-2 mt-1">
             {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map((s) => (
               <Button
@@ -679,34 +721,71 @@ export function IncidentReportButton({
           </div>
         </div>
         <div>
-          <Label>Catégorie</Label>
+          <Label>Categorie</Label>
           <select
             className="w-full p-2 border rounded-md bg-background"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="DISCIPLINE">Discipline</option>
-            <option value="MATERIAL">Panne matériel</option>
-            <option value="ABSENCE">Absence prolongée</option>
+            <option value="MATERIAL">Panne materiel</option>
+            <option value="ABSENCE">Absence prolongee</option>
             <option value="BEHAVIOR">Comportement</option>
-            <option value="SAFETY">Sécurité</option>
+            <option value="SAFETY">Securite</option>
             <option value="OTHER">Autre</option>
           </select>
         </div>
-        <div>
-          <Label htmlFor="studentId">Élève concerné (optionnel)</Label>
+        <div className="relative">
+          <Label htmlFor="studentSearch">Eleve concerne (optionnel)</Label>
           <Input
-            id="studentId"
-            placeholder="Matricule ou nom (laisser vide si classe entière)"
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
+            id="studentSearch"
+            placeholder="Tapez le nom ou matricule..."
+            value={studentSearch}
+            onChange={(e) => {
+              setStudentSearch(e.target.value)
+              setShowSuggestions(true)
+              // Reset selection si on modifie le texte
+              if (e.target.value !== selectedStudentName) {
+                setSelectedStudentId('')
+              }
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           />
+          {/* Autocomplete suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 hover:bg-muted/50 text-sm border-b last:border-0"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    selectStudent(s)
+                  }}
+                >
+                  <span className="font-medium">{s.name}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{s.matricule}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedStudentId && (
+            <p className="text-xs text-emerald-600 mt-1">Eleve selectionne : {selectedStudentName}</p>
+          )}
+          {!selectedStudentId && studentSearch.trim() && suggestions.length === 0 && classroomStudents && (
+            <p className="text-xs text-muted-foreground mt-1">Aucun eleve trouve — texte libre accepte</p>
+          )}
+          {!classroomStudents && (
+            <p className="text-xs text-muted-foreground mt-1">Laisser vide si classe entiere</p>
+          )}
         </div>
         <div>
           <Label htmlFor="description">Description</Label>
           <Textarea
             id="description"
-            placeholder="Décrivez l'incident..."
+            placeholder="Decrivez l'incident..."
             rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -715,7 +794,7 @@ export function IncidentReportButton({
         <div className="flex gap-2">
           <Button variant="destructive" onClick={submit} disabled={pending}>
             {pending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-            Envoyer à la Direction
+            Envoyer a la Direction
           </Button>
           <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
         </div>
@@ -731,7 +810,6 @@ export function IncidentReportButton({
 const OFFLINE_QUEUE_KEY = 'smartshule:offline-incidents'
 
 function storeIncidentOffline(incident: {
-  clientUUID: string
   teacherId: string
   classroomId: string
   studentId: string
@@ -745,17 +823,14 @@ function storeIncidentOffline(incident: {
     const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')
     queue.push({ ...incident, storedAt: new Date().toISOString() })
     localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue))
-    // Planifier la synchronisation
     scheduleOfflineSync()
   } catch (err) {
-    console.error('[offline] Échec stockage incident:', err)
+    console.error('[offline] Echec stockage incident:', err)
   }
 }
 
 function scheduleOfflineSync() {
   if (typeof window === 'undefined') return
-  // Tente toutes les 30 secondes si offline
-  // + au retour du réseau (event online)
   window.addEventListener('online', syncOfflineIncidents, { once: true })
   setTimeout(syncOfflineIncidents, 30000)
 }
@@ -788,6 +863,6 @@ export async function syncOfflineIncidents() {
   }
   localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining))
   if (remaining.length === 0) {
-    toast.success('Incidents hors-ligne synchronisés avec la Direction')
+    toast.success('Incidents hors-ligne synchronises avec la Direction')
   }
 }
