@@ -13,8 +13,8 @@ export async function GET() {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (!hasRole(user, ['ACCOUNTANT', 'CASHIER', 'DIRECTION', 'ADMIN', 'DIRECTOR', 'SCHOOL_ADMIN', 'SYSTEM_ADMIN', 'PROMOTER', 'AUDITOR'])) {
-      return NextResponse.json({ ok: false, error: 'Accès non autorisé.' }, { status: 403 })
+    if (!hasRole(user, ['ACCOUNTANT', 'CASHIER', 'DIRECTOR', 'SCHOOL_ADMIN'])) {
+      return NextResponse.json({ ok: false, error: 'Accès non autorisé. Dashboard réservé Finance/Direction.' }, { status: 403 })
     }
 
     const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)

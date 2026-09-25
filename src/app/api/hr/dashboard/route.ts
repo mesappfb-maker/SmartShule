@@ -15,7 +15,7 @@ export async function GET() {
   try {
     const user = await getUserFromSession()
     if (!user) return NextResponse.json({ ok: false, error: 'Session expirée.' }, { status: 401 })
-    if (!hasRole(user, ['HR_MANAGER', 'PAYROLL_OFFICER', 'DIRECTION', 'DIRECTOR', 'ADMIN', 'SCHOOL_ADMIN', 'SYSTEM_ADMIN'])) {
+    if (!hasRole(user, ['HR_MANAGER', 'PAYROLL_OFFICER', 'DIRECTOR', 'SCHOOL_ADMIN'])) {
       return NextResponse.json({ ok: false, error: 'Accès non autorisé. Module réservé RH/Direction.' }, { status: 403 })
     }
     const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
