@@ -22,9 +22,6 @@ const ROLE_EQUIVALENTS: Record<string, string[]> = {
  *   → true si user.role === 'DIRECTOR' (équivalent de DIRECTION)
  */
 export function hasRole(user: { role: string }, allowedRoles: string[]): boolean {
-  // ADMIN système a toujours accès
-  if (user.role === 'SYSTEM_ADMIN' || user.role === 'ADMIN') return true
-
   // Vérifier le rôle direct
   if (allowedRoles.includes(user.role)) return true
 
