@@ -32,7 +32,7 @@ const DEMO_ACCOUNTS = [
 
 const DEMO_PASSWORD = 'Demo2026!'
 
-export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; schoolSlogan?: string }) {
+export function LoginForm({ schoolName, schoolSlogan, schoolLogoUrl, primaryColor, secondaryColor }: { schoolName: string; schoolSlogan?: string; schoolLogoUrl?: string; primaryColor?: string; secondaryColor?: string }) {
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, setIsPending] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
@@ -104,14 +104,41 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
       {/* Contenu principal - 2 colonnes sur desktop, 1 colonne sur mobile */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Panneau gauche (décoratif) - visible seulement sur desktop */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-[var(--ss-color-secondary)] p-12 flex-col justify-between text-primary-foreground">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-              <GraduationCap className="h-6 w-6" />
+        <div
+          className="hidden lg:flex lg:w-1/2 p-12 flex-col justify-between text-white relative overflow-hidden"
+          style={{
+            background: primaryColor && secondaryColor
+              ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
+              : 'linear-gradient(135deg, #1e40af 0%, #0e7490 100%)',
+          }}
+        >
+          {/* Image de fond si logo présent, sinon pattern décoratif */}
+          {schoolLogoUrl ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-10"
+              style={{ backgroundImage: `url(${schoolLogoUrl})` }}
+            />
+          ) : (
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-white blur-3xl" />
+              <div className="absolute bottom-0 -left-20 w-80 h-80 rounded-full bg-white blur-3xl" />
             </div>
+          )}
+
+          {/* Logo + nom école */}
+          <div className="relative z-10 flex items-center gap-3">
+            {schoolLogoUrl ? (
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/90 backdrop-blur shadow-lg overflow-hidden">
+                <img src={schoolLogoUrl} alt={schoolName} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
+                <GraduationCap className="h-6 w-6" />
+              </div>
+            )}
             <div>
-              <p className="text-lg font-semibold">SmartShule</p>
-              <p className="text-xs text-primary-foreground/80">Portail famille</p>
+              <p className="text-lg font-semibold">{schoolName || 'SmartShule'}</p>
+              <p className="text-xs text-white/80">Portail famille & direction</p>
             </div>
           </div>
 
@@ -125,17 +152,17 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
             </p>
           </div>
 
-          <div className="flex items-center gap-6 text-xs text-primary-foreground/70">
+          <div className="flex items-center gap-6 text-xs text-white/70">
             <div>
-              <p className="font-semibold text-primary-foreground text-lg">2 500+</p>
+              <p className="font-semibold text-white text-lg">2 500+</p>
               <p>Élèves accompagnés</p>
             </div>
             <div>
-              <p className="font-semibold text-primary-foreground text-lg">98%</p>
+              <p className="font-semibold text-white text-lg">98%</p>
               <p>De satisfaction</p>
             </div>
             <div>
-              <p className="font-semibold text-primary-foreground text-lg">24/7</p>
+              <p className="font-semibold text-white text-lg">24/7</p>
               <p>Accès portail</p>
             </div>
           </div>
@@ -147,9 +174,15 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
             {/* En-tête mobile */}
             <div className="flex justify-between items-center lg:hidden">
               <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
+                {schoolLogoUrl ? (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow overflow-hidden">
+                    <img src={schoolLogoUrl} alt={schoolName} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <GraduationCap className="h-5 w-5" />
+                  </div>
+                )}
                 <span className="font-semibold">SmartShule</span>
               </div>
               <ThemeToggle />

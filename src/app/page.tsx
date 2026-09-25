@@ -42,6 +42,9 @@ export default async function Home() {
       <LoginForm
         schoolName={school?.name || 'SmartShule'}
         schoolSlogan={school?.slogan || undefined}
+        schoolLogoUrl={school?.logoUrl || undefined}
+        primaryColor={school?.primaryColor || undefined}
+        secondaryColor={school?.secondaryColor || undefined}
       />
     )
   }
