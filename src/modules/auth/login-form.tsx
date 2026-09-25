@@ -12,18 +12,25 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/ss/theme-toggle'
 import { toast } from 'sonner'
 
-// ✅ 7 comptes démo cliquables directement sur la page
+// ✅ 14 comptes démo cliquables directement sur la page (RBAC complet)
 const DEMO_ACCOUNTS = [
-  { label: 'Direction',     email: 'direction@smartshule.demo',  role: 'DIRECTION',  icon: Shield,    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
-  { label: 'Professeur',    email: 'prof@smartshule.demo',       role: 'TEACHER',    icon: BookOpen,  color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
-  { label: 'Comptable',     email: 'comptable@smartshule.demo',   role: 'ACCOUNTANT', icon: Wallet,    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
-  { label: 'Secrétariat',   email: 'secretaire@smartshule.demo',  role: 'SECRETARY',  icon: Briefcase, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
-  { label: 'Parent',        email: 'parent@smartshule.demo',      role: 'PARENT',     icon: Users,     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20' },
-  { label: 'Élève',         email: 'eleve@smartshule.demo',        role: 'STUDENT',   icon: User,      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
-  { label: 'PromoServeur',  email: 'server@smartshule.demo',      role: 'SERVER',    icon: Server,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
+  { label: 'Directeur',        email: 'director@demo.smartshule.com',     role: 'DIRECTOR',           icon: Shield,    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+  { label: 'Secrétaire',      email: 'secretary@demo.smartshule.com',     role: 'SECRETARY',          icon: Briefcase, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
+  { label: 'Agent Admission', email: 'admissions@demo.smartshule.com',    role: 'ADMISSIONS_OFFICER', icon: Users,     color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
+  { label: 'Comptable',       email: 'accountant@demo.smartshule.com',    role: 'ACCOUNTANT',         icon: Wallet,    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  { label: 'Caissier',        email: 'cashier@demo.smartshule.com',       role: 'CASHIER',            icon: Wallet,    color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
+  { label: 'RH',              email: 'hrmanager@demo.smartshule.com',      role: 'HR_MANAGER',         icon: Users,     color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
+  { label: 'Paie',            email: 'payroll@demo.smartshule.com',       role: 'PAYROLL_OFFICER',    icon: Wallet,    color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
+  { label: 'Enseignant',      email: 'teacher@demo.smartshule.com',       role: 'TEACHER',            icon: BookOpen,  color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+  { label: 'Parent',         email: 'parent@demo.smartshule.com',         role: 'PARENT',             icon: Users,     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20' },
+  { label: 'Élève',          email: 'student@demo.smartshule.com',        role: 'STUDENT',            icon: User,      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
+  { label: 'Admin École',    email: 'schooladmin@demo.smartshule.com',    role: 'SCHOOL_ADMIN',       icon: Shield,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
+  { label: 'Sys Admin',     email: 'sysadmin@demo.smartshule.com',       role: 'SYSTEM_ADMIN',       icon: Server,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
+  { label: 'Promoteur',     email: 'promoter@demo.smartshule.com',       role: 'PROMOTER',           icon: Shield,    color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20' },
+  { label: 'Auditeur',      email: 'auditor@demo.smartshule.com',        role: 'AUDITOR',            icon: Shield,    color: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20' },
 ]
 
-const DEMO_PASSWORD = 'SmartShule2026!'
+const DEMO_PASSWORD = 'Demo2026!'
 
 export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; schoolSlogan?: string }) {
   const [error, setError] = React.useState<string | null>(null)
@@ -254,12 +261,12 @@ export function LoginForm({ schoolName, schoolSlogan }: { schoolName: string; sc
                   </p>
                 </form>
 
-                {/* 7 comptes démo cliquables */}
+                {/* 14 comptes démo cliquables */}
                 <div className="pt-4 border-t border-border">
                   <p className="text-xs font-medium text-muted-foreground mb-3 text-center sm:text-left">
-                    🔑 Comptes de démonstration (cliquez pour vous connecter)
+                    🔑 Comptes de démonstration (cliquez pour remplir)
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                     {DEMO_ACCOUNTS.map((acc) => {
                       const Icon = acc.icon
                       const isSelected = selectedAccount === acc.email
