@@ -175,6 +175,12 @@ model School {
   notificationProviderConfigs NotificationProviderConfig[]
   importJobs     ImportJob[]
   documentVersions DocumentVersion[]
+  // Étape 13 — Module académique professionnel
+  subjectClassConfigs SubjectClassConfig[]
+  evaluationCategories EvaluationCategory[]
+  scheduleConflicts ScheduleConflict[]
+  rooms          Room[]
+  timeSlots      TimeSlot[]
 }
 
 model Branding {
@@ -244,6 +250,8 @@ model AcademicYear {
   feeDefinitions FeeDefinition[]
   // Étape 5 RDC : Module comptable
   studentDebts StudentDebt[]
+  // Étape 13 : Module académique
+  subjectClassConfigs SubjectClassConfig[]
 }
 
 model Classroom {
@@ -285,6 +293,8 @@ model Classroom {
   iqaSnapshots      IqaSnapshot[]
   // Étape 5 RDC : Module comptable
   studentDebts    StudentDebt[]
+  // Étape 13 : Module académique
+  subjectClassConfigs SubjectClassConfig[]
 }
 
 model Subject {
@@ -306,6 +316,8 @@ model Subject {
   studentAttendanceCalls StudentAttendanceCall[]
   lessonLogs            LessonLog[]
   iqaSnapshots          IqaSnapshot[]
+  // Étape 13 : Module académique professionnel
+  subjectClassConfigs   SubjectClassConfig[]
 }
 
 // ============================================================
@@ -453,6 +465,8 @@ model Employee {
   incidentsResolved    ClassIncident[] @relation("IncidentResolver")
   // Étape 5 RDC : Module comptable — reçu émis par ce comptable
   receiptsIssued       Receipt[]
+  // Étape 13 : Module académique professionnel
+  subjectClassConfigs  SubjectClassConfig[]
 }
 
 model TeacherAssignment {
@@ -3553,4 +3567,145 @@ model DocumentVersion {
 
   @@index([schoolId, certificateId])
   @@index([verificationCode])
+}
+
+// ============================================================
+// AH. MODULE ACADÉMIQUE PROFESSIONNEL — 3 NIVEAUX SÉPARÉS
+// ============================================================
+
+// AH.1 SUBJECT_CLASS_CONFIG (MATIERE_CLASSE)
+// Configuration réelle d'une matière dans une classe avec coefficient,
+// barème, volume horaire, enseignant, salle et règles de calcul.
+model SubjectClassConfig {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  academicYearId  String
+  academicYear    AcademicYear @relation(fields: [academicYearId], references: [id])
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id])
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  // Enseignant
+  teacherId       String?
+  teacher         Employee? @relation(fields: [teacherId], references: [id])
+  substituteTeacherId String?
+  // Salle
+  room            String?
+  // Configuration pédagogique
+  coefficient     Float    @default(1)
+  maxScore        Float    @default(100)
+  passingScore    Float    @default(50)
+  hoursPerWeek    Float    @default(2)
+  sessionsPerWeek Int      @default(2)
+  sessionDurationMinutes Int @default(60)
+  calculationType String   @default("WEIGHTED_AVERAGE") // SUM | SIMPLE_AVERAGE | WEIGHTED_AVERAGE
+  // Période
+  period          String   @default("T1") // T1 | T2 | T3 | S1 | S2 | YEAR
+  // Statut
+  status          String   @default("DRAFT") // DRAFT | ACTIVE | SUSPENDED | CLOSED
+  activatedAt     DateTime?
+  activatedById   String?
+  activatedByName String?
+  // Audit
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, classroomId, subjectId, academicYearId, period])
+  @@index([schoolId, classroomId])
+  @@index([schoolId, teacherId])
+  @@index([schoolId, subjectId])
+  @@index([status])
+
+  evaluationCategories EvaluationCategory[]
+}
+
+// AH.2 EVALUATION_CATEGORY (catégories d'évaluations pondérées)
+// Ex: Interrogations 20%, Devoirs 20%, TP 10%, Examen 50%
+model EvaluationCategory {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  subjectClassConfigId String?
+  subjectClassConfig SubjectClassConfig? @relation(fields: [subjectClassConfigId], references: [id], onDelete: Cascade)
+  name            String   // "Interrogations", "Devoirs", "Examen"
+  weightPercent   Float    @default(0) // 20 = 20%
+  minEvaluations  Int      @default(1)
+  maxEvaluations  Int      @default(10)
+  defaultMaxScore Float    @default(20)
+  calculationRule String   @default("AVERAGE") // AVERAGE | BEST | SUM | UNIQUE
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId, subjectClassConfigId])
+}
+
+// AH.3 SCHEDULE_CONFLICT (détection de conflits d'horaires)
+model ScheduleConflict {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  conflictType    String   // CLASS_DOUBLE_BOOKED | TEACHER_DOUBLE_BOOKED | ROOM_DOUBLE_BOOKED | ROOM_INCOMPATIBLE | CAPACITY_EXCEEDED | SLOT_LOCKED | TEACHER_UNAVAILABLE | SUBJECT_INACTIVE | VOLUME_INSUFFICIENT | VOLUME_EXCEEDED
+  severity        String   @default("CRITICAL") // CRITICAL | WARNING | INFO
+  // Détails
+  timetableId1    String?
+  timetableId2    String?
+  classroomId     String?
+  teacherId       String?
+  room            String?
+  dayOfWeek       Int?
+  startTime       String?
+  endTime         String?
+  description     String
+  // Résolution
+  status          String   @default("OPEN") // OPEN | RESOLVED | IGNORED
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolutionNote  String?
+  // Audit
+  createdAt       DateTime @default(now())
+
+  @@index([schoolId, status])
+  @@index([schoolId, conflictType])
+}
+
+// AH.4 ROOM (salles — référentiel)
+model Room {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  code            String   // "P-05", "LAB-INFO"
+  name            String   // "Salle Primaire 05"
+  type            String   @default("CLASSROOM") // CLASSROOM | LAB | COMPUTER_LAB | SPORTS | MULTIPURPOSE | OFFICE
+  capacity        Int      @default(30)
+  equipment       String?  // JSON: ["projector", "whiteboard", "computers"]
+  compatibleSubjects String? // JSON: ["MATH-PRI", "INFO-SEC"]
+  location        String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, code])
+  @@index([schoolId, type])
+  @@index([schoolId, isActive])
+}
+
+// AH.5 TIME_SLOT (créneaux institutionnels)
+model TimeSlot {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  dayOfWeek       Int      // 0=Dimanche, 6=Samedi
+  startTime       String   // "08:00"
+  endTime         String   // "09:00"
+  slotType        String   @default("COURSE") // COURSE | BREAK | LUNCH | ACTIVITY
+  isLocked        Boolean  @default(false) // Les pauses sont verrouillées
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@unique([schoolId, dayOfWeek, startTime])
+  @@index([schoolId, dayOfWeek])
 }
