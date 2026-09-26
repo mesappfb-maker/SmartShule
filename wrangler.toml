@@ -1,0 +1,26 @@
+# SmartShule — Configuration Cloudflare Pages
+# ============================================================
+# Pour déployer sur Cloudflare Pages au lieu de Vercel.
+#
+# Étapes :
+# 1. Installer wrangler : npm install -g wrangler
+# 2. Login : wrangler login
+# 3. Créer le projet : wrangler pages project create smartshule
+# 4. Déployer : wrangler pages deploy .next/standalone --project-name smartshule
+#
+# Variables d'environnement à configurer dans le dashboard Cloudflare :
+# - DATABASE_URL (PostgreSQL Supabase ou autre)
+# - NEXTAUTH_SECRET
+# - NEXTAUTH_URL (votre domaine Cloudflare)
+# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (si Google OAuth)
+
+name = "smartshule"
+compatibility_date = "2024-09-25"
+pages_build_output_dir = ".next/standalone"
+
+# Variables d'environnement (à compléter dans le dashboard Cloudflare)
+[vars]
+NODE_ENV = "production"
+
+# Pour activer les functions Pages (API routes Next.js)
+# Note : Next.js 16 + Cloudflare Pages nécessite @cloudflare/next-on-pages
