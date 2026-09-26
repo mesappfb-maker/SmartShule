@@ -13,10 +13,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SSAreaChart, SSBarChart, SSLineChart, SSDonutChart } from '@/components/ss/charts'
 import {
   LayoutDashboard, TrendingUp, UserPlus, DollarSign, Wallet,
   AlertCircle, Target, AlertTriangle, FileText, LogOut, RefreshCw,
-  ArrowUpRight, ArrowDownRight, Calendar,
+  ArrowUpRight, ArrowDownRight, Calendar, Download,
 } from 'lucide-react'
 
 type View =
@@ -215,17 +216,28 @@ function OverviewView({
 
 function GrowthView() {
   const { data, loading, error } = useFetch<{ monthly: Array<{ month: string; total: number; new: number }> }>(`/api/promoter/dashboard?view=growth`)
+  const monthly = data?.monthly ?? []
   return (
     <>
       <PageHeader title="Croissance des effectifs" breadcrumbs={[{ label: 'SmartShule' }, { label: 'Promoteur' }, { label: 'Croissance' }]} />
-      <Card>
-        <CardHeader><CardTitle className="text-base">Évolution mensuelle</CardTitle></CardHeader>
-        <CardContent>
-          {loading ? <Skeleton className="h-64 w-full" /> : error ? <ErrorBox error={error} /> : (
-            <SimpleBarChart data={(data?.monthly ?? []).map(m => ({ label: m.month, value: m.total }))} />
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Effectifs totaux (mois)</CardTitle></CardHeader>
+          <CardContent>
+            {loading ? <Skeleton className="h-64 w-full" /> : error ? <ErrorBox error={error} /> : (
+              <SSAreaChart data={monthly.map(m => ({ month: m.month, total: m.total }))} xKey="month" yKey="total" color="#2563EB" />
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-base">Nouveaux élèves par mois</CardTitle></CardHeader>
+          <CardContent>
+            {loading ? <Skeleton className="h-64 w-full" /> : error ? <ErrorBox error={error} /> : (
+              <SSBarChart data={monthly.map(m => ({ month: m.month, value: m.new }))} xKey="month" yKey="value" color="#0F766E" />
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </>
   )
 }
@@ -249,6 +261,7 @@ function AdmissionsView() {
 
 function RevenueView() {
   const { data, loading, error } = useFetch<{ monthly: Array<{ month: string; invoiced: number; collected: number }> }>(`/api/promoter/dashboard?view=revenue`)
+  const monthly = data?.monthly ?? []
   return (
     <>
       <PageHeader title="Recettes" breadcrumbs={[{ label: 'SmartShule' }, { label: 'Promoteur' }, { label: 'Recettes' }]} />
@@ -256,7 +269,14 @@ function RevenueView() {
         <CardHeader><CardTitle className="text-base">Facturé vs Encaissé (mensuel)</CardTitle></CardHeader>
         <CardContent>
           {loading ? <Skeleton className="h-64 w-full" /> : error ? <ErrorBox error={error} /> : (
-            <SimpleBarChart data={(data?.monthly ?? []).map(m => ({ label: m.month, value: Math.round(m.collected / 100) }))} />
+            <SSBarChart
+              data={monthly.map(m => ({ month: m.month, facturé: Math.round(m.invoiced / 100), encaissé: Math.round(m.collected / 100) }))}
+              xKey="month"
+              yKey="facturé"
+              y2Key="encaissé"
+              color="#2563EB"
+              color2="#0F766E"
+            />
           )}
         </CardContent>
       </Card>
@@ -266,6 +286,7 @@ function RevenueView() {
 
 function ExpensesView() {
   const { data, loading, error } = useFetch<{ monthly: Array<{ month: string; amount: number }> }>(`/api/promoter/dashboard?view=expenses`)
+  const monthly = data?.monthly ?? []
   return (
     <>
       <PageHeader title="Dépenses" breadcrumbs={[{ label: 'SmartShule' }, { label: 'Promoteur' }, { label: 'Dépenses' }]} />
@@ -273,7 +294,12 @@ function ExpensesView() {
         <CardHeader><CardTitle className="text-base">Dépenses mensuelles</CardTitle></CardHeader>
         <CardContent>
           {loading ? <Skeleton className="h-64 w-full" /> : error ? <ErrorBox error={error} /> : (
-            <SimpleBarChart data={(data?.monthly ?? []).map(m => ({ label: m.month, value: Math.round(m.amount / 100) }))} />
+            <SSLineChart
+              data={monthly.map(m => ({ month: m.month, value: Math.round(m.amount / 100) }))}
+              xKey="month"
+              yKey="value"
+              color="#DC2626"
+            />
           )}
         </CardContent>
       </Card>
@@ -415,18 +441,66 @@ function DecisionsView() {
 }
 
 function ReportsView({ period }: { period: 'monthly' | 'annual' }) {
+  const [generating, setGenerating] = useState(false)
+  const [reportUrl, setReportUrl] = useState<string | null>(null)
+
+  async function generateReport() {
+    setGenerating(true)
+    try {
+      const res = await fetch(`/api/exports/report?type=promoter-${period}`)
+      const data = await res.json()
+      if (!data.ok) throw new Error(data.error)
+      setReportUrl(data.url)
+      // Déclencher le téléchargement
+      window.open(data.url, '_blank')
+    } catch (err) {
+      // toast plus tard
+      console.error(err)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <>
       <PageHeader
         title={period === 'monthly' ? 'Rapport mensuel' : 'Rapport annuel'}
         breadcrumbs={[{ label: 'SmartShule' }, { label: 'Promoteur' }, { label: period === 'monthly' ? 'Mensuel' : 'Annuel' }]}
-        actions={<Button variant="outline" size="sm"><FileText className="h-4 w-4 mr-2" /> Télécharger PDF</Button>}
+        actions={
+          <Button onClick={generateReport} disabled={generating}>
+            {generating ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            {generating ? 'Génération...' : 'Télécharger PDF'}
+          </Button>
+        }
       />
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">
-          <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p>Rapport {period === 'monthly' ? 'mensuel' : 'annuel'} en cours de génération.</p>
-          <p className="text-xs mt-2">Ce module sera disponible prochainement.</p>
+        <CardContent className="p-8">
+          <div className="text-center space-y-4">
+            <FileText className="h-16 w-16 mx-auto text-primary" />
+            <div>
+              <h3 className="text-lg font-semibold">Rapport {period === 'monthly' ? 'mensuel' : 'annuel'}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Cliquez sur « Télécharger PDF » pour générer le rapport complet avec effectifs, finances et indicateurs clés.
+              </p>
+            </div>
+            {reportUrl && (
+              <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  ✓ Rapport généré — <a href={reportUrl} target="_blank" rel="noreferrer" className="underline">Cliquez ici pour ouvrir</a>
+                </p>
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground max-w-md mx-auto">
+              <p className="font-medium mb-1">Contenu du rapport :</p>
+              <ul className="text-left space-y-1">
+                <li>• En-tête avec nom de l'établissement et période</li>
+                <li>• Section Effectifs (total, actifs, nouveaux, employés)</li>
+                <li>• Section Finances (facturé, encaissé, impayés, taux recouvrement)</li>
+                <li>• Dépenses (annuelles, en attente de validation)</li>
+                <li>• Pied de page avec date de génération</li>
+              </ul>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </>

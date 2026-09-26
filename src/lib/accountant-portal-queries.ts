@@ -17,6 +17,7 @@ export async function getAccountantPortalData(userId: string) {
     pendingStudents,
     stats,
     directorateStats,
+    students,
   ] = await Promise.all([
     // Lignes de frais configurées par le directeur
     db.invoiceLineConfig.findMany({
@@ -69,6 +70,20 @@ export async function getAccountantPortalData(userId: string) {
           select: { amountCents: true },
         },
       },
+    }),
+
+    // Liste des élèves actifs pour le sélecteur d'encaissement
+    db.student.findMany({
+      where: { schoolId, status: 'ACTIVE' },
+      include: {
+        enrollments: {
+          where: { status: 'ACTIVE' },
+          include: { classroom: { include: { directorate: true } } },
+          take: 1,
+        },
+      },
+      orderBy: { firstName: 'asc' },
+      take: 500,
     }),
   ])
 
@@ -129,6 +144,13 @@ export async function getAccountantPortalData(userId: string) {
       directorateName: p.student.enrollments[0]?.classroom.directorate.name || '—',
       status: p.status,
       reason: p.reason,
+    })),
+    students: students.map((s) => ({
+      id: s.id,
+      matricule: s.matricule || s.id.slice(-6).toUpperCase(),
+      displayName: `${s.firstName} ${s.lastName}`,
+      classroomName: s.enrollments[0]?.classroom.name || '—',
+      directorateName: s.enrollments[0]?.classroom.directorate.name || '—',
     })),
     stats: {
       totalCollectedCents: totalCollected,

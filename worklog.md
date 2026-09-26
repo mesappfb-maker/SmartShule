@@ -283,3 +283,63 @@ Stage Summary:
 - 0 erreur TypeScript sur les nouveaux fichiers
 - Installateur NSIS mis à jour : 207 MB (vs 98 MB avant, à cause des nouveaux modules)
 - app.asar optimisé : 404 MB (vs 1.9 GB avant, cleanup récursif)
+
+---
+Task ID: 8
+Agent: main (Super Z)
+Task: Corrections de bugs + ajout fonctionnalités (Recharts, PDF, logo upload)
+
+Work Log:
+- Diagnostic bug encaissement : src/modules/accountant/accountant-portal.tsx formulaire "Nouvel encaissement" n'avait pas de champ studentId — l'utilisateur ne pouvait pas sélectionner l'élève concerné
+- Modification src/lib/accountant-portal-queries.ts : ajout du chargement de la liste des élèves actifs (id, matricule, displayName, classroomName, directorateName)
+- Création du composant NewEncashmentForm dans accountant-portal.tsx avec :
+  * Recherche d'élève par nom / matricule / classe (filtre live)
+  * Sélection visuelle (carte avec badge matricule)
+  * Lien automatique ligne de frais → montant par défaut
+  * Bouton "Utiliser le montant par défaut" si ligne sélectionnée
+  * Validation : bloqué tant que pas d'élève sélectionné
+  * Toast de succès avec numéro de reçu
+  * Reset automatique du formulaire après validation
+- Diagnostic warning "2 dépenses en attente" : c'est un warning normal indiquant 2 enregistrements Expense en base avec status=PENDING — attendent validation par direction/admin. La validation est déjà gérée dans accountant-full-portal (boutons approve/reject)
+- Installation Recharts : `bun add recharts` (v3.10.1)
+- Création src/components/ss/charts.tsx : 6 composants réutilisables
+  * SSAreaChart (gradient fill)
+  * SSBarChart (mono ou bi-séries)
+  * SSLineChart (croissance)
+  * SSDonutChart (répartition)
+  * SSPieChart (répartition simple)
+  * SSSparkline (mini-graphique dans cartes stats)
+- Refonte GrowthView/RevenueView/ExpensesView du portail Promoter : SimpleBarChart → vrais graphiques Recharts (AreaChart, BarChart bi-séries, LineChart)
+- Création src/app/api/schools/logo/route.ts (POST multipart) :
+  * Upload fichier logo école (PNG/JPG/WebP/SVG)
+  * Validation MIME + taille (max 5 MB)
+  * Sauvegarde /public/uploads/logos/<schoolId>-<timestamp>.<ext>
+  * Mise à jour school.logoUrl
+  * Audit log BRANDING_LOGO_UPDATED
+- Création src/app/api/exports/report/route.ts (GET ?type=promoter-monthly|promoter-annual|admin-system) :
+  * Génération PDF via pdfkit (Helvetica, A4, marges 50px)
+  * En-tête école + période + utilisateur + date
+  * Sections Effectifs + Finances + Synchronisation
+  * Sauvegarde /public/uploads/reports/report-<type>-<timestamp>.pdf
+  * Retourne URL publique pour téléchargement
+- Modification BrandingView dans direction-dashboard.tsx : ajout bloc upload logo avec :
+  * Aperçu live (URL.createObjectURL)
+  * Validation type MIME + taille côté client
+  * Bouton Téléverser (appel POST /api/schools/logo)
+  * Indications formats acceptés (PNG, JPG, WebP, SVG, max 5 MB, 256×256px recommandé)
+- Import lucide-react : ajout Upload, Image as ImageIcon
+- Refonte ReportsView du portail Promoter : placeholder statique → bouton fonctionnel qui déclenche la génération PDF et ouvre le fichier dans un nouvel onglet
+- 0 erreur TypeScript sur tous les fichiers modifiés
+- Build Next.js + Electron : app.asar 410 MB
+- Build NSIS via makensis Linux direct : SmartShule-Setup.exe 212 MB (LZMA solid, ~10 min)
+
+Stage Summary:
+- Bug encaissement CORRIGÉ : sélection d'élève par recherche (nom/matricule/classe)
+- Upload logo École AJOUTÉ : formulaire BrandingView complet avec validation
+- Recharts AJOUTÉ : 6 composants réutilisables dans src/components/ss/charts.tsx
+- Graphiques portail Promoter MIS À JOUR : AreaChart, BarChart bi-séries, LineChart
+- Export PDF rapports AJOUTÉ : API /api/exports/report + bouton fonctionnel dans ReportsView
+- 3 nouveaux endpoints API : /api/schools/logo (POST), /api/exports/report (GET)
+- 1 nouveau composant shared : src/components/ss/charts.tsx (SSAreaChart, SSBarChart, SSLineChart, SSDonutChart, SSPieChart, SSSparkline)
+- 1 nouveau composant form : NewEncashmentForm dans accountant-portal.tsx
+- Installateur NSIS mis à jour : 212 MB (vs 207 MB avant, +5 MB pour Recharts)

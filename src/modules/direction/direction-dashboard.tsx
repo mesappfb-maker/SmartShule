@@ -22,6 +22,7 @@ import {
   Home, Bell, MessageSquare, FileText, ShieldCheck, Palette,
   Users, TrendingUp, CreditCard, Plus, Send, Loader2, Archive,
   CheckCircle2, Clock, Eye, Hash, Calculator, Settings, Newspaper,
+  Upload, Image as ImageIcon,
 } from 'lucide-react'
 import {
   createAnnouncementAction, archiveAnnouncementAction, assignRequestAction,
@@ -218,7 +219,7 @@ function DirectionHomeView({ data, onNavigate }: { data: DirectionData; onNaviga
           {data.payments.slice(0, 5).map((p) => (
             <div key={p.id} className="flex items-center justify-between text-sm">
               <div>
-                <p className="font-medium">{p.receiptNumber} · {p?.invoice?.student.firstName} {p?.invoice?.student.lastName}</p>
+                <p className="font-medium">{p.receiptNumber} · {p?.invoice?.student?.firstName ?? ''} {p?.invoice?.student?.lastName ?? ''}</p>
                 <p className="text-xs text-muted-foreground">{PAYMENT_METHODS[p.method]} · {formatDate(p.paidAt)}</p>
               </div>
               <p className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount, 'CDF')}</p>
@@ -659,11 +660,47 @@ function BrandingView({ school }: { school: { id: string; name: string; slogan: 
   const [tertiary, setTertiary] = React.useState(school.tertiaryColor)
   const [name, setName] = React.useState(school.name)
   const [slogan, setSlogan] = React.useState(school.slogan || '')
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(null)
+  const [logoFile, setLogoFile] = React.useState<File | null>(null)
+  const [uploadingLogo, setUploadingLogo] = React.useState(false)
 
   React.useEffect(() => {
     if (state && !state.ok) toast.error(state.error)
     if (state?.ok) toast.success('Branding mis à jour. Les couleurs seront appliquées après rechargement.')
   }, [state])
+
+  const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Fichier trop volumineux (max 5 MB)')
+      return
+    }
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+      toast.error('Format non supporté. Utilisez PNG, JPG, WebP ou SVG.')
+      return
+    }
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+  }
+
+  const uploadLogo = async () => {
+    if (!logoFile) return
+    setUploadingLogo(true)
+    try {
+      const fd = new FormData()
+      fd.append('logo', logoFile)
+      const res = await fetch('/api/schools/logo', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!data.ok) throw new Error(data.error)
+      toast.success('Logo téléversé avec succès. Rechargez la page pour voir le changement.')
+      setLogoFile(null)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -683,7 +720,53 @@ function BrandingView({ school }: { school: { id: string; name: string; slogan: 
               <input type="hidden" name="secondaryColor" value={secondary} />
               <input type="hidden" name="tertiaryColor" value={tertiary} />
 
+              {/* Logo upload */}
               <div className="space-y-2">
+                <Label>Logo de l'établissement</Label>
+                <div className="flex items-start gap-4">
+                  <div className="w-24 h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Aperçu logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={onLogoChange}
+                      className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={uploadLogo}
+                        disabled={!logoFile || uploadingLogo}
+                      >
+                        {uploadingLogo ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                        Téléverser le logo
+                      </Button>
+                      {logoPreview && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setLogoFile(null); setLogoPreview(null) }}
+                        >
+                          Annuler
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Formats acceptés: PNG, JPG, WebP, SVG · Taille max: 5 MB · Recommandé: 256×256px (carré)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
                 <Label htmlFor="schoolName">Nom de l'établissement</Label>
                 <Input id="schoolName" name="schoolName" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>

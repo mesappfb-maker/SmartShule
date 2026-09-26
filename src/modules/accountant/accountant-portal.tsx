@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useActionState } from 'react'
 import { AppShell, NavSection } from '@/components/ss/app-shell'
 import { PageHeader } from '@/components/ss/page-header'
 import { StatCard } from '@/components/ss/stat-card'
@@ -14,9 +15,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Home, Receipt, FileText, AlertTriangle, TrendingUp, Wallet,
-  Bell, Mail, Users, CheckCircle2, User, Settings,
+  Bell, Mail, Users, CheckCircle2, User, Settings, Search,
 } from 'lucide-react'
 import { logoutAction } from '@/lib/actions'
+import { recordEncashmentAction } from '@/lib/finance-encashment-actions'
 import { formatCents, formatDate, formatRelative } from '@/lib/format'
 import { toast } from 'sonner'
 import { ProfilePage, type ProfileData } from '@/modules/shared/profile-page'
@@ -100,17 +102,7 @@ export function AccountantPortal({
               </CardContent></Card>
             </TabsContent>
             <TabsContent value="new">
-              <Card><CardContent>
-                <form className="space-y-4">
-                  <div className="space-y-2"><Label>Ligne de frais</Label><Select name="invoiceLineConfigId"><SelectTrigger><SelectValue placeholder="Sélectionner une ligne" /></SelectTrigger><SelectContent>{data.invoiceLineConfigs.map((l) => (<SelectItem key={l.id} value={l.id}>{l.name} — {formatCents(l.amountCents, 'CDF')}</SelectItem>))}</SelectContent></Select></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2"><Label htmlFor="amount">Montant (CDF)</Label><Input id="amount" name="amount" type="number" placeholder="50000" /></div>
-                    <div className="space-y-2"><Label>Méthode</Label><Select name="method" defaultValue="CASH"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="CASH">Espèces</SelectItem><SelectItem value="BANK">Banque</SelectItem><SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem></SelectContent></Select></div>
-                  </div>
-                  <div className="space-y-2"><Label htmlFor="payerName">Nom du payeur</Label><Input id="payerName" name="payerName" placeholder="Jean Mbumba" /></div>
-                  <Button type="submit"><Receipt className="h-4 w-4 mr-2" />Valider l'encaissement</Button>
-                </form>
-              </CardContent></Card>
+              <NewEncashmentForm invoiceLineConfigs={data.invoiceLineConfigs} students={data.students} />
             </TabsContent>
           </Tabs>
         </div>
@@ -148,5 +140,215 @@ export function AccountantPortal({
       {view === 'notifications' && <div className="space-y-6"><PageHeader title="Notifications" breadcrumbs={[{ label: 'Comptable' }, { label: 'Notifications' }]} /><Card><CardContent className="py-12"><EmptyState icon={<Mail className="h-5 w-5" />} title="Aucune notification" /></CardContent></Card></div>}
       {view === 'profile' && profileData && <ProfilePage data={profileData} onBack={() => setView('dashboard')} />}
     </AppShell>
+  )
+}
+
+// =====================================================
+// Formulaire Nouvel Encaissement avec sélection d'élève
+// =====================================================
+
+interface StudentOption {
+  id: string
+  matricule: string
+  displayName: string
+  classroomName: string
+  directorateName: string
+}
+
+interface NewEncashmentFormProps {
+  invoiceLineConfigs: Array<{ id: string; name: string; code: string; amountCents: number; directorateName: string }>
+  students: StudentOption[]
+}
+
+function NewEncashmentForm({ invoiceLineConfigs, students }: NewEncashmentFormProps) {
+  const [state, formAction, isPending] = useActionState(recordEncashmentAction, { ok: true, receiptNumber: '', encashmentId: '' })
+  const [search, setSearch] = React.useState('')
+  const [selectedStudent, setSelectedStudent] = React.useState<StudentOption | null>(null)
+  const [lineId, setLineId] = React.useState('')
+  const [amount, setAmount] = React.useState('')
+  const [method, setMethod] = React.useState('CASH')
+  const [payerName, setPayerName] = React.useState('')
+
+  // Réagir au résultat de l'action
+  React.useEffect(() => {
+    if (!state) return
+    if (state.ok === true && state.receiptNumber) {
+      toast.success(`Encaissement validé — Reçu ${state.receiptNumber}`)
+      // Reset form
+      setSelectedStudent(null)
+      setLineId('')
+      setAmount('')
+      setPayerName('')
+    } else if (state.ok === false) {
+      toast.error(state.error)
+    }
+  }, [state])
+
+  const filteredStudents = students.filter(s =>
+    s.displayName.toLowerCase().includes(search.toLowerCase()) ||
+    s.matricule.toLowerCase().includes(search.toLowerCase()) ||
+    s.classroomName.toLowerCase().includes(search.toLowerCase())
+  ).slice(0, 50)
+
+  const selectedLine = invoiceLineConfigs.find(l => l.id === lineId)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Nouvel encaissement</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={formAction} className="space-y-4">
+          {/* 1. Ligne de frais (obligatoire) */}
+          <div className="space-y-2">
+            <Label>Ligne de frais *</Label>
+            <Select name="invoiceLineConfigId" value={lineId} onValueChange={setLineId} required>
+              <SelectTrigger><SelectValue placeholder="Sélectionner une ligne de frais" /></SelectTrigger>
+              <SelectContent>
+                {invoiceLineConfigs.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name} — {formatCents(l.amountCents, 'CDF')} ({l.directorateName})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedLine && (
+              <p className="text-xs text-muted-foreground">
+                Montant par défaut : {formatCents(selectedLine.amountCents, 'CDF')} · Code : {selectedLine.code}
+              </p>
+            )}
+          </div>
+
+          {/* 2. Élève concerné — nouvelle section recherche */}
+          <div className="space-y-2 border-t pt-4">
+            <Label>Élève concerné *</Label>
+            <input type="hidden" name="studentId" value={selectedStudent?.id || ''} />
+
+            {selectedStudent ? (
+              <div className="flex items-center justify-between p-3 bg-primary/5 rounded-md border border-primary/20">
+                <div>
+                  <p className="font-medium text-sm">{selectedStudent.displayName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Matricule : <span className="font-mono">{selectedStudent.matricule}</span> · {selectedStudent.classroomName} · {selectedStudent.directorateName}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedStudent(null)}
+                >
+                  Changer
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher par nom, matricule ou classe..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                {search && (
+                  <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
+                    {filteredStudents.length === 0 ? (
+                      <div className="p-3 text-sm text-muted-foreground text-center">Aucun élève trouvé</div>
+                    ) : (
+                      filteredStudents.map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => { setSelectedStudent(s); setSearch('') }}
+                          className="w-full text-left p-2 hover:bg-muted/50 transition-colors flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{s.displayName}</p>
+                            <p className="text-xs text-muted-foreground">{s.classroomName} · {s.directorateName}</p>
+                          </div>
+                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{s.matricule}</code>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  💡 Tapez le nom, matricule ou classe de l'élève puis cliquez pour le sélectionner.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Montant (pré-rempli avec la ligne) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Montant (CDF) *</Label>
+              <Input
+                id="amount"
+                name="amount"
+                type="number"
+                placeholder="50000"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+              {selectedLine && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(selectedLine.amountCents / 100))}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Utiliser le montant par défaut ({formatCents(selectedLine.amountCents, 'CDF')})
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Méthode de paiement *</Label>
+              <input type="hidden" name="paymentMethod" value={method} />
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">Espèces</SelectItem>
+                  <SelectItem value="BANK">Banque</SelectItem>
+                  <SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* 4. Payeur (optionnel) */}
+          <div className="space-y-2">
+            <Label htmlFor="payerName">Nom du payeur (optionnel)</Label>
+            <Input
+              id="payerName"
+              name="payerName"
+              placeholder="Jean Mbumba"
+              value={payerName}
+              onChange={(e) => setPayerName(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si différent de l'élève (ex : parent, tuteur).
+            </p>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isPending || !lineId || !selectedStudent || !amount}
+            className="w-full"
+          >
+            <Receipt className="h-4 w-4 mr-2" />
+            {isPending ? 'Validation...' : 'Valider l\'encaissement'}
+          </Button>
+
+          {!selectedStudent && (
+            <p className="text-xs text-amber-600 text-center">
+              ⚠️ Sélectionnez l'élève concerné avant de valider
+            </p>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   )
 }
