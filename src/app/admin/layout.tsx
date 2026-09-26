@@ -15,14 +15,14 @@ export const runtime = 'nodejs'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getUserFromSession()
 
-  // Pas connecté → rediriger vers login admin
+  // Pas connecté → rediriger vers login admin (séparé pour éviter boucle)
   if (!user) {
-    redirect('/admin/login')
+    redirect('/admin-login')
   }
 
   // Vérifier que c'est bien Fabrice (le propriétaire)
   if (user.email !== 'fabricefb@gmail.com' || user.role !== 'SYSTEM_ADMIN') {
-    redirect('/admin/login?error=unauthorized')
+    redirect('/admin-login?error=unauthorized')
   }
 
   // Récupérer l'école associée (optionnel)
