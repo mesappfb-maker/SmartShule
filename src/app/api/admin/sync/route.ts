@@ -15,21 +15,22 @@ export async function GET() {
       return NextResponse.json({ ok: false, error: 'Accès réservé.' }, { status: 403 })
     }
 
-    const [devices, errors, totalErrors, pendingErrors, resolvedErrors] = await Promise.all([
-      db.syncDevice.findMany({
-        include: { school: { select: { name: true } } },
-        orderBy: { lastSeenAtUtc: 'desc' },
-        take: 100,
-      }).catch(() => []),
-      db.syncError.findMany({
-        where: { resolvedAt: null },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }).catch(() => []),
-      db.syncError.count().catch(() => 0),
-      db.syncError.count({ where: { resolvedAt: null } }).catch(() => 0),
-      db.syncError.count({ where: { resolvedAt: { not: null } } }).catch(() => 0),
-    ])
+    // Séquentiel (anti EMAXCONNSESSION)
+    const devices = await db.syncDevice.findMany({
+      include: { school: { select: { name: true, logoUrl: true } } },
+      orderBy: { lastSeenAtUtc: 'desc' },
+      take: 100,
+    }).catch(() => [])
+
+    const errors = await db.syncError.findMany({
+      where: { resolvedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }).catch(() => [])
+
+    const totalErrors = await db.syncError.count().catch(() => 0)
+    const pendingErrors = await db.syncError.count({ where: { resolvedAt: null } }).catch(() => 0)
+    const resolvedErrors = await db.syncError.count({ where: { resolvedAt: { not: null } } }).catch(() => 0)
 
     return NextResponse.json({
       ok: true,
@@ -38,6 +39,7 @@ export async function GET() {
         platform: d.deviceType || 'unknown', status: d.status,
         lastSyncAt: d.lastSeenAtUtc ? d.lastSeenAtUtc.toISOString() : null,
         schoolName: (d as { school?: { name: string } }).school?.name || null,
+        schoolLogo: (d as { school?: { logoUrl: string } }).school?.logoUrl || null,
       })),
       errors: errors.map(e => ({
         id: e.id,

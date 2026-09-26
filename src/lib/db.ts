@@ -38,11 +38,12 @@ const prismaOptions: ConstructorParameters<typeof PrismaClient>[0] = {
 }
 
 // Ajouter un connection_limit à l'URL si PostgreSQL (Supabase)
-// Limite à 3 connexions par instance serverless (au lieu de 15 par défaut)
+// Limite à 1 connexion par instance serverless (anti EMAXCONNSESSION)
+// pool_timeout=30s pour éviter les erreurs de timeout
 if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
   prismaOptions.datasources = {
     db: {
-      url: process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'connection_limit=3&pool_timeout=10',
+      url: process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'connection_limit=1&pool_timeout=30',
     },
   }
 }

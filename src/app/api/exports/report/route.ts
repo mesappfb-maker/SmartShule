@@ -1,8 +1,8 @@
-// SmartShule — API Export PDF Rapports (PROMOTER, DIRECTION, SYSTEM_ADMIN, AUDITOR)
+// SmartShule — API Export PDF Rapports Premium (avec logo école)
 // ============================================================
 // GET /api/exports/report?type=<type>
 // Types: promoter-monthly, promoter-annual, admin-system, audit-summary
-// Génère un PDF format A4 avec en-tête école, statistiques, graphiques (data table)
+// Design premium : en-tête avec logo, tableaux stylés, pied de page
 
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
@@ -43,8 +43,10 @@ export async function GET(request: Request) {
     const schoolId = await getSchoolIdForUser(user.id, user.email || undefined)
     const school = schoolId ? await db.school.findUnique({ where: { id: schoolId } }) : null
     const schoolName = school?.name || 'SmartShule'
+    const schoolLogo = school?.logoUrl || null
+    const primaryColor = school?.primaryColor || '#2563EB'
 
-    // Collecte des données selon le type de rapport
+    // Collecte des données
     const sections: ReportSection[] = []
     const now = new Date()
     const period = reportType === 'promoter-annual' ? `Année ${now.getFullYear()}` : `${now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}`
@@ -55,20 +57,17 @@ export async function GET(request: Request) {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       const startOfYear = new Date(now.getFullYear(), 0, 1)
 
-      const [totalStudents, activeStudents, newStudents, totalEmployees, teachers,
-        invoicedAgg, collectedAgg, unpaidAgg, expensesYear, pendingExpenses,
-      ] = await Promise.all([
-        db.student.count({ where: { schoolId } }),
-        db.student.count({ where: { schoolId, status: 'ACTIVE' } }),
-        db.student.count({ where: { schoolId, createdAt: { gte: startOfMonth } } }),
-        db.employee.count({ where: { schoolId, status: 'ACTIVE' } }),
-        db.employee.count({ where: { schoolId, status: 'ACTIVE', globalRole: 'ENSEIGNANT' } }),
-        db.invoice.aggregate({ where: { schoolId, status: { not: 'CANCELLED' } }, _sum: { totalAmountCents: true } }),
-        db.invoice.aggregate({ where: { schoolId, status: { not: 'CANCELLED' } }, _sum: { paidAmountCents: true } }),
-        db.invoice.aggregate({ where: { schoolId, status: { in: ['UNPAID', 'PARTIALLY_PAID'] } }, _sum: { totalAmountCents: true, paidAmountCents: true } }),
-        db.expense.aggregate({ where: { schoolId, status: { in: ['APPROVED', 'PAID'] }, expenseDate: { gte: startOfYear } }, _sum: { amountCents: true } }),
-        db.expense.aggregate({ where: { schoolId, status: 'PENDING' }, _sum: { amountCents: true }, _count: true }),
-      ])
+      // Séquentiel (anti EMAXCONNSESSION)
+      const totalStudents = await db.student.count({ where: { schoolId } })
+      const activeStudents = await db.student.count({ where: { schoolId, status: 'ACTIVE' } })
+      const newStudents = await db.student.count({ where: { schoolId, createdAt: { gte: startOfMonth } } })
+      const totalEmployees = await db.employee.count({ where: { schoolId, status: 'ACTIVE' } })
+      const teachers = await db.employee.count({ where: { schoolId, status: 'ACTIVE', globalRole: 'ENSEIGNANT' } })
+      const invoicedAgg = await db.invoice.aggregate({ where: { schoolId, status: { not: 'CANCELLED' } }, _sum: { totalAmountCents: true } })
+      const collectedAgg = await db.invoice.aggregate({ where: { schoolId, status: { not: 'CANCELLED' } }, _sum: { paidAmountCents: true } })
+      const unpaidAgg = await db.invoice.aggregate({ where: { schoolId, status: { in: ['UNPAID', 'PARTIALLY_PAID'] } }, _sum: { totalAmountCents: true, paidAmountCents: true } })
+      const expensesYear = await db.expense.aggregate({ where: { schoolId, status: { in: ['APPROVED', 'PAID'] }, expenseDate: { gte: startOfYear } }, _sum: { amountCents: true } })
+      const pendingExpenses = await db.expense.aggregate({ where: { schoolId, status: 'PENDING' }, _sum: { amountCents: true }, _count: true })
 
       const totalInvoiced = invoicedAgg._sum.totalAmountCents || 0
       const totalCollected = collectedAgg._sum.paidAmountCents || 0
@@ -98,21 +97,18 @@ export async function GET(request: Request) {
         ],
       })
     } else if (reportType === 'admin-system') {
-      const [totalSchools, totalUsers, activeUsers, blockedUsers, totalLicenses, activeLicenses,
-        totalDevices, activeDevices, syncErrors, auditToday, failedLogins,
-      ] = await Promise.all([
-        db.school.count(),
-        db.user.count(),
-        db.user.count({ where: { active: true } }),
-        db.user.count({ where: { active: false } }),
-        db.license.count().catch(() => 0),
-        db.license.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
-        db.syncDevice.count().catch(() => 0),
-        db.syncDevice.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
-        db.syncError.count({ where: { resolvedAt: null } }).catch(() => 0),
-        db.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-        db.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-      ])
+      // Séquentiel (anti EMAXCONNSESSION)
+      const totalSchools = await db.school.count()
+      const totalUsers = await db.user.count()
+      const activeUsers = await db.user.count({ where: { active: true } })
+      const blockedUsers = await db.user.count({ where: { active: false } })
+      const totalLicenses = await db.license.count().catch(() => 0)
+      const activeLicenses = await db.license.count({ where: { status: 'ACTIVE' } }).catch(() => 0)
+      const totalDevices = await db.syncDevice.count().catch(() => 0)
+      const activeDevices = await db.syncDevice.count({ where: { status: 'ACTIVE' } }).catch(() => 0)
+      const syncErrors = await db.syncError.count({ where: { resolvedAt: null } }).catch(() => 0)
+      const auditToday = await db.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+      const failedLogins = await db.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
 
       sections.push({
         title: 'Système',
@@ -138,45 +134,93 @@ export async function GET(request: Request) {
       })
     }
 
-    // Générer le PDF
+    // Générer le PDF premium
     const pdfDoc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true })
+    const pageWidth = pdfDoc.page.width
 
-    // En-tête
-    pdfDoc.font('Helvetica-Bold').fontSize(20).fillColor('black').text(schoolName, { align: 'center' })
-    pdfDoc.font('Helvetica').fontSize(10).fillColor('#666666').text('SmartShule — Rapport Stratégique', { align: 'center' })
-    pdfDoc.moveDown(0.5)
-    pdfDoc.fontSize(10).fillColor('black').text(`Période : ${period}`, { align: 'center' })
-    pdfDoc.text(`Généré par : ${user.displayName} (${user.role})`, { align: 'center' })
-    pdfDoc.text(`Date : ${now.toLocaleString('fr-FR')}`, { align: 'center' })
-    pdfDoc.moveDown(1)
+    // === EN-TÊTE AVEC BANDEAU COLORÉ ===
+    pdfDoc.rect(0, 0, pageWidth, 100).fill(primaryColor)
 
-    // Ligne séparatrice
-    pdfDoc.moveTo(50, pdfDoc.y).lineTo(pdfDoc.page.width - 50, pdfDoc.y).strokeColor('#cccccc').lineWidth(1).stroke()
-    pdfDoc.moveDown(1)
-
-    // Sections
-    for (const section of sections) {
-      pdfDoc.font('Helvetica-Bold').fontSize(14).fillColor('#1a4ba8').text(section.title)
-      pdfDoc.moveDown(0.3)
-
-      for (const row of section.rows) {
-        const startY = pdfDoc.y
-        pdfDoc.font('Helvetica').fontSize(11).fillColor('#333333').text(`• ${row.label}`, 60, startY, { width: pdfDoc.page.width - 120 })
-        pdfDoc.font('Helvetica-Bold').fillColor('black').text(row.value, 60, startY, { width: pdfDoc.page.width - 120, align: 'right' })
-        if (row.sub) {
-          pdfDoc.font('Helvetica').fontSize(9).fillColor('#888888').text(`  ${row.sub}`, 60, pdfDoc.y)
+    // Logo (si disponible, on le charge depuis le système de fichiers local)
+    let logoLoaded = false
+    if (schoolLogo && schoolLogo.startsWith('/uploads/')) {
+      const logoPath = path.join(process.cwd(), 'public', schoolLogo)
+      if (existsSync(logoPath)) {
+        try {
+          pdfDoc.image(logoPath, 40, 25, { width: 50, height: 50 })
+          logoLoaded = true
+        } catch (e) {
+          // ignore, on utilise l'icône texte
         }
       }
-      pdfDoc.moveDown(1)
     }
 
-    // Pied de page
+    if (!logoLoaded) {
+      pdfDoc.fillColor('white').font('Helvetica-Bold').fontSize(32).text('🎓', 40, 30, { width: 60, align: 'center' })
+    }
+
+    // Titre école à droite
+    pdfDoc.fillColor('white').font('Helvetica-Bold').fontSize(20).text(schoolName, 110, 30, { align: 'left' })
+    pdfDoc.font('Helvetica').fontSize(10).fillColor('#ffffffcc').text('SmartShule — Rapport Stratégique', 110, 55)
+    pdfDoc.fontSize(9).fillColor('#ffffff99').text(`Généré le ${now.toLocaleString('fr-FR')}`, 110, 70)
+
+    pdfDoc.moveDown(3)
+
+    // === SÉPARATEUR PÉRIODE ===
+    pdfDoc.fillColor('#666666').font('Helvetica').fontSize(10).text(`Période : `, 50, 130, { continued: true })
+    pdfDoc.fillColor('#000000').font('Helvetica-Bold').text(period)
+    pdfDoc.moveDown(0.5)
+    pdfDoc.fillColor('#666666').font('Helvetica').text(`Généré par : `, { continued: true })
+    pdfDoc.fillColor('#000000').font('Helvetica-Bold').text(`${user.displayName} (${user.role})`)
+    pdfDoc.moveDown(1)
+
+    // === LIGNE SÉPARATRICE ===
+    const sepY = pdfDoc.y
+    pdfDoc.moveTo(50, sepY).lineTo(pageWidth - 50, sepY).strokeColor('#e0e0e0').lineWidth(0.5).stroke()
+    pdfDoc.moveDown(1)
+
+    // === SECTIONS ===
+    for (const section of sections) {
+      // Fond coloré pour le titre de section
+      const sectionY = pdfDoc.y
+      pdfDoc.rect(50, sectionY, pageWidth - 100, 24).fill('#f3f4f6')
+      pdfDoc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(13).text(section.title, 60, sectionY + 6)
+      pdfDoc.moveDown(2)
+
+      // Tableau
+      for (const row of section.rows) {
+        const rowY = pdfDoc.y
+        // Ligne alternée
+        const isEvenRow = section.rows.indexOf(row) % 2 === 0
+        if (isEvenRow) {
+          pdfDoc.rect(50, rowY - 2, pageWidth - 100, 18).fill('#fafafa')
+        }
+
+        pdfDoc.font('Helvetica').fontSize(10).fillColor('#333333').text(`• ${row.label}`, 60, rowY, { width: (pageWidth - 100) / 2 })
+        pdfDoc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(row.value, pageWidth / 2 - 20, rowY, { width: (pageWidth / 2) - 80, align: 'right' })
+
+        if (row.sub) {
+          pdfDoc.font('Helvetica-Oblique').fontSize(8).fillColor('#888888').text(`  ${row.sub}`, 60, rowY + 12)
+        }
+
+        pdfDoc.y = rowY + 16
+      }
+      pdfDoc.moveDown(1.5)
+    }
+
+    // === PIED DE PAGE ===
+    const footerY = pdfDoc.page.height - 60
+    pdfDoc.moveTo(50, footerY).lineTo(pageWidth - 50, footerY).strokeColor('#e0e0e0').lineWidth(0.5).stroke()
     pdfDoc.font('Helvetica').fontSize(8).fillColor('#888888').text(
-      `SmartShule © ${now.getFullYear()} — Document généré automatiquement, non signé électroniquement.`,
-      50, pdfDoc.page.height - 50, { align: 'center' }
+      `SmartShule © ${now.getFullYear()} — Document généré automatiquement par ${user.displayName}`,
+      50, footerY + 8, { width: pageWidth - 100, align: 'center' }
+    )
+    pdfDoc.fontSize(7).fillColor('#aaaaaa').text(
+      `Confidentiel — Usage interne uniquement — Non signé électroniquement`,
+      50, footerY + 22, { width: pageWidth - 100, align: 'center' }
     )
 
-    // Sauvegarder le PDF
+    // === SAUVEGARDE ===
     const reportDir = path.join(process.cwd(), 'public', 'uploads', 'reports')
     if (!existsSync(reportDir)) await mkdir(reportDir, { recursive: true })
     const filename = `report-${reportType}-${now.getTime()}.pdf`

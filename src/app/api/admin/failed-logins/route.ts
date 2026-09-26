@@ -19,20 +19,20 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '200'), 1000)
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const [logs, total] = await Promise.all([
-      db.auditLog.findMany({
-        where: { action: 'LOGIN_FAILED', createdAt: { gte: since } },
-        include: { user: { select: { displayName: true, email: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }),
-      db.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: since } } }),
-    ])
+    // Séquentiel (anti EMAXCONNSESSION)
+    const logs = await db.auditLog.findMany({
+      where: { action: 'LOGIN_FAILED', createdAt: { gte: since } },
+      include: { user: { select: { displayName: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+    const total = await db.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: since } } })
 
     const rows = logs.map(l => ({
       id: l.id,
       action: l.action,
       userName: (l as { user?: { displayName: string } }).user?.displayName || l.userName || null,
+      userEmail: (l as { user?: { email: string } }).user?.email || null,
       target: null,
       ip: l.ipAddress || null,
       details: l.metadata ? (() => { try { return JSON.parse(l.metadata) } catch { return l.metadata } })() : null,

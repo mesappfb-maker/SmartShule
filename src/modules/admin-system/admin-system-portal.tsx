@@ -16,11 +16,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   LayoutDashboard, Building2, KeyRound, Users, Smartphone, ShieldCheck,
   ScrollText, AlertTriangle, RefreshCw, DatabaseBackup, Lock, Wrench,
   Settings, LogOut, Search, Download, RefreshCcw, Power, CheckCircle2,
-  XCircle, Clock, Server, Activity, Eye,
+  XCircle, Clock, Server, Activity, Eye, Mail, Phone, MapPin, Calendar,
+  Filter,
 } from 'lucide-react'
 
 type View =
@@ -256,19 +258,14 @@ function useFetch<T>(url: string) {
 }
 
 // =====================================================
-// Vue Écoles
+// Vue Écoles — Design premium en cartes avec logos
 // =====================================================
 
 function SchoolsView() {
-  const { data, loading, error, reload } = useFetch<{ schools: SchoolRow[] }>('/api/admin/schools')
   const [search, setSearch] = useState('')
+  const { data, loading, error, reload } = useFetch<{ schools: SchoolRow[] }>(`/api/admin/schools${search ? `?search=${encodeURIComponent(search)}` : ''}`)
 
   const schools = data?.schools ?? []
-  const filtered = schools.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.code.toLowerCase().includes(search.toLowerCase()) ||
-    (s.email || '').toLowerCase().includes(search.toLowerCase())
-  )
 
   return (
     <>
@@ -276,19 +273,25 @@ function SchoolsView() {
         title="Écoles enregistrées"
         breadcrumbs={[{ label: 'SmartShule' }, { label: 'Super Admin' }, { label: 'Écoles' }]}
         actions={
-          <Button variant="outline" size="sm" onClick={reload}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportCSV('schools', schools as unknown as Array<Record<string, unknown>>)}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={reload}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
+            </Button>
+          </div>
         }
       />
+
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <CardTitle className="text-base">{schools.length} école(s)</CardTitle>
-            <div className="relative w-64">
+            <div className="relative w-72">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher une école..."
+                placeholder="Rechercher par nom, email, téléphone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8"
@@ -298,47 +301,66 @@ function SchoolsView() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}</div>
           ) : error ? (
             <ErrorBox error={error} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="py-2 px-3 font-medium">Nom</th>
-                    <th className="py-2 px-3 font-medium">Code</th>
-                    <th className="py-2 px-3 font-medium">Email</th>
-                    <th className="py-2 px-3 font-medium">Téléphone</th>
-                    <th className="py-2 px-3 font-medium">Ville</th>
-                    <th className="py-2 px-3 font-medium">Statut</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(s => (
-                    <tr key={s.id} className="border-b hover:bg-muted/30">
-                      <td className="py-2 px-3 font-medium">{s.name}</td>
-                      <td className="py-2 px-3 font-mono text-xs">{s.code}</td>
-                      <td className="py-2 px-3 text-muted-foreground">{s.email || '—'}</td>
-                      <td className="py-2 px-3 text-muted-foreground">{s.phone || '—'}</td>
-                      <td className="py-2 px-3 text-muted-foreground">{s.city || '—'}</td>
-                      <td className="py-2 px-3">
-                        <Badge variant={s.active ? 'default' : 'secondary'}>
-                          {s.active ? 'Actif' : 'Inactif'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">Aucune école trouvée.</td></tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {schools.map(s => (
+                <SchoolCard key={s.id} school={s} />
+              ))}
+              {schools.length === 0 && (
+                <div className="col-span-full py-12 text-center text-muted-foreground">
+                  <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Aucune école trouvée.</p>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
     </>
+  )
+}
+
+function SchoolCard({ school }: { school: SchoolRow }) {
+  return (
+    <div className="p-4 rounded-lg border bg-card hover:shadow-md hover:border-primary/40 transition-all">
+      <div className="flex items-start gap-3 mb-3">
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
+          style={{ backgroundColor: school.primaryColor ? `${school.primaryColor}15` : '#f3f4f6' }}
+        >
+          {school.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={school.logoUrl} alt={school.name} className="w-full h-full object-contain" />
+          ) : (
+            <Building2 className="h-6 w-6" style={{ color: school.primaryColor || '#2563EB' }} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold truncate">{school.name}</p>
+          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{school.code}</code>
+        </div>
+        <Badge variant={school.active ? 'default' : 'secondary'}>
+          {school.active ? 'Actif' : 'Inactif'}
+        </Badge>
+      </div>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Mail className="h-3 w-3" /> {school.email || '—'}
+        </div>
+        <div className="flex items-center gap-2">
+          <Phone className="h-3 w-3" /> {school.phone || '—'}
+        </div>
+        <div className="flex items-center gap-2">
+          <MapPin className="h-3 w-3" /> {school.city || '—'}
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="h-3 w-3" /> Créée le {new Date(school.createdAt).toLocaleDateString('fr-FR')}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -349,6 +371,8 @@ interface SchoolRow {
   email: string | null
   phone: string | null
   city: string | null
+  logoUrl: string | null
+  primaryColor: string | null
   active: boolean
   createdAt: string
 }
@@ -435,14 +459,15 @@ interface LicenseRow {
 // =====================================================
 
 function UsersView() {
-  const { data, loading, error, reload } = useFetch<{ users: UserRow[] }>('/api/admin/users')
   const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const { data, loading, error, reload } = useFetch<{ users: UserRow[] }>(`/api/admin/users${search || roleFilter ? `?search=${encodeURIComponent(search)}&role=${roleFilter}` : ''}`)
   const users = data?.users ?? []
-  const filtered = users.filter(u =>
-    u.displayName.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.role.toLowerCase().includes(search.toLowerCase())
-  )
+
+  const roleCounts = users.reduce((acc, u) => {
+    acc[u.role] = (acc[u.role] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
   return (
     <>
@@ -450,18 +475,34 @@ function UsersView() {
         title="Utilisateurs"
         breadcrumbs={[{ label: 'SmartShule' }, { label: 'Super Admin' }, { label: 'Utilisateurs' }]}
         actions={
-          <Button variant="outline" size="sm" onClick={reload}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportCSV('users', users as unknown as Array<Record<string, unknown>>)}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={reload}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
+            </Button>
+          </div>
         }
       />
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-base">{users.length} utilisateur(s)</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+            <div className="flex items-center gap-2">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-44"><SelectValue placeholder="Tous les rôles" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Tous les rôles</SelectItem>
+                  {Object.keys(roleCounts).map(r => (
+                    <SelectItem key={r} value={r}>{r} ({roleCounts[r]})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative w-64">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Rechercher nom ou email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -484,7 +525,7 @@ function UsersView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(u => (
+                  {users.map(u => (
                     <tr key={u.id} className="border-b hover:bg-muted/30">
                       <td className="py-2 px-3 font-medium">{u.displayName}</td>
                       <td className="py-2 px-3 text-muted-foreground">{u.email}</td>
@@ -503,7 +544,7 @@ function UsersView() {
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && (
+                  {users.length === 0 && (
                     <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">Aucun utilisateur.</td></tr>
                   )}
                 </tbody>
@@ -1136,4 +1177,38 @@ function ErrorBox({ error }: { error: string }) {
       <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-mono">{error}</p>
     </div>
   )
+}
+
+// =====================================================
+// Export CSV générique
+// =====================================================
+
+function exportCSV(type: string, rows: Array<Record<string, unknown>>) {
+  if (!rows.length) return
+  const headers = Object.keys(rows[0])
+  const csvLines = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers.map(h => {
+        const val = row[h]
+        if (val === null || val === undefined) return ''
+        const str = typeof val === 'object' ? JSON.stringify(val) : String(val)
+        // Échapper les guillemets et virgules
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+        return str
+      }).join(',')
+    ),
+  ]
+  const csv = '\uFEFF' + csvLines.join('\n') // BOM UTF-8 pour Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `SmartShule-${type}-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
