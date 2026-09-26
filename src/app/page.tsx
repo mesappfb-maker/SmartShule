@@ -91,30 +91,164 @@ export default async function Home() {
       return <StudentDashboard user={user} school={schoolData} data={data} notifications={notifications} />
     }
 
-    // DIRECTION (nouveau rôle DIRECTOR = ancien DIRECTION)
-    if (user.role === 'DIRECTION' || user.role === 'DIRECTOR' || user.role === 'ADMIN' || user.role === 'SCHOOL_ADMIN' || user.role === 'SYSTEM_ADMIN') {
-      const [data, financeData, supervisionData] = await Promise.all([
-        getDirectionDashboardData(user.id, user.email || undefined).catch(() => null),
-        getFinanceDashboardData(schoolData.id).catch(() => null),
-        getAcademicSupervisionData(schoolData.id).catch(() => null),
-      ])
-      if (!data || !financeData || !supervisionData) return <NoData user={user} />
-      return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} supervisionData={supervisionData} />
+    // SYSTEM_ADMIN → Dashboard technique
+    if (user.role === 'SYSTEM_ADMIN') {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/admin/dashboard`, {
+          headers: { cookie: (await import('next/headers')).cookies().toString() },
+        })
+        const adminData = await res.json()
+        return (
+          <div className="min-h-screen bg-background p-6">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Super Admin — Tableau de bord technique</h1>
+                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+                </div>
+              </div>
+              {adminData.ok ? (
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  <AdminStatCard label="Écoles" value={adminData.stats.totalSchools} sub={`${adminData.stats.activeSchools} actives`} />
+                  <AdminStatCard label="Licences" value={adminData.stats.totalLicenses} sub={`${adminData.stats.activeLicenses} actives`} />
+                  <AdminStatCard label="Utilisateurs" value={adminData.stats.totalUsers} sub={`${adminData.stats.activeUsers} actifs`} />
+                  <AdminStatCard label="Comptes démo" value={adminData.stats.demoAccounts} sub="isDemoAccount" />
+                  <AdminStatCard label="Comptes bloqués" value={adminData.stats.blockedUsers} sub="désactivés" />
+                  <AdminStatCard label="Échecs connexion (24h)" value={adminData.stats.failedLogins} sub="LOGIN_FAILED" />
+                  <AdminStatCard label="Audit (24h)" value={adminData.stats.auditToday} sub="événements" />
+                  <AdminStatCard label="Appareils sync" value={adminData.stats.totalDevices} sub={`${adminData.stats.activeDevices} actifs`} />
+                  <AdminStatCard label="Erreurs sync" value={adminData.stats.syncErrors} sub="non résolues" />
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Erreur chargement dashboard technique</p>
+              )}
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <p className="text-xs text-muted-foreground">
+                  Dashboard technique SYSTEM_ADMIN — aucun KPI métier (élèves, factures, caisse, notes).
+                  Ce rôle gère uniquement la configuration système, les licences, la sécurité et la synchronisation.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      } catch {
+        return <NoData user={user} error="Dashboard technique indisponible" />
+      }
     }
 
-    // PROMOTER (vue lecture seule stratégique — utilise dashboard direction)
+    // PROMOTER → Dashboard stratégique
     if (user.role === 'PROMOTER') {
-      const [data, financeData, supervisionData] = await Promise.all([
-        getDirectionDashboardData(user.id, user.email || undefined).catch(() => null),
-        getFinanceDashboardData(schoolData.id).catch(() => null),
-        getAcademicSupervisionData(schoolData.id).catch(() => null),
-      ])
-      if (!data || !financeData || !supervisionData) return <NoData user={user} />
-      return <DirectionDashboard user={user} school={schoolData} data={data} notifications={notifications} financeData={financeData} supervisionData={supervisionData} />
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/promoter/dashboard`, {
+          headers: { cookie: (await import('next/headers')).cookies().toString() },
+        })
+        const promoterData = await res.json()
+        return (
+          <div className="min-h-screen bg-background p-6">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Promoteur — Vue stratégique</h1>
+                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+                </div>
+              </div>
+              {promoterData.ok ? (
+                <>
+                  <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    <AdminStatCard label="Élèves actifs" value={promoterData.stats.activeStudents} sub={`${promoterData.stats.newStudentsThisMonth} nouveaux ce mois`} />
+                    <AdminStatCard label="Total facturé" value={Math.round(promoterData.stats.totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
+                    <AdminStatCard label="Total encaissé" value={Math.round(promoterData.stats.totalCollected / 100).toLocaleString('fr-FR')} sub="FC" />
+                    <AdminStatCard label="Impayés" value={Math.round(promoterData.stats.totalUnpaid / 100).toLocaleString('fr-FR')} sub="FC" />
+                    <AdminStatCard label="Taux recouvrement" value={promoterData.stats.collectionRate} sub="%" />
+                    <AdminStatCard label="Employés" value={promoterData.stats.totalEmployees} sub={`${promoterData.stats.teachersCount} enseignants`} />
+                    <AdminStatCard label="Masse salariale" value={Math.round(promoterData.stats.expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
+                    <AdminStatCard label="Budget consommé" value={promoterData.stats.budgetPct} sub="%" />
+                  </div>
+
+                  {promoterData.stats.risks && promoterData.stats.risks.length > 0 && (
+                    <div className="space-y-2">
+                      <h2 className="text-lg font-semibold">Risques et alertes</h2>
+                      {promoterData.stats.risks.map((risk: any, i: number) => (
+                        <div key={i} className={`p-3 rounded-lg border ${
+                          risk.level === 'CRITICAL' ? 'border-red-200 bg-red-50 text-red-700' :
+                          risk.level === 'HIGH' ? 'border-orange-200 bg-orange-50 text-orange-700' :
+                          'border-blue-200 bg-blue-50 text-blue-700'
+                        }`}>
+                          <span className="font-medium text-sm">{risk.level}</span>: <span className="text-sm">{risk.message}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {promoterData.stats.decisionsPending > 0 && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm font-medium text-amber-700">
+                        {promoterData.stats.decisionsPending} dépense(s) en attente de validation
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="p-4 bg-muted/30 rounded-lg border">
+                    <p className="text-xs text-muted-foreground">
+                      Dashboard stratégique PROMOTEUR — données agrégées uniquement.
+                      Le promoteur ne crée pas de factures, n'encaisse pas, ne modifie pas les notes.
+                      Il valide les grandes décisions (budget, investissements, dépenses hors seuil).
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted-foreground">Erreur chargement dashboard stratégique</p>
+              )}
+            </div>
+          </div>
+        )
+      } catch {
+        return <NoData user={user} error="Dashboard stratégique indisponible" />
+      }
     }
 
-    // AUDITOR (lecture seule — utilise dashboard direction en lecture)
+    // AUDITOR → Dashboard lecture seule
     if (user.role === 'AUDITOR') {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/promoter/dashboard`, {
+          headers: { cookie: (await import('next/headers')).cookies().toString() },
+        })
+        const auditData = await res.json()
+        return (
+          <div className="min-h-screen bg-background p-6">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold">Auditeur — Vue de contrôle</h1>
+                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+              </div>
+              {auditData.ok ? (
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  <AdminStatCard label="Élèves actifs" value={auditData.stats.activeStudents} sub={`${auditData.stats.totalStudents} total`} />
+                  <AdminStatCard label="Total facturé" value={Math.round(auditData.stats.totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
+                  <AdminStatCard label="Total encaissé" value={Math.round(auditData.stats.totalCollected / 100).toLocaleString('fr-FR')} sub="FC" />
+                  <AdminStatCard label="Impayés" value={Math.round(auditData.stats.totalUnpaid / 100).toLocaleString('fr-FR')} sub="FC" />
+                  <AdminStatCard label="Employés" value={auditData.stats.totalEmployees} sub={`${auditData.stats.teachersCount} enseignants`} />
+                  <AdminStatCard label="Masse salariale" value={Math.round(auditData.stats.expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Erreur chargement dashboard audit</p>
+              )}
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <p className="text-xs text-muted-foreground">
+                  Vue Auditeur — lecture seule. Aucune modification possible.
+                  L'auditeur ne voit pas les données médicales, disciplinaires ou messages privés.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      } catch {
+        return <NoData user={user} error="Dashboard audit indisponible" />
+      }
+    }
+
+    // DIRECTION (DIRECTOR, SCHOOL_ADMIN)
+    if (user.role === 'DIRECTION' || user.role === 'DIRECTOR' || user.role === 'SCHOOL_ADMIN') {
       const [data, financeData, supervisionData] = await Promise.all([
         getDirectionDashboardData(user.id, user.email || undefined).catch(() => null),
         getFinanceDashboardData(schoolData.id).catch(() => null),
@@ -253,6 +387,16 @@ function CandidateParentScreen({ user }: { user: { displayName: string; role: st
           </form>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AdminStatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
+  return (
+    <div className="p-4 rounded-lg border bg-card">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-bold mt-1">{value}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   )
 }
