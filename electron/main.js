@@ -23,14 +23,98 @@ const DEV_SERVER_URL = process.env.DEV_SERVER_URL || 'http://localhost:3000'
 // En production : charge l'URL distante (Vercel) ou le bundle local
 const PROD_LOCAL_PATH = path.join(__dirname, '..', '.next', 'standalone')
 const PROD_REMOTE_URL = process.env.PROD_REMOTE_URL || 'https://smart-shule-seven.vercel.app'
+const LOCAL_SERVER_PORT = parseInt(process.env.PORT || '3000', 10)
+const LOCAL_SERVER_URL = `http://127.0.0.1:${LOCAL_SERVER_PORT}`
 
 let mainWindow
+let nextServerProcess = null
+
+// ============================================================
+// Serveur Next.js standalone local (production)
+// ============================================================
+
+function startLocalNextServer() {
+  return new Promise((resolve, reject) => {
+    const { spawn } = require('child_process')
+    const serverPath = path.join(PROD_LOCAL_PATH, 'server.js')
+
+    try {
+      const fs = require('fs')
+      if (!fs.existsSync(serverPath)) {
+        console.warn('[SmartShule] server.js introuvable:', serverPath)
+        return reject(new Error('server.js introuvable'))
+      }
+
+      console.log(`[SmartShule] Démarrage serveur Next.js standalone: ${serverPath}`)
+      const env = {
+        ...process.env,
+        NODE_ENV: 'production',
+        PORT: String(LOCAL_SERVER_PORT),
+        HOSTNAME: '127.0.0.1',
+        // Permet d'exécuter server.js avec le runtime Node.js d'Electron
+        ELECTRON_RUN_AS_NODE: '1',
+      }
+      nextServerProcess = spawn(process.execPath, [serverPath], {
+        cwd: PROD_LOCAL_PATH,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      nextServerProcess.stdout.on('data', (data) => {
+        const msg = data.toString().trim()
+        if (msg) console.log('[Next.js]', msg)
+      })
+
+      nextServerProcess.stderr.on('data', (data) => {
+        const msg = data.toString().trim()
+        if (msg) console.error('[Next.js ERR]', msg)
+      })
+
+      nextServerProcess.on('error', (err) => {
+        console.error('[SmartShule] Erreur serveur Next.js:', err)
+        reject(err)
+      })
+
+      nextServerProcess.on('exit', (code) => {
+        console.log(`[SmartShule] Serveur Next.js arrêté, code=${code}`)
+        nextServerProcess = null
+      })
+
+      // Wait for server ready (poll HTTP, max 30s)
+      const http = require('http')
+      let attempts = 0
+      const maxAttempts = 60
+      const checkInterval = setInterval(() => {
+        attempts++
+        const req = http.get(`${LOCAL_SERVER_URL}/`, (res) => {
+          res.destroy()
+          if (res.statusCode < 500) {
+            clearInterval(checkInterval)
+            console.log(`[SmartShule] Serveur prêt après ${attempts * 500}ms`)
+            resolve()
+          }
+        })
+        req.on('error', () => { /* pas encore prêt */ })
+        req.setTimeout(500, () => req.destroy())
+
+        if (attempts >= maxAttempts) {
+          clearInterval(checkInterval)
+          console.warn('[SmartShule] Timeout attente serveur local — fallback distant')
+          resolve() // On resolve pour pas bloquer l'app
+        }
+      }, 500)
+    } catch (err) {
+      console.error('[SmartShule] Erreur démarrage serveur local:', err)
+      reject(err)
+    }
+  })
+}
 
 // ============================================================
 // Fenêtre principale
 // ============================================================
 
-function createWindow() {
+async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -53,15 +137,18 @@ function createWindow() {
     mainWindow.loadURL(DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
-    // En production : essayer le bundle local d'abord, sinon fallback URL distante
+    // En production : démarrer le serveur Next.js standalone local
     try {
-      const standaloneIndex = path.join(PROD_LOCAL_PATH, 'index.html')
       const fs = require('fs')
-      if (fs.existsSync(standaloneIndex)) {
-        console.log('[SmartShule] Mode production — chargement du bundle local')
-        mainWindow.loadFile(standaloneIndex)
+      const serverPath = path.join(PROD_LOCAL_PATH, 'server.js')
+
+      if (fs.existsSync(serverPath)) {
+        console.log('[SmartShule] Mode production — démarrage serveur Next.js local')
+        await startLocalNextServer()
+        console.log(`[SmartShule] Chargement de ${LOCAL_SERVER_URL}`)
+        mainWindow.loadURL(LOCAL_SERVER_URL)
       } else {
-        console.log(`[SmartShule] Mode production — chargement distant ${PROD_REMOTE_URL}`)
+        console.warn(`[SmartShule] server.js introuvable (${serverPath}) — fallback distant ${PROD_REMOTE_URL}`)
         mainWindow.loadURL(PROD_REMOTE_URL)
       }
     } catch (err) {
@@ -280,8 +367,34 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  // Arrêter le serveur Next.js local avant de quitter
+  if (nextServerProcess) {
+    console.log('[SmartShule] Arrêt du serveur Next.js local...')
+    try {
+      nextServerProcess.kill('SIGTERM')
+      // Force kill si toujours vivant après 2s
+      setTimeout(() => {
+        if (nextServerProcess) {
+          nextServerProcess.kill('SIGKILL')
+        }
+      }, 2000)
+    } catch (err) {
+      console.error('[SmartShule] Erreur arrêt serveur:', err)
+    }
+  }
   if (process.platform !== 'darwin') {
     app.quit()
+  }
+})
+
+// Nettoyage du serveur quand l'app se ferme brutalement
+app.on('before-quit', () => {
+  if (nextServerProcess) {
+    try {
+      nextServerProcess.kill('SIGKILL')
+    } catch (e) {
+      // ignore
+    }
   }
 })
 

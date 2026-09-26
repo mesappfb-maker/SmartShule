@@ -343,3 +343,36 @@ Stage Summary:
 - 1 nouveau composant shared : src/components/ss/charts.tsx (SSAreaChart, SSBarChart, SSLineChart, SSDonutChart, SSPieChart, SSSparkline)
 - 1 nouveau composant form : NewEncashmentForm dans accountant-portal.tsx
 - Installateur NSIS mis à jour : 212 MB (vs 207 MB avant, +5 MB pour Recharts)
+
+---
+Task ID: 9
+Agent: main (Super Z)
+Task: Correction critique — sidebar Super Admin ne fonctionne pas
+
+Work Log:
+- Diagnostic : le code source admin-system-portal.tsx était correct ('use client' + onClick handlers), et le build Next.js compilait bien les chunks client avec mon code
+- Vérification du bundle app.asar : les chunks JS contiennent bien "Tableau de bord" et "Échecs connexion" (string présente dans chunk 906ceec5ee2e07ba.js)
+- Test du serveur standalone Next.js local (PORT=3001) : démarre en 164ms, rend la page en 200 OK en 495ms
+- RACINE DU PROBLÈME TROUVÉE dans electron/main.js :
+  * La fonction createWindow() cherchait un fichier `.next/standalone/index.html` statique qui n'existe pas
+  * En fallback, elle chargeait `https://smart-shule-seven.vercel.app` — l'ancienne version distante Vercel sans mes corrections
+  * L'utilisateur voyait donc l'ancienne app (avec sidebar HTML statique non fonctionnelle) au lieu de la nouvelle
+- Solution implémentée dans electron/main.js :
+  * Ajout de la fonction `startLocalNextServer()` qui spawn le serveur Next.js standalone via `process.execPath` (Electron binary) avec `ELECTRON_RUN_AS_NODE=1` pour exécuter server.js comme un script Node.js
+  * Polling HTTP (60 tentatives × 500ms = 30s max) pour attendre que le serveur local soit prêt
+  * Modification de createWindow() (devenue async) pour appeler startLocalNextServer() avant de charger LOCAL_SERVER_URL (http://127.0.0.1:3000)
+  * Fallback sur URL distante Vercel si server.js introuvable ou erreur
+  * Ajout du cleanup du process serveur dans app.on('window-all-closed') : kill SIGTERM puis SIGKILL après 2s
+  * Ajout du cleanup dans app.on('before-quit') pour fermeture brutale
+- Variables ajoutées : LOCAL_SERVER_PORT (3000 par défaut), LOCAL_SERVER_URL (http://127.0.0.1:3000), nextServerProcess (null tant que pas démarré)
+- Build Electron réussi : app.asar 410 MB à 07:40
+- Vérification de l'app.asar : les références `startLocalNextServer`, `ELECTRON_RUN_AS_NODE`, `LOCAL_SERVER_URL` sont bien présentes dans electron/main.js bundled
+- Build NSIS réussi : SmartShule-Setup.exe 212 MB, MD5 c4400f1b02e25c1f0af173f4ddf7f903
+
+Stage Summary:
+- RACINE DU PROBLÈME : l'app Electron chargeait la version Vercel distante (ancienne) au lieu du build local
+- CORRECTION : démarrage automatique du serveur Next.js standalone local (http://127.0.0.1:3000) au lancement de l'app, chargement de cette URL dans la fenêtre Electron
+- Fallback gracieux : si server.js introuvable, fallback sur Vercel distant
+- Cleanup propre : arrêt SIGTERM/SIGKILL du process serveur à la fermeture de l'app
+- Installateur NSIS mis à jour : 212 MB, MD5 c4400f1b02e25c1f0af173f4ddf7f903
+- L'utilisateur doit RÉINSTALLER l'installateur pour bénéficier du correctif (les anciennes versions pointent toujours vers Vercel)
