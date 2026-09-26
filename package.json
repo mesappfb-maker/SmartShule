@@ -40,10 +40,16 @@
       ".next/static/**/*",
       "public/**/*",
       "prisma/**/*",
-      "node-runtime/**/*",
       "package.json",
       "!**/*.map",
       "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,readme}"
+    ],
+    "extraResources": [
+      {
+        "from": "node-runtime",
+        "to": "node-runtime",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "target": "nsis",

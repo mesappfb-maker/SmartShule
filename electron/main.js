@@ -46,9 +46,9 @@ function startLocalNextServer() {
       }
 
       console.log(`[SmartShule] Démarrage serveur Next.js standalone: ${serverPath}`)
-      // Utiliser le runtime Node.js embarqué (node-runtime/node.exe) au lieu de SmartShule.exe
-      // car Windows ne peut pas lancer un .exe Electron comme un script Node.js même avec ELECTRON_RUN_AS_NODE
-      const nodeExePath = path.join(__dirname, '..', 'node-runtime', 'node.exe')
+      // Utiliser le runtime Node.js embarqué (extraResources/node-runtime/node.exe)
+      // au lieu de SmartShule.exe qui ne peut pas être lancé comme un script Node.js
+      const nodeExePath = path.join(process.resourcesPath, 'node-runtime', 'node.exe')
       const fs = require('fs')
       let executable = process.execPath
       let execArgs = [serverPath]
