@@ -46,15 +46,31 @@ function startLocalNextServer() {
       }
 
       console.log(`[SmartShule] Démarrage serveur Next.js standalone: ${serverPath}`)
+      // Utiliser le runtime Node.js embarqué (node-runtime/node.exe) au lieu de SmartShule.exe
+      // car Windows ne peut pas lancer un .exe Electron comme un script Node.js même avec ELECTRON_RUN_AS_NODE
+      const nodeExePath = path.join(__dirname, '..', 'node-runtime', 'node.exe')
+      const fs = require('fs')
+      let executable = process.execPath
+      let execArgs = [serverPath]
+      let execEnv = { ...process.env }
+
+      if (fs.existsSync(nodeExePath)) {
+        // Runtime Node.js embarqué trouvé → l'utiliser
+        console.log(`[SmartShule] Utilisation du runtime Node.js embarqué : ${nodeExePath}`)
+        executable = nodeExePath
+      } else {
+        // Fallback : utiliser process.execPath avec ELECTRON_RUN_AS_NODE
+        console.warn('[SmartShule] node-runtime/node.exe introuvable — fallback ELECTRON_RUN_AS_NODE')
+        execEnv.ELECTRON_RUN_AS_NODE = '1'
+      }
+
       const env = {
-        ...process.env,
+        ...execEnv,
         NODE_ENV: 'production',
         PORT: String(LOCAL_SERVER_PORT),
         HOSTNAME: '127.0.0.1',
-        // Permet d'exécuter server.js avec le runtime Node.js d'Electron
-        ELECTRON_RUN_AS_NODE: '1',
       }
-      nextServerProcess = spawn(process.execPath, [serverPath], {
+      nextServerProcess = spawn(executable, execArgs, {
         cwd: PROD_LOCAL_PATH,
         env,
         stdio: ['ignore', 'pipe', 'pipe'],

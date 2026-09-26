@@ -1,15 +1,25 @@
 // SmartShule — API Setup Initialize (premier lancement après activation licence)
 // ============================================================
 // POST /api/setup/initialize
-// Corps : { licenseKey, school: { name, slogan, address, phone, email }, admin: { displayName, email, password } }
-// Crée l'école + le compte admin dans la base locale.
-// Idempotent : ne fait rien si la base a déjà une école.
+// Corps : {
+//   licenseKey,
+//   school: { name, slogan, address, phone, email },
+//   supabase: { url, anonKey, serviceRoleKey },
+//   admin: { displayName, email, password }
+// }
+//
+// Crée :
+// 1. Un fichier .env.local avec les credentials Supabase
+// 2. L'école dans la DB (qui sera désormais Supabase après redémarrage)
+// 3. Le compte admin
 
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
 import { headers } from 'next/headers'
+import { writeFileSync, existsSync, mkdirSync } from 'fs'
+import path from 'path'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -26,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { licenseKey, school, admin } = body
+    const { licenseKey, school, supabase, admin } = body
 
     if (!licenseKey || !school?.name || !admin?.email || !admin?.password) {
       return NextResponse.json({
@@ -42,8 +52,44 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
+    if (!supabase?.url || !supabase?.anonKey || !supabase?.serviceRoleKey) {
+      return NextResponse.json({
+        ok: false,
+        error: 'Les 3 champs Supabase (url, anonKey, serviceRoleKey) sont obligatoires',
+      }, { status: 400 })
+    }
+
     // =============================================
-    // 1. Créer l'école
+    // 1. Écrire le fichier .env.local avec les credentials Supabase
+    // =============================================
+    const envContent = `# SmartShule — Configuration locale (générée par le wizard d'activation)
+# Date : ${new Date().toISOString()}
+# Licence : ${licenseKey}
+
+# Base de données Supabase de l'école
+DATABASE_URL="${supabase.url.replace('.co', '.pooler.supabase.com:5432/postgres')}"
+DIRECT_URL="${supabase.url.replace('.co', '.pooler.supabase.com:5432/postgres')}"
+SUPABASE_URL="${supabase.url}"
+SUPABASE_ANON_KEY="${supabase.anonKey}"
+SUPABASE_SERVICE_ROLE_KEY="${supabase.serviceRoleKey}"
+
+# Application
+NODE_ENV=production
+NEXTAUTH_URL=http://127.0.0.1:3000
+NEXTAUTH_SECRET="${Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)}"
+
+# Licence
+LICENSE_KEY="${licenseKey}"
+LICENSE_SERVER_URL="https://smart-shule-seven.vercel.app"
+`
+
+    const envPath = path.join(process.cwd(), '.env.local')
+    writeFileSync(envPath, envContent, { encoding: 'utf-8' })
+    console.log('[setup] .env.local créé avec credentials Supabase')
+
+    // =============================================
+    // 2. Créer l'école dans la DB actuelle (SQLite temporaire)
+    //    L'utilisateur devra redémarrer l'app pour que Prisma se reconnecte à Supabase
     // =============================================
     const schoolRecord = await db.school.create({
       data: {
@@ -76,7 +122,7 @@ export async function POST(request: Request) {
     }).catch(() => {})
 
     // =============================================
-    // 2. Créer l'année scolaire active
+    // 3. Créer l'année scolaire active
     // =============================================
     const now = new Date()
     const academicYear = await db.academicYear.create({
@@ -90,7 +136,7 @@ export async function POST(request: Request) {
     })
 
     // =============================================
-    // 3. Créer le compte admin (SYSTEM_ADMIN)
+    // 4. Créer le compte admin (SYSTEM_ADMIN)
     // =============================================
     const passwordHash = await hashPassword(admin.password)
     const adminUser = await db.user.create({
@@ -106,7 +152,7 @@ export async function POST(request: Request) {
     })
 
     // =============================================
-    // 4. Audit log
+    // 5. Audit log
     // =============================================
     const h = await headers()
     await logAudit({
@@ -117,22 +163,25 @@ export async function POST(request: Request) {
       action: 'SYSTEM_SETUP_COMPLETE',
       entityType: 'SCHOOL',
       entityId: schoolRecord.id,
-      description: `Configuration initiale — École: ${school.name}, Admin: ${admin.email}`,
+      description: `Configuration initiale — École: ${school.name}, Admin: ${admin.email}, Supabase: ${supabase.url}`,
       ipAddress: getClientIP(h),
       metadata: {
         schoolName: school.name,
         academicYear: academicYear.label,
         licenseKey,
-        version: '2.0.0-commercial',
+        supabaseUrl: supabase.url,
+        version: '2.1.0-commercial',
         timestamp: new Date().toISOString(),
       } as unknown as Record<string, unknown>,
     })
 
     return NextResponse.json({
       ok: true,
-      message: 'Configuration terminée avec succès',
+      message: 'Configuration terminée. Redémarrez l\'application pour activer la connexion Supabase.',
       school: { id: schoolRecord.id, name: schoolRecord.name },
       admin: { email: adminUser.email, role: adminUser.role },
+      supabase: { url: supabase.url },
+      mustRestart: true,
     })
   } catch (err) {
     console.error('[api/setup/initialize] Error:', err)

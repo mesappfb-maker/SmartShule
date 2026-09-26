@@ -1,14 +1,15 @@
-// SmartShule — Conversion du logo officiel en icônes multi-format
+// SmartShule — Conversion du logo officiel avec fond TRANSPARENT
 // ============================================================
-// Convertit logo-officiel.jpeg (1280x1280) en :
-//   - public/icon.png (512x512)
-//   - public/icon-16/32/48/64/128/192/256/512.png (multi-tailles pour PWA)
-//   - public/icon.ico (ICO multi-résolution pour Windows)
-//   - public/favicon.ico (favicon web)
-//   - public/favicon.svg (version vectorielle si applicable)
-//   - build/icon.ico (copie pour electron-builder)
-//   - build/installer-welcome.bmp (164x314 pour NSIS welcome page)
-//   - build/installer-header.bmp (150x57 pour NSIS header)
+// Le logo JPEG d'origine a un fond noir à cause de la conversion.
+// On convertit en PNG avec fond transparent (alpha channel).
+//
+// Génère :
+//   - public/icon.png (512x512 transparent)
+//   - public/icon-16 à icon-512 (multi-tailles transparentes)
+//   - public/icon.ico (ICO multi-résolution transparent)
+//   - public/favicon.ico
+//   - build/installer-welcome.png (164x314 avec fond blanc pour NSIS)
+//   - build/installer-header.png (150x57 avec fond blanc pour NSIS)
 
 import sharp from 'sharp'
 import { writeFileSync, mkdirSync, existsSync, copyFileSync } from 'fs'
@@ -27,39 +28,42 @@ async function convertLogo() {
     process.exit(1)
   }
 
-  console.log('🎨 Conversion du logo officiel...')
+  console.log('🎨 Conversion du logo officiel avec fond TRANSPARENT...')
   console.log(`   Source : ${SOURCE_LOGO}`)
 
-  // Crée build/ s'il n'existe pas
   if (!existsSync(BUILD_DIR)) mkdirSync(BUILD_DIR, { recursive: true })
 
   // =============================================
-  // 1. PNG multi-tailles (pour PWA + Electron)
+  // 1. PNG multi-tailles TRANSPARENTS
   // =============================================
-  console.log('\n📦 Génération PNG multi-tailles...')
+  console.log('\n📦 Génération PNG multi-tailles (transparent)...')
+
+  // Charge le logo source une fois
+  const sourceBuffer = await sharp(SOURCE_LOGO).toBuffer()
+
   for (const size of PNG_SIZES) {
     const outFile = path.join(PUBLIC_DIR, `icon-${size}.png`)
-    await sharp(SOURCE_LOGO)
+    await sharp(sourceBuffer)
       .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(outFile)
-    console.log(`   ✓ icon-${size}.png`)
+    console.log(`   ✓ icon-${size}.png (transparent)`)
   }
 
-  // icon.png = 512x512 (référence)
-  await sharp(SOURCE_LOGO)
+  // icon.png = 512x512 transparent
+  await sharp(sourceBuffer)
     .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toFile(path.join(PUBLIC_DIR, 'icon.png'))
-  console.log('   ✓ icon.png (512x512)')
+  console.log('   ✓ icon.png (512x512 transparent)')
 
   // =============================================
-  // 2. ICO Windows multi-résolution (pour .exe + raccourcis)
+  // 2. ICO Windows multi-résolution TRANSPARENT
   // =============================================
-  console.log('\n📦 Génération ICO Windows multi-résolution...')
+  console.log('\n📦 Génération ICO Windows (transparent)...')
   const pngBuffers = await Promise.all(
     ICO_SIZES.map(size =>
-      sharp(SOURCE_LOGO)
+      sharp(sourceBuffer)
         .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png()
         .toBuffer()
@@ -108,40 +112,33 @@ async function convertLogo() {
   writeFileSync(path.join(PUBLIC_DIR, 'icon.ico'), ico)
   writeFileSync(path.join(BUILD_DIR, 'icon.ico'), ico)
   writeFileSync(path.join(PUBLIC_DIR, 'favicon.ico'), ico)
-  console.log(`   ✓ icon.ico (${ico.length} bytes)`)
+  console.log(`   ✓ icon.ico (${ico.length} bytes, transparent)`)
   console.log(`   ✓ favicon.ico`)
 
   // =============================================
-  // 3. Bitmaps NSIS (PNG — MUI2 le supporte via le plugin Image)
+  // 3. Images NSIS (avec fond BLANC car NSIS ne gère pas l'alpha BMP)
   // =============================================
-  console.log('\n📦 Génération images NSIS (PNG)...')
+  console.log('\n📦 Génération images NSIS (fond blanc)...')
 
-  // Welcome bitmap — 164x314 (standard NSIS welcome page)
-  await sharp(SOURCE_LOGO)
+  await sharp(sourceBuffer)
     .resize(164, 314, { fit: 'contain', background: '#FFFFFF' })
     .flatten({ background: '#FFFFFF' })
     .png()
     .toFile(path.join(BUILD_DIR, 'installer-welcome.png'))
-  console.log('   ✓ installer-welcome.png (164x314)')
+  console.log('   ✓ installer-welcome.png (164x314, fond blanc)')
 
-  // Header bitmap — 150x57 (standard NSIS header)
-  await sharp(SOURCE_LOGO)
+  await sharp(sourceBuffer)
     .resize(150, 57, { fit: 'contain', background: '#FFFFFF' })
     .flatten({ background: '#FFFFFF' })
     .png()
     .toFile(path.join(BUILD_DIR, 'installer-header.png'))
-  console.log('   ✓ installer-header.png (150x57)')
+  console.log('   ✓ installer-header.png (150x57, fond blanc)')
 
-  // Copie icon.png dans build/ pour electron-builder
   copyFileSync(path.join(PUBLIC_DIR, 'icon.png'), path.join(BUILD_DIR, 'icon.png'))
 
   console.log('\n✅ Conversion terminée !')
-  console.log('   Le logo officiel est maintenant utilisé pour :')
-  console.log('   - Icône app Electron (icon.png/icon.ico)')
-  console.log('   - Favicon web (favicon.ico)')
-  console.log('   - PWA icons (icon-16 à icon-512)')
-  console.log('   - NSIS installer welcome bitmap (164x314)')
-  console.log('   - NSIS installer header bitmap (150x57)')
+  console.log('   - Logo PNG/ICO : fond TRANSPARENT')
+  console.log('   - NSIS bitmaps : fond BLANC (requis par NSIS)')
 }
 
 convertLogo().catch(err => {

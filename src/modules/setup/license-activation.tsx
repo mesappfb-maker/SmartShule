@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { KeyRound, Loader2, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
-type Step = 'activation' | 'config-school' | 'config-admin' | 'done'
+type Step = 'activation' | 'config-school' | 'config-supabase' | 'config-admin' | 'done'
 
 interface LicenseData {
   key: string
@@ -42,6 +42,11 @@ export function LicenseActivationPage() {
   const [schoolAddress, setSchoolAddress] = useState('')
   const [schoolPhone, setSchoolPhone] = useState('')
   const [schoolEmail, setSchoolEmail] = useState('')
+
+  // Wizard config Supabase (3 champs)
+  const [supabaseUrl, setSupabaseUrl] = useState('')
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState('')
+  const [supabaseServiceKey, setSupabaseServiceKey] = useState('')
 
   // Wizard config admin
   const [adminName, setAdminName] = useState('')
@@ -86,6 +91,18 @@ export function LicenseActivationPage() {
       toast.error('Nom de l\'école obligatoire')
       return
     }
+    setStep('config-supabase')
+  }
+
+  function configureSupabase() {
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      toast.error('Les 3 champs Supabase sont obligatoires')
+      return
+    }
+    if (!supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
+      toast.error('URL Supabase invalide (format : https://xxxxx.supabase.co)')
+      return
+    }
     setStep('config-admin')
   }
 
@@ -116,6 +133,11 @@ export function LicenseActivationPage() {
             address: schoolAddress || undefined,
             phone: schoolPhone || undefined,
             email: schoolEmail || undefined,
+          },
+          supabase: {
+            url: supabaseUrl,
+            anonKey: supabaseAnonKey,
+            serviceRoleKey: supabaseServiceKey,
           },
           admin: {
             displayName: adminName,
@@ -151,14 +173,14 @@ export function LicenseActivationPage() {
           </div>
           <h1 className="text-3xl font-bold">SmartShule</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Activation de votre licence — Étape {step === 'activation' ? '1/3' : step === 'config-school' ? '2/3' : '3/3'}
+            Activation de votre licence — Étape {step === 'activation' ? '1/4' : step === 'config-school' ? '2/4' : step === 'config-supabase' ? '3/4' : '4/4'}
           </p>
         </div>
 
         {/* Indicateur de progression */}
         <div className="flex items-center justify-center mb-8 gap-2">
-          {['activation', 'config-school', 'config-admin'].map((s, i) => {
-            const stepIndex = ['activation', 'config-school', 'config-admin', 'done'].indexOf(step)
+          {['activation', 'config-school', 'config-supabase', 'config-admin'].map((s, i) => {
+            const stepIndex = ['activation', 'config-school', 'config-supabase', 'config-admin', 'done'].indexOf(step)
             const isActive = i <= stepIndex
             return (
               <div
@@ -273,7 +295,75 @@ export function LicenseActivationPage() {
           </Card>
         )}
 
-        {/* ÉTAPE 3 : Création du compte admin */}
+        {/* ÉTAPE 3 : Configuration Supabase */}
+        {step === 'config-supabase' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <KeyRound className="h-5 w-5" /> Configuration de la base de données
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Saisissez les identifiants Supabase fournis par SmartShule.
+                Ces informations permettent à l'application de se connecter à votre base de données dédiée.
+              </p>
+
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md text-xs text-blue-700 dark:text-blue-300">
+                <strong>ℹ️ Où trouver ces informations ?</strong>
+                <br />
+                Ces 3 valeurs vous ont été fournies par SmartShule après activation de votre licence.
+                Si vous ne les avez pas, contactez le support au +243 999 071 754.
+              </div>
+
+              <div className="space-y-2">
+                <Label>URL Supabase *</Label>
+                <Input
+                  value={supabaseUrl}
+                  onChange={(e) => setSupabaseUrl(e.target.value)}
+                  placeholder="https://xxxxx.supabase.co"
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Clé publique (anon key) *</Label>
+                <Input
+                  type="password"
+                  value={supabaseAnonKey}
+                  onChange={(e) => setSupabaseAnonKey(e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Clé service role *</Label>
+                <Input
+                  type="password"
+                  value={supabaseServiceKey}
+                  onChange={(e) => setSupabaseServiceKey(e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  ⚠️ Cette clé est sensible — ne la partagez jamais avec des tiers.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={() => setStep('config-school')}>
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+                </Button>
+                <Button onClick={configureSupabase} className="flex-1">
+                  Continuer <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ÉTAPE 4 : Création du compte admin */}
         {step === 'config-admin' && (
           <Card>
             <CardHeader>
