@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
       homeworkPublished: homeworkPublished || null,
       resourcesUrl: resourcesUrl || null,
       status: publish ? 'PUBLISHED' : 'DRAFT',
-      publishedAt: publish ? new Date() : null,
     }
 
     // Vérifier si un LessonLog existe déjà

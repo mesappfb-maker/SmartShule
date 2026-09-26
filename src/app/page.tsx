@@ -108,28 +108,59 @@ export default async function Home() {
         const failedLogins = await db.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
 
         return (
-          <div className="min-h-screen bg-background p-6">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold">Super Admin — Tableau de bord technique</h1>
-                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+          <div className="flex h-screen bg-background overflow-hidden">
+            {/* Barre latérale gauche */}
+            <aside className="w-60 border-r border-border bg-muted/30 flex-col hidden md:flex shrink-0">
+              <div className="p-4 border-b border-border">
+                <p className="font-semibold text-sm">SmartShule</p>
+                <p className="text-xs text-muted-foreground">Super Admin</p>
               </div>
-              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                <AdminStatCard label="Écoles" value={totalSchools} sub="enregistrées" />
-                <AdminStatCard label="Licences" value={totalLicenses} sub={`${activeLicenses} actives`} />
-                <AdminStatCard label="Utilisateurs" value={totalUsers} sub={`${activeUsers} actifs`} />
-                <AdminStatCard label="Comptes démo" value={demoAccounts} sub="isDemoAccount" />
-                <AdminStatCard label="Comptes bloqués" value={blockedUsers} sub="désactivés" />
-                <AdminStatCard label="Échecs connexion (24h)" value={failedLogins} sub="LOGIN_FAILED" />
-                <AdminStatCard label="Audit (24h)" value={auditToday} sub="événements" />
-                <AdminStatCard label="Appareils sync" value={totalDevices} sub={`${activeDevices} actifs`} />
-                <AdminStatCard label="Erreurs sync" value={syncErrors} sub="non résolues" />
+              <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase">Système</div>
+                <div className="px-3 py-2 text-sm rounded-md bg-primary/10 text-primary font-medium">Tableau de bord</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Écoles</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Licences</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Utilisateurs</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Appareils</div>
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase pt-3">Sécurité</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Audit</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Échecs connexion</div>
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase pt-3">Maintenance</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Synchronisation</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Sauvegardes</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Paramètres</div>
+              </nav>
+              <div className="p-3 border-t border-border">
+                <form action="/api/auth/logout" method="POST">
+                  <button type="submit" className="text-xs text-muted-foreground hover:text-foreground">Se déconnecter</button>
+                </form>
               </div>
-              <div className="p-4 bg-muted/30 rounded-lg border">
-                <p className="text-xs text-muted-foreground">
-                  Dashboard technique SYSTEM_ADMIN — aucun KPI métier (élèves, factures, caisse, notes).
-                  Ce rôle gère uniquement la configuration système, les licences, la sécurité et la synchronisation.
-                </p>
+            </aside>
+
+            {/* Contenu principal */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold">Super Admin — Tableau de bord technique</h1>
+                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+                </div>
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  <AdminStatCard label="Écoles" value={totalSchools} sub="enregistrées" />
+                  <AdminStatCard label="Licences" value={totalLicenses} sub={`${activeLicenses} actives`} />
+                  <AdminStatCard label="Utilisateurs" value={totalUsers} sub={`${activeUsers} actifs`} />
+                  <AdminStatCard label="Comptes démo" value={demoAccounts} sub="isDemoAccount" />
+                  <AdminStatCard label="Comptes bloqués" value={blockedUsers} sub="désactivés" />
+                  <AdminStatCard label="Échecs connexion (24h)" value={failedLogins} sub="LOGIN_FAILED" />
+                  <AdminStatCard label="Audit (24h)" value={auditToday} sub="événements" />
+                  <AdminStatCard label="Appareils sync" value={totalDevices} sub={`${activeDevices} actifs`} />
+                  <AdminStatCard label="Erreurs sync" value={syncErrors} sub="non résolues" />
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <p className="text-xs text-muted-foreground">
+                    Dashboard technique SYSTEM_ADMIN — aucun KPI métier (élèves, factures, caisse, notes).
+                    Ce rôle gère uniquement la configuration système, les licences, la sécurité et la synchronisation.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -179,12 +210,44 @@ export default async function Home() {
         if (budgetPct > 90) risks.push({ level: 'HIGH', message: `Budget consommé à ${budgetPct}%` })
 
         return (
-          <div className="min-h-screen bg-background p-6">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold">Promoteur — Vue stratégique</h1>
-                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+          <div className="flex h-screen bg-background overflow-hidden">
+            {/* Barre latérale gauche */}
+            <aside className="w-60 border-r border-border bg-muted/30 flex-col hidden md:flex shrink-0">
+              <div className="p-4 border-b border-border">
+                <p className="font-semibold text-sm">SmartShule</p>
+                <p className="text-xs text-muted-foreground">Promoteur</p>
               </div>
+              <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase">Stratégie</div>
+                <div className="px-3 py-2 text-sm rounded-md bg-primary/10 text-primary font-medium">Vue stratégique</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Croissance</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Admissions</div>
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase pt-3">Finance</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Recettes</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Dépenses</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Impayés</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Budget</div>
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase pt-3">Risques</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Alertes</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Décisions</div>
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase pt-3">Rapports</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Mensuel</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Annuel</div>
+              </nav>
+              <div className="p-3 border-t border-border">
+                <form action="/api/auth/logout" method="POST">
+                  <button type="submit" className="text-xs text-muted-foreground hover:text-foreground">Se déconnecter</button>
+                </form>
+              </div>
+            </aside>
+
+            {/* Contenu principal */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold">Promoteur — Vue stratégique</h1>
+                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+                </div>
               <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 <AdminStatCard label="Élèves actifs" value={activeStudents} sub={`${newStudentsThisMonth} nouveaux ce mois`} />
                 <AdminStatCard label="Total facturé" value={Math.round(totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
@@ -218,6 +281,7 @@ export default async function Home() {
                   Il valide les grandes décisions (budget, investissements, dépenses hors seuil).
                 </p>
               </div>
+              </div>
             </div>
           </div>
         )
@@ -246,12 +310,39 @@ export default async function Home() {
         const expectedPayroll = totalEmployees * 250000
 
         return (
-          <div className="min-h-screen bg-background p-6">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold">Auditeur — Vue de contrôle</h1>
-                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+          <div className="flex h-screen bg-background overflow-hidden">
+            {/* Barre latérale gauche */}
+            <aside className="w-60 border-r border-border bg-muted/30 flex-col hidden md:flex shrink-0">
+              <div className="p-4 border-b border-border">
+                <p className="font-semibold text-sm">SmartShule</p>
+                <p className="text-xs text-muted-foreground">Auditeur</p>
               </div>
+              <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase">Audit</div>
+                <div className="px-3 py-2 text-sm rounded-md bg-primary/10 text-primary font-medium">Vue de contrôle</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Journal audit</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Connexions</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Accès refusés</div>
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase pt-3">Données</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Élèves</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Finances</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Personnel</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-md cursor-pointer">Documents</div>
+              </nav>
+              <div className="p-3 border-t border-border">
+                <form action="/api/auth/logout" method="POST">
+                  <button type="submit" className="text-xs text-muted-foreground hover:text-foreground">Se déconnecter</button>
+                </form>
+              </div>
+            </aside>
+
+            {/* Contenu principal */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-6xl mx-auto space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold">Auditeur — Vue de contrôle</h1>
+                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+                </div>
               <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 <AdminStatCard label="Élèves actifs" value={activeStudents} sub={`${totalStudents} total`} />
                 <AdminStatCard label="Total facturé" value={Math.round(totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
@@ -265,6 +356,7 @@ export default async function Home() {
                   Vue Auditeur — lecture seule. Aucune modification possible.
                   L'auditeur ne voit pas les données médicales, disciplinaires ou messages privées.
                 </p>
+              </div>
               </div>
             </div>
           </div>
