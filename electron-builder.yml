@@ -51,6 +51,7 @@ extraResources:
 # Build Windows (.exe NSIS installer)
 # ============================================================
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]

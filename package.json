@@ -46,7 +46,9 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "signAndEditExecutable": false,
+      "forceCodeSigning": false
     },
     "nsis": {
       "oneClick": false,
@@ -70,7 +72,9 @@
     "publish": {
       "provider": "github",
       "releaseType": "release"
-    }
+    },
+    "npmRebuild": false,
+    "nodeGypRebuild": false
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
