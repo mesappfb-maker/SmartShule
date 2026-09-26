@@ -18,6 +18,7 @@ import {
   clearSessionCookie,
 } from '@/lib/auth'
 import { logAudit, getClientIP } from '@/lib/audit'
+import { canApproveStrategic } from '@/lib/rbac'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 
@@ -307,8 +308,8 @@ export async function assignRequestAction(
   { ok: true } | { ok: false; error: string }
 > {
   const user = await getUserFromSession()
-  if (!user || (user.role !== 'DIRECTION' && user.role !== 'ADMIN')) {
-    return { ok: false, error: 'Action réservée à la direction.' }
+  if (!user || !canApproveStrategic(user)) {
+    return { ok: false, error: 'Action réservée à la direction ou au promoteur.' }
   }
   const requestId = String(formData.get('requestId') || '')
   const status = String(formData.get('status') || 'IN_PROGRESS') as
@@ -448,8 +449,8 @@ export async function createAnnouncementAction(
   { ok: true; announcementId: string } | { ok: false; error: string }
 > {
   const user = await getUserFromSession()
-  if (!user || (user.role !== 'DIRECTION' && user.role !== 'ADMIN')) {
-    return { ok: false, error: 'Action réservée à la direction.' }
+  if (!user || !canApproveStrategic(user)) {
+    return { ok: false, error: 'Action réservée à la direction ou au promoteur.' }
   }
 
   const title = String(formData.get('title') || '').trim()
@@ -537,8 +538,8 @@ export async function archiveAnnouncementAction(
   { ok: true } | { ok: false; error: string }
 > {
   const user = await getUserFromSession()
-  if (!user || (user.role !== 'DIRECTION' && user.role !== 'ADMIN')) {
-    return { ok: false, error: 'Action réservée à la direction.' }
+  if (!user || !canApproveStrategic(user)) {
+    return { ok: false, error: 'Action réservée à la direction ou au promoteur.' }
   }
 
   const announcementId = String(formData.get('announcementId') || '')
@@ -604,8 +605,8 @@ export async function updateBrandingAction(
   { ok: true } | { ok: false; error: string }
 > {
   const user = await getUserFromSession()
-  if (!user || (user.role !== 'DIRECTION' && user.role !== 'ADMIN')) {
-    return { ok: false, error: 'Action réservée à la direction.' }
+  if (!user || !canApproveStrategic(user)) {
+    return { ok: false, error: 'Action réservée à la direction ou au promoteur.' }
   }
 
   const schoolId = String(formData.get('schoolId') || '')

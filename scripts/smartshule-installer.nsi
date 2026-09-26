@@ -20,8 +20,8 @@ OutFile "/home/z/my-project/download/SmartShule-Setup.exe"
 Unicode True
 ShowInstDetails show
 ShowUnInstDetails show
-SetCompressor lzma
-SetCompressorDictSize 32
+SetCompressor /SOLID lzma
+SetCompressorDictSize 16
 BrandingText "SmartShule ${APP_VERSION} Installer"
 
 ; Request application privileges (per-user, no admin required)

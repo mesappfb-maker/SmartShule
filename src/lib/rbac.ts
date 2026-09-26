@@ -68,3 +68,41 @@ export function isFinance(user: { role: string }): boolean {
 export function isHR(user: { role: string }): boolean {
   return hasRole(user, ['HR_MANAGER', 'PAYROLL_OFFICER'])
 }
+
+/**
+ * Vérifie si l'utilisateur est promoteur (stratégique, agrégats uniquement)
+ */
+export function isPromoter(user: { role: string }): boolean {
+  return hasRole(user, ['PROMOTER'])
+}
+
+/**
+ * Vérifie si l'utilisateur est auditeur (lecture seule, contrôles)
+ */
+export function isAuditor(user: { role: string }): boolean {
+  return hasRole(user, ['AUDITOR'])
+}
+
+/**
+ * Vérifie si l'utilisateur peut consulter les données stratégiques
+ * (direction, admin, promoteur, auditeur)
+ */
+export function canViewStrategic(user: { role: string }): boolean {
+  return hasRole(user, ['DIRECTION', 'DIRECTOR', 'ADMIN', 'SCHOOL_ADMIN', 'SYSTEM_ADMIN', 'PROMOTER', 'AUDITOR'])
+}
+
+/**
+ * Vérifie si l'utilisateur peut valider les décisions stratégiques
+ * (direction, admin, promoteur)
+ */
+export function canApproveStrategic(user: { role: string }): boolean {
+  return hasRole(user, ['DIRECTION', 'DIRECTOR', 'ADMIN', 'SCHOOL_ADMIN', 'SYSTEM_ADMIN', 'PROMOTER'])
+}
+
+/**
+ * Vérifie si l'utilisateur peut consulter les logs d'audit
+ * (admin système, auditeur)
+ */
+export function canViewAudit(user: { role: string }): boolean {
+  return hasRole(user, ['SYSTEM_ADMIN', 'AUDITOR'])
+}
