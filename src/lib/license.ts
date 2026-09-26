@@ -146,7 +146,7 @@ export async function verifyLicenseOnline(
 ): Promise<{ valid: boolean; license?: LicenseData; features?: LicenseFeatures; error?: string }> {
   try {
     // Le serveur central de vérification (à configurer)
-    const VERIFY_URL = process.env.LICENSE_SERVER_URL || 'https://smartshule-seven.vercel.app/api/license/verify'
+    const VERIFY_URL = process.env.LICENSE_SERVER_URL || 'https://smart-shule-seven.vercel.app/api/license/verify'
 
     const res = await fetch(VERIFY_URL, {
       method: 'POST',
