@@ -119,7 +119,7 @@ export function TeacherEmargementLiveView({
       formData.append('endDateTime', new Date(endDateTime).toISOString())
       formData.append('room', room)
 
-      const result = await fetch('/api/teacher/attendance', {
+      const result = await fetch('/api/teacher/start-session', {
         method: 'POST',
         body: formData,
       }).then(r => r.json())

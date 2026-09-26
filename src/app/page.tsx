@@ -91,37 +91,40 @@ export default async function Home() {
       return <StudentDashboard user={user} school={schoolData} data={data} notifications={notifications} />
     }
 
-    // SYSTEM_ADMIN → Dashboard technique
+    // SYSTEM_ADMIN → Dashboard technique (appel direct, pas fetch)
     if (user.role === 'SYSTEM_ADMIN') {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/admin/dashboard`, {
-          headers: { cookie: (await import('next/headers')).cookies().toString() },
-        })
-        const adminData = await res.json()
+        const totalSchools = await db.school.count()
+        const totalUsers = await db.user.count()
+        const activeUsers = await db.user.count({ where: { active: true } })
+        const demoAccounts = await db.user.count({ where: { isDemoAccount: true } })
+        const blockedUsers = await db.user.count({ where: { active: false } })
+        const totalLicenses = await db.license.count().catch(() => 0)
+        const activeLicenses = await db.license.count({ where: { status: 'ACTIVE' } }).catch(() => 0)
+        const totalDevices = await db.syncDevice.count().catch(() => 0)
+        const activeDevices = await db.syncDevice.count({ where: { status: 'ACTIVE' } }).catch(() => 0)
+        const syncErrors = await db.syncError.count({ where: { resolvedAt: null } }).catch(() => 0)
+        const auditToday = await db.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+        const failedLogins = await db.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+
         return (
           <div className="min-h-screen bg-background p-6">
             <div className="max-w-6xl mx-auto space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold">Super Admin — Tableau de bord technique</h1>
-                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
-                </div>
+              <div>
+                <h1 className="text-2xl font-bold">Super Admin — Tableau de bord technique</h1>
+                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
               </div>
-              {adminData.ok ? (
-                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  <AdminStatCard label="Écoles" value={adminData.stats.totalSchools} sub={`${adminData.stats.activeSchools} actives`} />
-                  <AdminStatCard label="Licences" value={adminData.stats.totalLicenses} sub={`${adminData.stats.activeLicenses} actives`} />
-                  <AdminStatCard label="Utilisateurs" value={adminData.stats.totalUsers} sub={`${adminData.stats.activeUsers} actifs`} />
-                  <AdminStatCard label="Comptes démo" value={adminData.stats.demoAccounts} sub="isDemoAccount" />
-                  <AdminStatCard label="Comptes bloqués" value={adminData.stats.blockedUsers} sub="désactivés" />
-                  <AdminStatCard label="Échecs connexion (24h)" value={adminData.stats.failedLogins} sub="LOGIN_FAILED" />
-                  <AdminStatCard label="Audit (24h)" value={adminData.stats.auditToday} sub="événements" />
-                  <AdminStatCard label="Appareils sync" value={adminData.stats.totalDevices} sub={`${adminData.stats.activeDevices} actifs`} />
-                  <AdminStatCard label="Erreurs sync" value={adminData.stats.syncErrors} sub="non résolues" />
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Erreur chargement dashboard technique</p>
-              )}
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <AdminStatCard label="Écoles" value={totalSchools} sub="enregistrées" />
+                <AdminStatCard label="Licences" value={totalLicenses} sub={`${activeLicenses} actives`} />
+                <AdminStatCard label="Utilisateurs" value={totalUsers} sub={`${activeUsers} actifs`} />
+                <AdminStatCard label="Comptes démo" value={demoAccounts} sub="isDemoAccount" />
+                <AdminStatCard label="Comptes bloqués" value={blockedUsers} sub="désactivés" />
+                <AdminStatCard label="Échecs connexion (24h)" value={failedLogins} sub="LOGIN_FAILED" />
+                <AdminStatCard label="Audit (24h)" value={auditToday} sub="événements" />
+                <AdminStatCard label="Appareils sync" value={totalDevices} sub={`${activeDevices} actifs`} />
+                <AdminStatCard label="Erreurs sync" value={syncErrors} sub="non résolues" />
+              </div>
               <div className="p-4 bg-muted/30 rounded-lg border">
                 <p className="text-xs text-muted-foreground">
                   Dashboard technique SYSTEM_ADMIN — aucun KPI métier (élèves, factures, caisse, notes).
@@ -131,89 +134,117 @@ export default async function Home() {
             </div>
           </div>
         )
-      } catch {
-        return <NoData user={user} error="Dashboard technique indisponible" />
+      } catch (err) {
+        return <NoData user={user} error={(err as Error).message} />
       }
     }
 
-    // PROMOTER → Dashboard stratégique
+    // PROMOTER → Dashboard stratégique (appel direct, pas fetch)
     if (user.role === 'PROMOTER') {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/promoter/dashboard`, {
-          headers: { cookie: (await import('next/headers')).cookies().toString() },
-        })
-        const promoterData = await res.json()
+        const now = new Date()
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const startOfYear = new Date(now.getFullYear(), 0, 1)
+
+        const [totalStudents, activeStudents, newStudentsThisMonth, totalEmployees, teachersCount,
+          totalInvoicedAgg, totalCollectedAgg, totalUnpaidAgg, receiptsMonth, expensesMonth,
+          expensesYear, pendingExpenses, overdueInvoices] = await Promise.all([
+          db.student.count({ where: { schoolId: schoolData.id } }),
+          db.student.count({ where: { schoolId: schoolData.id, status: 'ACTIVE' } }),
+          db.student.count({ where: { schoolId: schoolData.id, createdAt: { gte: startOfMonth } } }),
+          db.employee.count({ where: { schoolId: schoolData.id, status: 'ACTIVE' } }),
+          db.employee.count({ where: { schoolId: schoolData.id, status: 'ACTIVE', globalRole: 'ENSEIGNANT' } }),
+          db.invoice.aggregate({ where: { schoolId: schoolData.id, status: { not: 'CANCELLED' } }, _sum: { totalAmountCents: true } }),
+          db.invoice.aggregate({ where: { schoolId: schoolData.id, status: { not: 'CANCELLED' } }, _sum: { paidAmountCents: true } }),
+          db.invoice.aggregate({ where: { schoolId: schoolData.id, status: { in: ['UNPAID', 'PARTIALLY_PAID'] } }, _sum: { totalAmountCents: true, paidAmountCents: true } }),
+          db.receipt.aggregate({ where: { schoolId: schoolData.id, issuedAt: { gte: startOfMonth } }, _sum: { amountCents: true } }),
+          db.expense.aggregate({ where: { schoolId: schoolData.id, status: { in: ['APPROVED', 'PAID'] }, expenseDate: { gte: startOfMonth } }, _sum: { amountCents: true } }),
+          db.expense.aggregate({ where: { schoolId: schoolData.id, status: { in: ['APPROVED', 'PAID'] }, expenseDate: { gte: startOfYear } }, _sum: { amountCents: true } }),
+          db.expense.aggregate({ where: { schoolId: schoolData.id, status: 'PENDING' }, _sum: { amountCents: true }, _count: true }),
+          db.invoice.count({ where: { schoolId: schoolData.id, status: { in: ['UNPAID', 'PARTIALLY_PAID'] }, dueDate: { lt: now } } }),
+        ])
+
+        const totalInvoiced = totalInvoicedAgg._sum.totalAmountCents || 0
+        const totalCollected = totalCollectedAgg._sum.paidAmountCents || 0
+        const totalUnpaid = (totalUnpaidAgg._sum.totalAmountCents || 0) - (totalUnpaidAgg._sum.paidAmountCents || 0)
+        const collectionRate = totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 10000) / 100 : 0
+        const expectedPayroll = totalEmployees * 250000
+        const budgetAnnual = 500000000
+        const budgetConsumed = expensesYear._sum.amountCents || 0
+        const budgetPct = budgetAnnual > 0 ? Math.round((budgetConsumed / budgetAnnual) * 100) : 0
+
+        const risks: Array<{ level: string; message: string }> = []
+        if (totalUnpaid > 500000) risks.push({ level: 'CRITICAL', message: `Impayés élevés: ${Math.round(totalUnpaid / 100).toLocaleString('fr-FR')} FC` })
+        if (overdueInvoices > 10) risks.push({ level: 'HIGH', message: `${overdueInvoices} factures échues` })
+        if (budgetPct > 90) risks.push({ level: 'HIGH', message: `Budget consommé à ${budgetPct}%` })
+
         return (
           <div className="min-h-screen bg-background p-6">
             <div className="max-w-6xl mx-auto space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold">Promoteur — Vue stratégique</h1>
-                  <p className="text-sm text-muted-foreground">{schoolData.name}</p>
-                </div>
+              <div>
+                <h1 className="text-2xl font-bold">Promoteur — Vue stratégique</h1>
+                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
               </div>
-              {promoterData.ok ? (
-                <>
-                  <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    <AdminStatCard label="Élèves actifs" value={promoterData.stats.activeStudents} sub={`${promoterData.stats.newStudentsThisMonth} nouveaux ce mois`} />
-                    <AdminStatCard label="Total facturé" value={Math.round(promoterData.stats.totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
-                    <AdminStatCard label="Total encaissé" value={Math.round(promoterData.stats.totalCollected / 100).toLocaleString('fr-FR')} sub="FC" />
-                    <AdminStatCard label="Impayés" value={Math.round(promoterData.stats.totalUnpaid / 100).toLocaleString('fr-FR')} sub="FC" />
-                    <AdminStatCard label="Taux recouvrement" value={promoterData.stats.collectionRate} sub="%" />
-                    <AdminStatCard label="Employés" value={promoterData.stats.totalEmployees} sub={`${promoterData.stats.teachersCount} enseignants`} />
-                    <AdminStatCard label="Masse salariale" value={Math.round(promoterData.stats.expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
-                    <AdminStatCard label="Budget consommé" value={promoterData.stats.budgetPct} sub="%" />
-                  </div>
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <AdminStatCard label="Élèves actifs" value={activeStudents} sub={`${newStudentsThisMonth} nouveaux ce mois`} />
+                <AdminStatCard label="Total facturé" value={Math.round(totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Total encaissé" value={Math.round(totalCollected / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Impayés" value={Math.round(totalUnpaid / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Taux recouvrement" value={collectionRate} sub="%" />
+                <AdminStatCard label="Employés" value={totalEmployees} sub={`${teachersCount} enseignants`} />
+                <AdminStatCard label="Masse salariale" value={Math.round(expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Budget consommé" value={budgetPct} sub="%" />
+              </div>
 
-                  {promoterData.stats.risks && promoterData.stats.risks.length > 0 && (
-                    <div className="space-y-2">
-                      <h2 className="text-lg font-semibold">Risques et alertes</h2>
-                      {promoterData.stats.risks.map((risk: any, i: number) => (
-                        <div key={i} className={`p-3 rounded-lg border ${
-                          risk.level === 'CRITICAL' ? 'border-red-200 bg-red-50 text-red-700' :
-                          risk.level === 'HIGH' ? 'border-orange-200 bg-orange-50 text-orange-700' :
-                          'border-blue-200 bg-blue-50 text-blue-700'
-                        }`}>
-                          <span className="font-medium text-sm">{risk.level}</span>: <span className="text-sm">{risk.message}</span>
-                        </div>
-                      ))}
+              {risks.length > 0 && (
+                <div className="space-y-2">
+                  <h2 className="text-lg font-semibold">Risques et alertes</h2>
+                  {risks.map((risk, i) => (
+                    <div key={i} className={`p-3 rounded-lg border ${
+                      risk.level === 'CRITICAL' ? 'border-red-200 bg-red-50 text-red-700' :
+                      risk.level === 'HIGH' ? 'border-orange-200 bg-orange-50 text-orange-700' :
+                      'border-blue-200 bg-blue-50 text-blue-700'
+                    }`}>
+                      <span className="font-medium text-sm">{risk.level}</span>: <span className="text-sm">{risk.message}</span>
                     </div>
-                  )}
-
-                  {promoterData.stats.decisionsPending > 0 && (
-                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm font-medium text-amber-700">
-                        {promoterData.stats.decisionsPending} dépense(s) en attente de validation
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="p-4 bg-muted/30 rounded-lg border">
-                    <p className="text-xs text-muted-foreground">
-                      Dashboard stratégique PROMOTEUR — données agrégées uniquement.
-                      Le promoteur ne crée pas de factures, n'encaisse pas, ne modifie pas les notes.
-                      Il valide les grandes décisions (budget, investissements, dépenses hors seuil).
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-muted-foreground">Erreur chargement dashboard stratégique</p>
+                  ))}
+                </div>
               )}
+
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <p className="text-xs text-muted-foreground">
+                  Dashboard stratégique PROMOTEUR — données agrégées uniquement.
+                  Le promoteur ne crée pas de factures, n'encaisse pas, ne modifie pas les notes.
+                  Il valide les grandes décisions (budget, investissements, dépenses hors seuil).
+                </p>
+              </div>
             </div>
           </div>
         )
-      } catch {
-        return <NoData user={user} error="Dashboard stratégique indisponible" />
+      } catch (err) {
+        return <NoData user={user} error={(err as Error).message} />
       }
     }
 
-    // AUDITOR → Dashboard lecture seule
+    // AUDITOR → Dashboard lecture seule (appel direct, pas fetch)
     if (user.role === 'AUDITOR') {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/promoter/dashboard`, {
-          headers: { cookie: (await import('next/headers')).cookies().toString() },
-        })
-        const auditData = await res.json()
+        const [activeStudents, totalStudents, totalEmployees, teachersCount,
+          totalInvoicedAgg, totalCollectedAgg, totalUnpaidAgg] = await Promise.all([
+          db.student.count({ where: { schoolId: schoolData.id, status: 'ACTIVE' } }),
+          db.student.count({ where: { schoolId: schoolData.id } }),
+          db.employee.count({ where: { schoolId: schoolData.id, status: 'ACTIVE' } }),
+          db.employee.count({ where: { schoolId: schoolData.id, status: 'ACTIVE', globalRole: 'ENSEIGNANT' } }),
+          db.invoice.aggregate({ where: { schoolId: schoolData.id, status: { not: 'CANCELLED' } }, _sum: { totalAmountCents: true } }),
+          db.invoice.aggregate({ where: { schoolId: schoolData.id, status: { not: 'CANCELLED' } }, _sum: { paidAmountCents: true } }),
+          db.invoice.aggregate({ where: { schoolId: schoolData.id, status: { in: ['UNPAID', 'PARTIALLY_PAID'] } }, _sum: { totalAmountCents: true, paidAmountCents: true } }),
+        ])
+
+        const totalInvoiced = totalInvoicedAgg._sum.totalAmountCents || 0
+        const totalCollected = totalCollectedAgg._sum.paidAmountCents || 0
+        const totalUnpaid = (totalUnpaidAgg._sum.totalAmountCents || 0) - (totalUnpaidAgg._sum.paidAmountCents || 0)
+        const expectedPayroll = totalEmployees * 250000
+
         return (
           <div className="min-h-screen bg-background p-6">
             <div className="max-w-6xl mx-auto space-y-6">
@@ -221,29 +252,25 @@ export default async function Home() {
                 <h1 className="text-2xl font-bold">Auditeur — Vue de contrôle</h1>
                 <p className="text-sm text-muted-foreground">{schoolData.name}</p>
               </div>
-              {auditData.ok ? (
-                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  <AdminStatCard label="Élèves actifs" value={auditData.stats.activeStudents} sub={`${auditData.stats.totalStudents} total`} />
-                  <AdminStatCard label="Total facturé" value={Math.round(auditData.stats.totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
-                  <AdminStatCard label="Total encaissé" value={Math.round(auditData.stats.totalCollected / 100).toLocaleString('fr-FR')} sub="FC" />
-                  <AdminStatCard label="Impayés" value={Math.round(auditData.stats.totalUnpaid / 100).toLocaleString('fr-FR')} sub="FC" />
-                  <AdminStatCard label="Employés" value={auditData.stats.totalEmployees} sub={`${auditData.stats.teachersCount} enseignants`} />
-                  <AdminStatCard label="Masse salariale" value={Math.round(auditData.stats.expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Erreur chargement dashboard audit</p>
-              )}
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <AdminStatCard label="Élèves actifs" value={activeStudents} sub={`${totalStudents} total`} />
+                <AdminStatCard label="Total facturé" value={Math.round(totalInvoiced / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Total encaissé" value={Math.round(totalCollected / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Impayés" value={Math.round(totalUnpaid / 100).toLocaleString('fr-FR')} sub="FC" />
+                <AdminStatCard label="Employés" value={totalEmployees} sub={`${teachersCount} enseignants`} />
+                <AdminStatCard label="Masse salariale" value={Math.round(expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
+              </div>
               <div className="p-4 bg-muted/30 rounded-lg border">
                 <p className="text-xs text-muted-foreground">
                   Vue Auditeur — lecture seule. Aucune modification possible.
-                  L'auditeur ne voit pas les données médicales, disciplinaires ou messages privés.
+                  L'auditeur ne voit pas les données médicales, disciplinaires ou messages privées.
                 </p>
               </div>
             </div>
           </div>
         )
-      } catch {
-        return <NoData user={user} error="Dashboard audit indisponible" />
+      } catch (err) {
+        return <NoData user={user} error={(err as Error).message} />
       }
     }
 
@@ -278,14 +305,67 @@ export default async function Home() {
       return <AccountantPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
     }
 
-    // HR_MANAGER et PAYROLL_OFFICER (utilisent dashboard accountant en attendant module RH dédié)
+    // HR_MANAGER et PAYROLL_OFFICER → Dashboard RH dédié
     if (user.role === 'HR_MANAGER' || user.role === 'PAYROLL_OFFICER') {
-      const [data, profileData] = await Promise.all([
-        getAccountantPortalData(user.id).catch(() => null),
-        getProfileData(user.id).catch(() => null),
-      ])
-      if (!data) return <NoData user={user} />
-      return <AccountantPortal user={user} schoolName={schoolData.name} data={data} profileData={profileData || undefined} />
+      try {
+        const now = new Date()
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1)
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+        const schoolId = schoolData.id
+        const [totalEmployees, teachersCount, adminStaffCount, supportStaffCount,
+          newEmployeesThisMonth, contractsExpiringSoon, employeesAbsentToday,
+          lateArrivalsToday, pendingLeaveRequests, pendingOvertime, pendingPayrollVariables] = await Promise.all([
+          db.employee.count({ where: { schoolId, status: 'ACTIVE' } }),
+          db.employee.count({ where: { schoolId, status: 'ACTIVE', globalRole: 'ENSEIGNANT' } }),
+          db.employee.count({ where: { schoolId, status: 'ACTIVE', globalRole: { in: ['ADMINISTRATIF', 'DIRECTION'] } } }),
+          db.employee.count({ where: { schoolId, status: 'ACTIVE', globalRole: 'OUVRIER' } }),
+          db.employee.count({ where: { schoolId, hireDate: { gte: startOfMonth } } }),
+          db.employee.count({ where: { schoolId, status: 'ACTIVE', hireDate: { lte: new Date(now.getTime() - 335 * 24 * 60 * 60 * 1000) } } }),
+          db.employeeAttendance.count({ where: { schoolId, date: { gte: today, lt: tomorrow }, status: 'ABSENT' } }).catch(() => 0),
+          db.employeeAttendance.count({ where: { schoolId, date: { gte: today, lt: tomorrow }, status: 'LATE' } }).catch(() => 0),
+          db.adminTask.count({ where: { schoolId, category: 'LEAVE', status: { in: ['PENDING', 'WAITING_DIRECTION'] } } }).catch(() => 0),
+          db.adminTask.count({ where: { schoolId, category: 'OVERTIME', status: { in: ['PENDING', 'WAITING_DIRECTION'] } } }).catch(() => 0),
+          db.payrollVariable.count({ where: { schoolId, status: 'DRAFT' } }).catch(() => 0),
+        ])
+
+        const expectedPayroll = totalEmployees * 250000
+
+        return (
+          <div className="min-h-screen bg-background p-6">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold">Ressources Humaines — Tableau de bord</h1>
+                <p className="text-sm text-muted-foreground">{schoolData.name}</p>
+              </div>
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <AdminStatCard label="Personnel actif" value={totalEmployees} sub="total" />
+                <AdminStatCard label="Enseignants" value={teachersCount} sub="pédagogique" />
+                <AdminStatCard label="Administratif" value={adminStaffCount} sub="administration" />
+                <AdminStatCard label="Soutien" value={supportStaffCount} sub="ouvriers" />
+                <AdminStatCard label="Nouveaux (mois)" value={newEmployeesThisMonth} sub="embauchés" />
+                <AdminStatCard label="Contrats expirant" value={contractsExpiringSoon} sub="bientôt" />
+                <AdminStatCard label="Absents aujourd'hui" value={employeesAbsentToday} sub="personnel" />
+                <AdminStatCard label="Retards aujourd'hui" value={lateArrivalsToday} sub="personnel" />
+                <AdminStatCard label="Congés en attente" value={pendingLeaveRequests} sub="à valider" />
+                <AdminStatCard label="Heures supp." value={pendingOvertime} sub="à valider" />
+                <AdminStatCard label="Variables paie" value={pendingPayrollVariables} sub="à transmettre" />
+                <AdminStatCard label="Masse salariale" value={Math.round(expectedPayroll / 100).toLocaleString('fr-FR')} sub="FC" />
+              </div>
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <p className="text-xs text-muted-foreground">
+                  Dashboard RH — gestion du personnel uniquement.
+                  Le RH ne voit pas les impayés élèves, factures, encaissements, caisse, notes ou bulletins.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      } catch (err) {
+        return <NoData user={user} error={(err as Error).message} />
+      }
     }
 
     // SECRETARY (Secrétariat) — nouveau rôle ADMISSIONS_OFFICER aussi
