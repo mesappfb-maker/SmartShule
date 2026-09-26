@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff, User, Users, Briefcase, Wallet, Server, BookOpen, Shield, Phone, Monitor } from 'lucide-react'
+import { GraduationCap, Lock, Mail, Loader2, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,31 +12,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/ss/theme-toggle'
 import { toast } from 'sonner'
 
-// ✅ 14 comptes démo cliquables directement sur la page (RBAC complet)
-const DEMO_ACCOUNTS = [
-  { label: 'Directeur',        email: 'director@demo.smartshule.com',     role: 'DIRECTOR',           icon: Shield,    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
-  { label: 'Secrétaire',      email: 'secretary@demo.smartshule.com',     role: 'SECRETARY',          icon: Briefcase, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
-  { label: 'Agent Admission', email: 'admissions@demo.smartshule.com',    role: 'ADMISSIONS_OFFICER', icon: Users,     color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
-  { label: 'Comptable',       email: 'accountant@demo.smartshule.com',    role: 'ACCOUNTANT',         icon: Wallet,    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
-  { label: 'Caissier',        email: 'cashier@demo.smartshule.com',       role: 'CASHIER',            icon: Wallet,    color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
-  { label: 'RH',              email: 'hrmanager@demo.smartshule.com',      role: 'HR_MANAGER',         icon: Users,     color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
-  { label: 'Paie',            email: 'payroll@demo.smartshule.com',       role: 'PAYROLL_OFFICER',    icon: Wallet,    color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
-  { label: 'Enseignant',      email: 'teacher@demo.smartshule.com',       role: 'TEACHER',            icon: BookOpen,  color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
-  { label: 'Parent',         email: 'parent@demo.smartshule.com',         role: 'PARENT',             icon: Users,     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20' },
-  { label: 'Élève',          email: 'student@demo.smartshule.com',        role: 'STUDENT',            icon: User,      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
-  { label: 'Admin École',    email: 'schooladmin@demo.smartshule.com',    role: 'SCHOOL_ADMIN',       icon: Shield,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
-  { label: 'Sys Admin',     email: 'sysadmin@demo.smartshule.com',       role: 'SYSTEM_ADMIN',       icon: Server,    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
-  { label: 'Promoteur',     email: 'promoter@demo.smartshule.com',       role: 'PROMOTER',           icon: Shield,    color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20' },
-  { label: 'Auditeur',      email: 'auditor@demo.smartshule.com',        role: 'AUDITOR',            icon: Shield,    color: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20' },
-]
-
-const DEMO_PASSWORD = 'Demo2026!'
-
 export function LoginForm({ schoolName, schoolSlogan, schoolLogoUrl, primaryColor, secondaryColor }: { schoolName: string; schoolSlogan?: string; schoolLogoUrl?: string; primaryColor?: string; secondaryColor?: string }) {
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, setIsPending] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
-  const [selectedAccount, setSelectedAccount] = React.useState<string>('')
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -75,32 +54,8 @@ export function LoginForm({ schoolName, schoolSlogan, schoolLogoUrl, primaryColo
     }
   }
 
-  function selectAccount(email: string) {
-    setSelectedAccount(email)
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
-    if (emailInput) emailInput.value = email
-    if (passwordInput) passwordInput.value = DEMO_PASSWORD
-  }
-
   return (
     <div className="relative min-h-screen flex flex-col">
-      {/* Bannière marketing temporaire - À SUPPRIMER */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shrink-0">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 text-center sm:text-left">
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-            <Monitor className="h-4 w-4 shrink-0" />
-            <span>
-              <strong>Version démo en ligne</strong> — Logiciel conçu pour ordinateur desktop (Windows/macOS/Linux)
-            </span>
-          </div>
-          <div className="hidden sm:flex items-center gap-1 text-xs sm:text-sm bg-white/20 px-3 py-0.5 rounded-full">
-            <Phone className="h-3 w-3" />
-            <span>Renseignements : <strong>+243 999 071 754</strong></span>
-          </div>
-        </div>
-      </div>
-
       {/* Contenu principal - 2 colonnes sur desktop, 1 colonne sur mobile */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Panneau gauche (décoratif) - visible seulement sur desktop */}
@@ -293,39 +248,6 @@ export function LoginForm({ schoolName, schoolSlogan, schoolLogoUrl, primaryColo
                     </Link>
                   </p>
                 </form>
-
-                {/* 14 comptes démo cliquables */}
-                <div className="pt-4 border-t border-border">
-                  <p className="text-xs font-medium text-muted-foreground mb-3 text-center sm:text-left">
-                    🔑 Comptes de démonstration (cliquez pour remplir)
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {DEMO_ACCOUNTS.map((acc) => {
-                      const Icon = acc.icon
-                      const isSelected = selectedAccount === acc.email
-                      return (
-                        <button
-                          key={acc.email}
-                          type="button"
-                          onClick={() => selectAccount(acc.email)}
-                          className={`flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2 rounded-md border px-2 py-2 text-xs transition-all hover:bg-muted/60 ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-muted/30'}`}
-                          title={`Se connecter en tant que ${acc.label}`}
-                        >
-                          <div className={`flex h-6 w-6 items-center justify-center rounded ${acc.color} border`}>
-                            <Icon className="h-3.5 w-3.5" />
-                          </div>
-                          <span className="font-medium text-center sm:text-left">{acc.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="mt-3 p-2.5 bg-muted/40 rounded-md text-center">
-                    <p className="text-[11px] text-muted-foreground">
-                      🔒 Mot de passe commun :{' '}
-                      <code className="font-mono text-primary font-semibold">{DEMO_PASSWORD}</code>
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
