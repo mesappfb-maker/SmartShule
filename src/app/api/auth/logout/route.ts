@@ -1,11 +1,18 @@
 // API : Déconnexion simple (supprime le cookie de session)
+// Utilise l'URL de la requête pour la redirection (compatible Vercel + localhost + Electron)
 import { NextResponse } from 'next/server'
 import { getUserFromSession, clearSessionCookie } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
+function getBaseUrl(request: Request): string {
+  // 1. Utiliser l'URL de la requête (compatible Vercel, localhost, Electron)
+  const url = new URL(request.url)
+  return `${url.protocol}//${url.host}`
+}
+
+export async function POST(request: Request) {
   try {
     const user = await getUserFromSession()
     if (user) {
@@ -21,14 +28,31 @@ export async function POST() {
       }
     }
 
-    const response = NextResponse.redirect(new URL('/', process.env.NEXTAUTH_URL || 'https://smart-shule-seven.vercel.app'))
-    // Supprimer le cookie
+    const baseUrl = getBaseUrl(request)
+    const response = NextResponse.redirect(new URL('/', baseUrl))
+    // Supprimer le cookie avec les bonnes options
     response.cookies.delete('ss_session')
+    response.cookies.set('ss_session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    })
     return response
   } catch (err) {
+    console.error('[logout] Error:', err)
     // Même en cas d'erreur, rediriger vers la page de connexion
-    const response = NextResponse.redirect(new URL('/', process.env.NEXTAUTH_URL || 'https://smart-shule-seven.vercel.app'))
+    const baseUrl = getBaseUrl(request)
+    const response = NextResponse.redirect(new URL('/', baseUrl))
     response.cookies.delete('ss_session')
+    response.cookies.set('ss_session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    })
     return response
   }
 }
