@@ -4,12 +4,13 @@
 // ============================================================
 // Login séparé du login principal. Envoie JSON à /api/auth/login.
 // Après succès, redirige vers /admin/dashboard.
+// useSearchParams() doit être dans un Suspense boundary (Next.js 16).
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -119,5 +120,13 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <AdminLoginForm />
+    </Suspense>
   )
 }
