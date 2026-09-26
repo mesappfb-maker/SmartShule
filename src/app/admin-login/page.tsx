@@ -1,26 +1,58 @@
+'use client'
+
 // SmartShule — Page de login admin central (Fabrice uniquement)
 // ============================================================
-// Login séparé du login principal pour éviter tout accès non autorisé
+// Login séparé du login principal. Envoie JSON à /api/auth/login.
+// Après succès, redirige vers /admin/dashboard.
 
-import { redirect } from 'next/navigation'
-import { getUserFromSession } from '@/lib/auth'
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+export default function AdminLoginPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-export default async function AdminLoginPage({
-  searchParams,
-}: {
-  searchParams: { error?: string }
-}) {
-  const user = await getUserFromSession()
-  if (user && user.email === 'fabricefb@gmail.com') {
-    redirect('/admin/dashboard')
+  const unauthorized = searchParams.get('error') === 'unauthorized'
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await res.json()
+
+      if (!data.ok) {
+        setError(data.error || 'Email ou mot de passe incorrect')
+        return
+      }
+
+      // Vérifier que c'est bien le compte admin
+      if (data.role !== 'SYSTEM_ADMIN') {
+        setError('Ce compte n\'a pas accès à l\'administration centrale.')
+        return
+      }
+
+      // Rediriger vers le dashboard admin
+      router.push('/admin/dashboard')
+      router.refresh()
+    } catch (err) {
+      setError('Erreur réseau : ' + (err as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const errorMsg = searchParams.error === 'unauthorized'
-    ? 'Ce compte n\'a pas accès à l\'administration centrale.'
-    : null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
@@ -35,19 +67,25 @@ export default async function AdminLoginPage({
           </p>
         </div>
 
-        {errorMsg && (
+        {unauthorized && (
           <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-700 dark:text-red-300">
-            {errorMsg}
+            Ce compte n'a pas accès à l'administration centrale.
           </div>
         )}
 
-        <form action="/api/auth/login" method="POST" className="space-y-4">
-          <input type="hidden" name="source" value="admin" />
+        {error && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Email propriétaire</label>
             <input
               type="email"
-              name="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="fabricefb@gmail.com"
               className="w-full px-3 py-2 border rounded-md bg-background"
@@ -57,7 +95,8 @@ export default async function AdminLoginPage({
             <label className="text-sm font-medium">Mot de passe</label>
             <input
               type="password"
-              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
               className="w-full px-3 py-2 border rounded-md bg-background"
@@ -65,9 +104,11 @@ export default async function AdminLoginPage({
           </div>
           <button
             type="submit"
-            className="w-full py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium"
+            disabled={loading}
+            className="w-full py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            Se connecter
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
 
