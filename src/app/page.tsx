@@ -31,12 +31,24 @@ import { SecretaryPortal } from '@/modules/secretary/secretary-portal'
 import { AdminSystemPortal } from '@/modules/admin-system/admin-system-portal'
 import { PromoterPortal } from '@/modules/promoter/promoter-portal'
 import { AuditorPortal } from '@/modules/auditor/auditor-portal'
+import { LicenseActivationPage } from '@/modules/setup/license-activation'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function Home() {
   const user = await getUserFromSession()
+
+  // =============================================
+  // ÉTAPE 0 : Vérifier si la base est initialisée
+  // Si AUCUNE école → afficher page d'activation de licence
+  // =============================================
+  const schoolCount = await db.school.count().catch(() => 0)
+
+  if (schoolCount === 0) {
+    // Base vide → page d'activation de licence (installateur commercial)
+    return <LicenseActivationPage />
+  }
 
   // Non connecté → page de connexion
   if (!user) {

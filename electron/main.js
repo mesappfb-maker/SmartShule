@@ -137,7 +137,8 @@ async function createWindow() {
     mainWindow.loadURL(DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
-    // En production : démarrer le serveur Next.js standalone local
+    // En production : TOUJOURS démarrer le serveur Next.js standalone local
+    // JAMAIS de fallback vers Vercel (l'installateur commercial doit être 100% local)
     try {
       const fs = require('fs')
       const serverPath = path.join(PROD_LOCAL_PATH, 'server.js')
@@ -148,12 +149,14 @@ async function createWindow() {
         console.log(`[SmartShule] Chargement de ${LOCAL_SERVER_URL}`)
         mainWindow.loadURL(LOCAL_SERVER_URL)
       } else {
-        console.warn(`[SmartShule] server.js introuvable (${serverPath}) — fallback distant ${PROD_REMOTE_URL}`)
-        mainWindow.loadURL(PROD_REMOTE_URL)
+        console.error(`[SmartShule] ERREUR : server.js introuvable (${serverPath})`)
+        console.error('[SmartShule] L\'installation est peut-être corrompue. Réinstallez SmartShule.')
+        // Afficher un message d'erreur à l'utilisateur au lieu de fallback sur Vercel
+        mainWindow.loadURL('data:text/html,<html><body style="font-family:sans-serif;padding:40px;text-align:center"><h1>SmartShule — Erreur</h1><p>Le serveur local est introuvable. L\'installation est peut-être corrompue.</p><p>Veuillez réinstaller SmartShule.</p></body></html>')
       }
     } catch (err) {
-      console.error('[SmartShule] Erreur de chargement, fallback distant:', err)
-      mainWindow.loadURL(PROD_REMOTE_URL)
+      console.error('[SmartShule] Erreur de chargement:', err)
+      mainWindow.loadURL('data:text/html,<html><body style="font-family:sans-serif;padding:40px;text-align:center"><h1>SmartShule — Erreur</h1><p>Impossible de démarrer le serveur local.</p><p>' + err.message + '</p></body></html>')
     }
   }
 
